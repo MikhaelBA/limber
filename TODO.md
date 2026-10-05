@@ -12,7 +12,7 @@
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
 | Phase 4 — Attachments, draw order & skins | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
-| CI/CD (tests → GHCR image → GitHub Pages) | ✅ written, needs first push |
+| CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | Rename to Limber | ✅ done (folder is now `Documents/GitHub/Limber`) |
 
 Verification baseline: **101 unit tests green**, typecheck green, editor production
@@ -103,9 +103,12 @@ npm run docker:build && npm run docker:run   # nginx on :8080
    `find ... -exec sed ... {} +`.
 7. The old empty folder `Documents/GitHub/Sprine Studio` was still locked by the
    old ZCode session at rename time — delete it manually if it still exists.
-8. CI/CD activation checklist for the user: create GitHub repo `limber` →
-   `git remote add origin … && git push -u origin main` → repo Settings →
-   Pages → Source: **GitHub Actions**. GHCR needs no extra secrets.
+8. **CI/CD is ACTIVATED** (2026-10-05): repo [MikhaelBA/limber](https://github.com/MikhaelBA/limber)
+   (public — Pages requires it on free plans), Pages serves
+   https://mikhaelba.github.io/limber/ , image at `ghcr.io/mikhaelba/limber`
+   (package defaults to PRIVATE — flip it public in package settings if you
+   want anonymous `docker pull`). First-green-run bugs found & fixed: stale
+   `@sprine/editor` in ci.yml, stale `@sprine/*` aliases in vitest.config.ts.
 9. **A stale `vite` dev server from a previous session can still hold :5173**
    (new `npm run dev` dies with "Port 5173 is already in use"). It serves
    current files fine (vite reads from disk), but kill it if HMR acts weird.
