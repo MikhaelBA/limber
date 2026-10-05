@@ -1,0 +1,13 @@
+{
+  "name": "@sprine/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-agnostic 2D skeletal animation engine (data model, FK/IK, animation mixer).",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

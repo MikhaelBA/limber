@@ -1,0 +1,16 @@
+{
+  "name": "@sprine/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight animation player for exported Sprine documents, built on @sprine/core.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@sprine/core": "*"
+  }
+}

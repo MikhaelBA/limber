@@ -1,0 +1,117 @@
+import { useEffect } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { DeleteKeyframeCommand } from './commands/animationCommands';
+import { RemoveBoneCommand } from './commands/boneCommands';
+import { HierarchyPanel } from './components/HierarchyPanel';
+import { MainToolbar } from './components/MainToolbar';
+import { PropertiesPanel } from './components/PropertiesPanel';
+import { StatusBar } from './components/StatusBar';
+import { TimelinePanel } from './components/TimelinePanel';
+import { TopMenuBar } from './components/TopMenuBar';
+import { ViewportCanvas } from './components/ViewportCanvas';
+import { EngineProvider, useEngine } from './hooks/useEngine';
+import { useEditorStore } from './store/editorStore';
+
+function Shell() {
+  const engine = useEngine();
+  const dataRevision = useEditorStore((s) => s.dataRevision);
+  const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
+  const clearSelection = useEditorStore((s) => s.clearSelection);
+
+  // Drop the selection if the bone vanished (e.g. undoing AddBone, or Delete).
+  useEffect(() => {
+    if (selectedBoneId && !engine.skeleton.boneIndexMap.has(selectedBoneId)) clearSelection();
+  }, [dataRevision, selectedBoneId, engine, clearSelection]);
+
+  // Global shortcuts — skipped while typing in inputs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+        return;
+      }
+      const st = useEditorStore.getState();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) st.redo();
+        else st.undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        st.redo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        // A selected keyframe takes priority (dopesheet workflow); otherwise
+        // the selected bone is deleted.
+        if (st.selectedKeyframe && engine.currentAnimation) {
+          st.execute(
+            new DeleteKeyframeCommand(
+              engine,
+              st.selectedKeyframe.boneId,
+              st.selectedKeyframe.property,
+              st.selectedKeyframe.time,
+            ),
+          );
+          st.setKeyframeSelection(null);
+        } else if (st.selectedBoneId) {
+          st.execute(new RemoveBoneCommand(engine, st.selectedBoneId));
+        }
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        if (engine.currentAnimation) {
+          if (engine.playing) {
+            engine.pause();
+            st.setPlaying(false);
+          } else {
+            engine.play();
+            st.setPlaying(true);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        st.setTool('select');
+      } else if (e.key === 'v' || e.key === 'V') {
+        st.setTool('select');
+      } else if (e.key === 'b' || e.key === 'B') {
+        st.setTool('create_bone');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [engine]);
+
+  return (
+    <div className="flex h-full flex-col bg-neutral-900 text-neutral-200">
+      <TopMenuBar />
+      <MainToolbar />
+      <PanelGroup direction="vertical" className="min-h-0 flex-1">
+        <Panel defaultSize={78} minSize={30}>
+          <PanelGroup direction="horizontal" className="h-full">
+            <Panel defaultSize={20} minSize={12} className="min-w-0">
+              <HierarchyPanel />
+            </Panel>
+            <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+            <Panel minSize={30}>
+              <ViewportCanvas />
+            </Panel>
+            <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+            <Panel defaultSize={24} minSize={14} className="min-w-0">
+              <PropertiesPanel />
+            </Panel>
+          </PanelGroup>
+        </Panel>
+        <PanelResizeHandle className="h-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+        <Panel defaultSize={26} minSize={8}>
+          <TimelinePanel />
+        </Panel>
+      </PanelGroup>
+      <StatusBar />
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <EngineProvider>
+      <Shell />
+    </EngineProvider>
+  );
+}

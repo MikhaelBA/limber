@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Dark, slim scrollbars for the side panels. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 transparent;
+}

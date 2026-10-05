@@ -1,0 +1,25 @@
+{
+  "name": "sprine-studio",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "npm run dev -w @sprine/editor",
+    "smoke": "node packages/editor/tests/smoke.mjs",
+    "typecheck": "tsc -p packages/editor",
+    "docker:build": "docker build -t sprine-studio:latest .",
+    "docker:run": "docker run --rm -p 8080:80 sprine-studio:latest",
+    "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "playwright": "^1.63.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
