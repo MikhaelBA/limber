@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { RuntimePlayer } from '@sprine/runtime';
+import { RuntimePlayer } from '@limber/runtime';
 import {
   deserializeDocument,
   serializeDocument,
   FORMAT_VERSION,
   type EditorDocument,
   type ExportedDocument,
-} from '@sprine/core';
+} from '@limber/core';
 
 function makeExportedDocument(): ExportedDocument {
   return {

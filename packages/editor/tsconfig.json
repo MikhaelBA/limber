@@ -6,7 +6,7 @@
     "noEmit": true,
     "types": ["vite/client", "node"],
     "paths": {
-      "@sprine/core": ["../core/src/index.ts"]
+      "@limber/core": ["../core/src/index.ts"]
     }
   },
   "include": ["src", "tests"]

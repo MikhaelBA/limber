@@ -30,7 +30,7 @@ export function deserializeDocument(json: string): EditorDocument {
   if (obj.version > FORMAT_VERSION) {
     throw new Error(
       `Document version ${obj.version} is newer than the supported version ${FORMAT_VERSION}. ` +
-        'It was probably saved by a newer Sprine Studio — update and try again.',
+        'It was probably saved by a newer Limber — update and try again.',
     );
   }
 

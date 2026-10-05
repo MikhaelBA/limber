@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { deserializeDocument, serializeDocument } from '@sprine/core';
+import { deserializeDocument, serializeDocument } from '@limber/core';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -34,7 +34,7 @@ export function TopMenuBar() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'project.sprine.json';
+    a.download = 'project.limber.json';
     a.click();
     URL.revokeObjectURL(url);
     useEditorStore.getState().setStatus('Project saved (JSON download)');
@@ -42,7 +42,7 @@ export function TopMenuBar() {
 
   return (
     <header className="flex items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2 py-1">
-      <span className="mr-2 text-sm font-bold tracking-wide text-sky-400">Sprine Studio</span>
+      <span className="mr-2 text-sm font-bold tracking-wide text-sky-400">Limber</span>
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onNew}>
         New
       </button>

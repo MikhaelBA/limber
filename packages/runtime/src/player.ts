@@ -1,5 +1,5 @@
-import type { EventFrame, ExportedDocument } from '@sprine/core';
-import { Skeleton, solveFK } from '@sprine/core';
+import type { EventFrame, ExportedDocument } from '@limber/core';
+import { Skeleton, solveFK } from '@limber/core';
 
 export interface RuntimePlayerOptions {
   /** Default loop setting for animations started without an explicit loop flag (Phase 3). */
@@ -13,7 +13,7 @@ export interface AnimationStartOptions {
 }
 
 const notImplemented = (phase: string): Error =>
-  new Error(`@sprine/runtime: not implemented yet — lands in ${phase} (see DESIGN.md §6).`);
+  new Error(`@limber/runtime: not implemented yet — lands in ${phase} (see DESIGN.md §6).`);
 
 /**
  * Phase 1 stub of the runtime API surface (DESIGN.md §6). The API is defined

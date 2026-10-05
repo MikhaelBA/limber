@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Skeleton, type AttachmentData, type IKConstraintData, type SlotData } from '@sprine/core';
+import { Skeleton, type AttachmentData, type IKConstraintData, type SlotData } from '@limber/core';
 import { makeBone, makeSkeletonData } from './helpers';
 
 const makeSlot = (id: string, boneId: string, attachmentId: string | null = null): SlotData => ({

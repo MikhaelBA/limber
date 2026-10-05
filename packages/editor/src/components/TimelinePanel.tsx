@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Animation, Timeline } from '@sprine/core';
+import type { Animation, Timeline } from '@limber/core';
 import {
   AddAnimationCommand,
   DeleteKeyframeCommand,

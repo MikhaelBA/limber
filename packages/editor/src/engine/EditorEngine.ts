@@ -10,7 +10,7 @@ import {
   type EditorDocument,
   type EventFrame,
   type SkeletonData,
-} from '@sprine/core';
+} from '@limber/core';
 
 export type EditorMode = 'setup' | 'animate';
 

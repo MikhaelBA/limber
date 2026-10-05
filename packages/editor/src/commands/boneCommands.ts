@@ -1,5 +1,5 @@
-import type { BoneData, IKConstraintData, SkeletonData, SlotData, Transform } from '@sprine/core';
-import { uuid } from '@sprine/core';
+import type { BoneData, IKConstraintData, SkeletonData, SlotData, Transform } from '@limber/core';
+import { uuid } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { decomposeAffine, worldToLocalAffine } from '../math/matrix';

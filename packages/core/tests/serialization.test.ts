@@ -6,7 +6,7 @@ import {
   FORMAT_VERSION,
   type EditorDocument,
   type Migration,
-} from '@sprine/core';
+} from '@limber/core';
 import { makeBone, makeSkeletonData } from './helpers';
 
 function makeDocument(): EditorDocument {
@@ -72,7 +72,7 @@ describe('serializeDocument / deserializeDocument', () => {
   });
 
   it('produces JSON the Skeleton accepts (validates the round trip structurally)', async () => {
-    const { Skeleton } = await import('@sprine/core');
+    const { Skeleton } = await import('@limber/core');
     const restored = deserializeDocument(serializeDocument(makeDocument()));
     expect(() => new Skeleton(restored.skeleton)).not.toThrow();
   });

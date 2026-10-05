@@ -1,5 +1,5 @@
-import type { Animation, NumberKeyframe } from '@sprine/core';
-import { defaultCurve } from '@sprine/core';
+import type { Animation, NumberKeyframe } from '@limber/core';
+import { defaultCurve } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 

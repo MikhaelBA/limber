@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Timeline } from '@sprine/core';
+import type { Timeline } from '@limber/core';
 import { EditorEngine } from '../src/engine/EditorEngine';
 import {
   AddAnimationCommand,

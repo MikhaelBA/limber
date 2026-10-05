@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      // Dev-time source alias: edit @sprine/core with HMR, no dist rebuild needed.
-      '@sprine/core': fileURLToPath(new URL('../core/src/index.ts', import.meta.url)),
+      // Dev-time source alias: edit @limber/core with HMR, no dist rebuild needed.
+      '@limber/core': fileURLToPath(new URL('../core/src/index.ts', import.meta.url)),
     },
   },
   server: { port: 5173, strictPort: true },

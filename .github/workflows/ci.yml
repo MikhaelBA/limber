@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # e.g. ghcr.io/USER/sprine-studio (lowercased by metadata-action)
+  # e.g. ghcr.io/USER/limber (lowercased by metadata-action)
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:

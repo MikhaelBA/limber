@@ -1,4 +1,4 @@
-import type { BoneData, SkeletonData, Transform } from '@sprine/core';
+import type { BoneData, SkeletonData, Transform } from '@limber/core';
 
 export function makeBone(id: string, parentId: string | null, t: Partial<Transform> = {}): BoneData {
   return {

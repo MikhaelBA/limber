@@ -1,5 +1,5 @@
 {
-  "name": "sprine-studio",
+  "name": "limber",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,11 +9,11 @@
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "npm run dev -w @sprine/editor",
+    "dev": "npm run dev -w @limber/editor",
     "smoke": "node packages/editor/tests/smoke.mjs",
     "typecheck": "tsc -p packages/editor",
-    "docker:build": "docker build -t sprine-studio:latest .",
-    "docker:run": "docker run --rm -p 8080:80 sprine-studio:latest",
+    "docker:build": "docker build -t limber:latest .",
+    "docker:run": "docker run --rm -p 8080:80 limber:latest",
     "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\""
   },
   "devDependencies": {

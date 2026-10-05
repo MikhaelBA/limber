@@ -1,4 +1,4 @@
-import type { Transform } from '@sprine/core';
+import type { Transform } from '@limber/core';
 
 export interface Vec2 {
   x: number;

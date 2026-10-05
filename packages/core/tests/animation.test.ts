@@ -10,7 +10,7 @@ import {
   type Animation,
   type BonePropertyTimeline,
   type NumberKeyframe,
-} from '@sprine/core';
+} from '@limber/core';
 import { makeBone, makeSkeletonData } from './helpers';
 
 function kf(time: number, value: number, curve: NumberKeyframe['curve'] = { type: 'linear' }): NumberKeyframe {

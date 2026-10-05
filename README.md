@@ -1,4 +1,4 @@
-# Sprine Studio
+# Limber
 
 A browser-based 2D skeletal animation editor (Spine clone). The architecture and phased plan live
 in [DESIGN.md](./DESIGN.md).
@@ -46,7 +46,7 @@ in [DESIGN.md](./DESIGN.md).
 The editor ships as a static SPA inside an nginx image (multi-stage `Dockerfile`):
 
 ```bash
-npm run docker:build   # build the production image (sprine-studio:latest, ~75MB)
+npm run docker:build   # build the production image (limber:latest, ~75MB)
 npm run docker:run     # serve on http://localhost:8080
 ```
 
@@ -67,7 +67,7 @@ then in repo Settings → Pages set Source to **GitHub Actions**. No extra secre
 auth uses the built-in `GITHUB_TOKEN`. Pull the deployed image with:
 
 ```bash
-docker pull ghcr.io/<OWNER>/sprine-studio:main
+docker pull ghcr.io/<OWNER>/limber:main
 ```
 
 ## Commands

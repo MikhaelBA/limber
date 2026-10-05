@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { topologicalSortBones } from '@sprine/core';
+import { topologicalSortBones } from '@limber/core';
 import { makeBone } from './helpers';
 
 describe('topologicalSortBones', () => {

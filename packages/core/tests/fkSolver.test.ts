@@ -7,7 +7,7 @@ import {
   type SkeletonData,
   type SkeletonPose,
   type Transform,
-} from '@sprine/core';
+} from '@limber/core';
 import { makeBone, makeSkeletonData } from './helpers';
 
 /**

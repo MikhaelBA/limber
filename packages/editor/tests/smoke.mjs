@@ -44,10 +44,10 @@ await page.waitForTimeout(2500);
 const mounted = await page.evaluate(() => ({
   rootChildren: document.getElementById('root')?.children.length ?? -1,
   ticks: window.__ticks ?? -1,
-  sprine: window.__sprine ?? 'unset',
+  limberState: window.__limber ?? 'unset',
 }));
 if (mounted.rootChildren === 0) fail(`React did not mount: ${JSON.stringify(mounted)}`);
-else log(`app mounted (pixi=${mounted.sprine}, ticks=${mounted.ticks})`);
+else log(`app mounted (pixi=${mounted.limberState}, ticks=${mounted.ticks})`);
 await shot('01-initial.png');
 log('screenshot 01 saved');
 

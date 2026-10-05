@@ -1,6 +1,6 @@
 # ---- Stage 1: build ---------------------------------------------------------
-# Builds @sprine/core + @sprine/runtime (tsc project references) and the
-# @sprine/editor production bundle (Vite).
+# Builds @limber/core + @limber/runtime (tsc project references) and the
+# @limber/editor production bundle (Vite).
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY packages/runtime packages/runtime
 COPY packages/editor packages/editor
 
 RUN npm run build \
- && npm run build -w @sprine/editor
+ && npm run build -w @limber/editor
 
 # ---- Stage 2: serve ---------------------------------------------------------
 # Static SPA — no Node at runtime.

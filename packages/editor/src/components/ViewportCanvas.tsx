@@ -94,7 +94,7 @@ export function ViewportCanvas() {
       .then((app) => {
         if (disposed || wiredApps.has(app)) return;
         wiredApps.add(app);
-        (window as unknown as Record<string, unknown>).__sprine = 'init-done';
+        (window as unknown as Record<string, unknown>).__limber = 'init-done';
         wireViewport(app, canvas, wrap, engine);
       })
       .catch((err) => console.error('Pixi init failed:', err));
