@@ -7,8 +7,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
-      '@sprine/core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
-      '@sprine/runtime': fileURLToPath(new URL('./packages/runtime/src/index.ts', import.meta.url)),
+      '@limber/core': fileURLToPath(new URL('./packages/core/src/index.ts', import.meta.url)),
+      '@limber/runtime': fileURLToPath(new URL('./packages/runtime/src/index.ts', import.meta.url)),
     },
   },
   test: {
