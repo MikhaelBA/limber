@@ -13,6 +13,7 @@
 | Phase 4 — Attachments, draw order & skins | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
+| CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
 | Rename to Limber | ✅ done (folder is now `Documents/GitHub/Limber`) |
 
 Verification baseline: **101 unit tests green**, typecheck green, editor production
@@ -109,6 +110,17 @@ npm run docker:build && npm run docker:run   # nginx on :8080
    (package defaults to PRIVATE — flip it public in package settings if you
    want anonymous `docker pull`). First-green-run bugs found & fixed: stale
    `@sprine/editor` in ci.yml, stale `@sprine/*` aliases in vitest.config.ts.
+9. **VPS deployment** (2026-10-05): `ssh blue` → hossein@129.121.148.115
+   (Ubuntu 26.04). nginx serves `/var/www/limber` (SPA fallback, immutable
+   cache for /assets, config in /etc/nginx/sites-available/limber); the
+   workflow's `Deploy to VPS` job rsyncs `dist/` there (env `production`)
+   after tests, using secrets VPS_HOST/VPS_USER/VPS_SSH_KEY/VPS_KNOWN_HOSTS
+   and a dedicated deploy key (`~/.ssh/limber_ci_ed25519` locally; public key
+   in the server's authorized_keys). Site: http://129.121.148.115/ — no
+   domain/HTTPS yet (add an A record + `certbot --nginx` when ready).
+   NOTE: **rsync must exist on the VPS** (first deploy failed with
+   "remote command not found" until `apt install rsync`). GitHub runner
+   queues can lag several minutes under load — a queued run is NOT a failure.
 9. **A stale `vite` dev server from a previous session can still hold :5173**
    (new `npm run dev` dies with "Port 5173 is already in use"). It serves
    current files fine (vite reads from disk), but kill it if HMR acts weird.
