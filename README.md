@@ -54,10 +54,21 @@ npm run docker:run     # serve on http://localhost:8080
 - Stage 2 (`nginx:1.27-alpine`): static files with gzip, immutable caching for
   hashed assets, and an SPA fallback (`docker/nginx.conf`).
 
-CI (`.github/workflows/ci.yml`): on push/PR — typecheck, unit tests, editor
-production build, then a Docker image build (no push) with GitHub Actions
-layer caching. The `docker-check.mjs` script verifies a running container
-boots the app with no console errors.
+CI/CD (`.github/workflows/ci.yml`) runs on every push/PR:
+
+| Job | What it does | When |
+|---|---|---|
+| `test` | typecheck → 81 unit tests → editor production build (artifact uploaded) | every push & PR |
+| `docker` | build & **push** the image to `ghcr.io/<owner>/<repo>` (tags: branch, `vX.Y`, sha) with GHA layer caching | every push (push-to-registry on main/tags only) |
+| `pages` | **deploy** the static editor to GitHub Pages | pushes to `main` |
+
+**To activate:** create a GitHub repo, push (`git remote add origin … && git push -u origin main`),
+then in repo Settings → Pages set Source to **GitHub Actions**. No extra secrets needed — GHCR
+auth uses the built-in `GITHUB_TOKEN`. Pull the deployed image with:
+
+```bash
+docker pull ghcr.io/<OWNER>/sprine-studio:main
+```
 
 ## Commands
 
