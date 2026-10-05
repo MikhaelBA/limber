@@ -41,7 +41,7 @@ jobs:
         run: npm test
 
       - name: Editor production build
-        run: npm run build -w @sprine/editor
+        run: npm run build -w @limber/editor
 
       # The static bundle is reused by the Pages deploy below.
       - name: Upload editor dist
