@@ -15,6 +15,7 @@ import {
   type AttachmentTarget,
   type RegionParams,
 } from '../commands/attachmentCommands';
+import { AddMeshCommand } from '../commands/meshCommands';
 import {
   RemoveSlotCommand,
   SetSlotPropsCommand,
@@ -291,6 +292,12 @@ export function PropertiesPanel() {
               </button>
             </>
           )}
+          {shownAtt && shownAtt.type === 'mesh' && shownAtt.meshVertices && (
+            <p className="text-[10px] text-neutral-500">
+              grid mesh — {shownAtt.meshVertices.length / 2} vertices · {(shownAtt.meshTriangles?.length ?? 0) / 3} tris ·
+              use ◈ Mesh / ⚖ Weights tools to edit
+            </p>
+          )}
           <div className="my-1 h-px bg-neutral-800" />
           {textures.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -322,6 +329,32 @@ export function PropertiesPanel() {
                 }}
               >
                 New region
+              </button>
+              <button
+                className="shrink-0 rounded bg-neutral-700 px-2 py-0.5 text-xs text-white hover:bg-neutral-600"
+                title="Create a 3×3-vertex grid mesh (editable with the Mesh/Weights tools)"
+                onClick={() => {
+                  const textureId = textureChoice || textures[0]![0];
+                  const tex = textureRegistry.get(textureId);
+                  execute(
+                    new AddMeshCommand(
+                      engine,
+                      slot.id,
+                      {
+                        textureId,
+                        x: 0,
+                        y: 0,
+                        width: tex?.width ?? 100,
+                        height: tex?.height ?? 100,
+                        cols: 2,
+                        rows: 2,
+                      },
+                      skinTarget,
+                    ),
+                  );
+                }}
+              >
+                Grid mesh
               </button>
             </div>
           ) : (

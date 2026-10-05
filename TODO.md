@@ -11,14 +11,52 @@
 | Phase 2 — Rigging editor (viewport, hierarchy, undo/redo) | ✅ done |
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
 | Phase 4 — Attachments, draw order & skins | ✅ done |
+| Phase 5 — Meshes, weights & deform (chunk 1: skinning core, grid meshes, tools) | ✅ done — chunks below |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
 | Rename to Limber | ✅ done (folder is now `Documents/GitHub/Limber`) |
 
-Verification baseline: **101 unit tests green**, typecheck green, editor production
+Verification baseline: **118 unit tests green**, typecheck green, editor production
 build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
-drop-image → sprite-follows-bone and composite undo/redo.
+drop-image → sprite-follows-bone, composite undo/redo, and region→grid-mesh convert
+(9 vertices render through the skinning cache).
+
+## Phase 5 chunk 1 — what landed (2026-10-06)
+
+- **Skinning in core** (`core/skeleton/skinning.ts`): pipeline step 5 after FK —
+  `updateSkinning` writes WORLD-space vertices into the new `pose.attachments`
+  cache (`{verts, deform, deformed}` per attachmentId, allocated by
+  createPose/rebuild). Rigid attachments transform by the slot bone; weighted
+  attachments do linear blend skinning `Σ wᵢ·Mᵢ·(v+deform)` — blending
+  transformed POINTS is exact in 2D. `Skeleton.attachmentById` baked with the
+  other maps. The renderer now reads the cache for regions AND meshes (no more
+  client-side transform).
+- **DeformTimeline** applies in core: linear per-component interpolation,
+  `null` offsets = setup mesh (zeros), crossfade-safe alpha blending,
+  resetPose clears the deform cache every frame.
+- **Grid meshes** (`editor/commands/meshCommands.ts`): `AddMeshCommand` builds
+  a regular N×N-cell lattice (3×3 verts default) from a texture — same
+  triangle pattern as regions; `SetMeshVerticesCommand` (continuous drag,
+  bone-local); `PaintWeightsCommand` (continuous stroke; blends vertex weight
+  toward the selected bone vs the slot bone, creating the interleaved
+  `[count, boneIndex, weight, …]` array on first paint; full weight collapses
+  to a single rigid entry).
+- **Tools**: `◈ Mesh` (M) drags vertices of the selected slot's mesh;
+  `⚖ Weights` (W) paints toward the selected bone — handles colored by
+  influence, live update through the skinning step. "Grid mesh" button in the
+  slot properties panel.
+
+### Phase 5 remaining (next chunks)
+
+1. Arbitrary polygon meshes — add/remove vertices + **earcut** triangulation
+   (grid indices are hand-generated today; earcut dep goes in @limber/editor).
+2. Deform keying UI (a "Key Deform" path writing DeformKeyframes; core apply
+   is ready) + dopesheet row.
+3. Weight brush UX (radius/strength controls, smooth vs set mode).
+4. Runtime package consumer: `getDeformedVertices` off the new cache.
+
+Then: Phase 6 (IK) → 7 (persistence/export) → 8 (atlas/events/runtime polish).
 
 ## Phase 4 — what landed
 
@@ -94,7 +132,10 @@ npm run docker:build && npm run docker:run   # nginx on :8080
    supports `HEADLESS=0 npm run smoke` for exactly this.
 3. **Docker ignore patterns**: `*.tsbuildinfo` matches ONLY the root — stale
    buildinfos copied into the image made `tsc -b` delete freshly emitted
-   `.d.ts` files. Use `**/*.tsbuildinfo`.
+   `.d.ts` files. Use `**/*.tsbuildinfo`. SAME TRAP LOCALLY: deleting only
+   `dist/` while keeping `packages/*/tsconfig.tsbuildinfo` made the next
+   `tsc -b` silently delete most core `.d.ts` files (runtime then failed with
+   "no exported member"). Clean rebuild = delete BOTH dist and tsbuildinfo.
 4. **Vite versions**: editor runs its own nested `vite@6.4.3`
    (`packages/editor/node_modules/vite`); the root-hoisted `vite@7.x` belongs to
    vitest/plugin peers. Both in one lockfile is normal, not corruption.

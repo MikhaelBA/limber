@@ -231,6 +231,18 @@ if (meshesAfterRedo !== 1) fail(`redo should restore the dropped slot mesh, got 
 else log('drop undo/redo verified');
 await shot('09-redropped.png');
 
+// 11. Phase 5 — convert the slot to a grid mesh: the same texture now renders
+//     through the skinning cache as a 3×3-vertex mesh.
+// After the double undo/redo the slot selection was cleared — re-select it.
+await page.locator('span', { hasText: /^slot@root$/ }).first().click();
+await page.waitForTimeout(200);
+await page.getByRole('button', { name: 'Grid mesh' }).click();
+await page.waitForTimeout(500);
+const meshVerts = await page.evaluate(() => window.__slotMeshVerts0 ?? -1);
+log('grid mesh vertices rendering:', meshVerts);
+if (meshVerts !== 9) fail(`expected 9 grid-mesh vertices after convert, got ${meshVerts}`);
+await shot('10-gridmesh.png');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

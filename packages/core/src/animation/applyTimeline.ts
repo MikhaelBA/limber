@@ -96,8 +96,31 @@ export function applyTimeline(
       return;
     }
 
-    case 'deform':
-      // Mesh deformation lands in Phase 5 — no-op until then.
+    case 'deform': {
+      const state = skeleton.pose.attachments.get(timeline.attachmentId);
+      if (!state) return;
+      const kfs = timeline.keyframes;
+      if (kfs.length === 0 || time < kfs[0]!.time) return;
+      const i0 = findKeyframeIndex(kfs, time);
+      const kf0 = kfs[i0]!;
+      const kf1 = kfs[i0 + 1] ?? null;
+      // null offsets = "setup mesh" — treated as all zeros so interpolation
+      // between a null key and an offset key pulls vertices back to setup.
+      const o0 = kf0.offsets;
+      const o1 = kf1 ? kf1.offsets : o0;
+      const t =
+        !kf1 || kf1.time <= kf0.time || kf0.curve.type === 'stepped'
+          ? 0
+          : (time - kf0.time) / (kf1.time - kf0.time);
+      const out = state.deform;
+      for (let k = 0; k < out.length; k++) {
+        const a = o0 ? (o0[k] ?? 0) : 0;
+        const b = o1 ? (o1[k] ?? 0) : 0;
+        const target = a + (b - a) * t;
+        out[k] = out[k]! + (target - out[k]!) * alpha; // Blend toward the track (crossfade-safe).
+      }
+      state.deformed = true;
       return;
+    }
   }
 }

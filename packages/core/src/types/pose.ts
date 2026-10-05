@@ -39,4 +39,21 @@ export interface SkeletonPose {
    * reallocated only by Skeleton.rebuild() on structural changes.
    */
   worldMatrices: Float32Array;
+  /**
+   * Per-attachment skinning/deform state (Phase 5, DESIGN.md §4.3 step 5),
+   * keyed by attachmentId and preallocated by createPose()/rebuild(). The
+   * renderer reads `verts` (already world-space) instead of transforming
+   * setup vertices itself — one path for rigid AND weighted attachments.
+   */
+  attachments: Map<string, AttachmentPoseState>;
+}
+
+/** Transient per-frame state for one attachment. Never serialized. */
+export interface AttachmentPoseState {
+  /** World-space vertex positions — skinning output (rigid or weighted LBS). */
+  verts: Float32Array;
+  /** Per-vertex offsets from setup positions — DeformTimeline output. */
+  deform: Float32Array;
+  /** True when a deform timeline wrote offsets this frame. */
+  deformed: boolean;
 }

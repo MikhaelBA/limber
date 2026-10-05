@@ -1,5 +1,20 @@
-import type { SkeletonData } from '../types/data';
-import type { SkeletonPose } from '../types/pose';
+import type { AttachmentData, SkeletonData } from '../types/data';
+import type { AttachmentPoseState, SkeletonPose } from '../types/pose';
+
+/** Number of local-space floats an attachment's vertex data uses (0 = none). */
+export function attachmentVertexCount(a: AttachmentData): number {
+  const local = a.type === 'mesh' ? a.meshVertices : a.vertices;
+  return local ? local.length : 0;
+}
+
+function allocateAttachmentStates(data: SkeletonData): Map<string, AttachmentPoseState> {
+  const map = new Map<string, AttachmentPoseState>();
+  for (const a of data.attachments) {
+    const n = attachmentVertexCount(a);
+    if (n > 0) map.set(a.id, { verts: new Float32Array(n), deform: new Float32Array(n), deformed: false });
+  }
+  return map;
+}
 
 /**
  * Allocates a fresh pose for `data` (topologically parallel arrays) and resets
@@ -12,6 +27,7 @@ export function createPose(data: SkeletonData): SkeletonPose {
     slots: data.slots.map(() => ({ attachmentId: null, color: 0xffffffff })),
     slotOrder: data.slots.map((_, i) => i),
     worldMatrices: new Float32Array(data.bones.length * 6),
+    attachments: allocateAttachmentStates(data),
   };
   resetPose(data, pose);
   return pose;
@@ -48,5 +64,11 @@ export function resetPose(data: SkeletonData, pose: SkeletonPose): void {
 
   for (let i = 0; i < pose.slotOrder.length; i++) {
     pose.slotOrder[i] = i;
+  }
+
+  // Deform offsets are animation output — back to the setup mesh (Phase 5).
+  for (const state of pose.attachments.values()) {
+    state.deform.fill(0);
+    state.deformed = false;
   }
 }

@@ -14,6 +14,8 @@ export class Skeleton {
   /** boneId -> topological index. Editor-side lookups only — never inside the FK loop. */
   readonly boneIndexMap: Map<string, number> = new Map();
   readonly slotIndexMap: Map<string, number> = new Map();
+  /** attachmentId -> attachment. Baked with the other maps; used by the skinning step. */
+  readonly attachmentById: Map<string, AttachmentData> = new Map();
 
   constructor(data: SkeletonData) {
     this.data = data;
@@ -73,6 +75,9 @@ export class Skeleton {
     this.pose.slots = pose.slots;
     this.pose.slotOrder = pose.slotOrder;
     this.pose.worldMatrices = pose.worldMatrices;
+    // Attachment vertex/deform caches are per-frame output — fresh allocation,
+    // nothing to carry across a structural change.
+    this.pose.attachments = pose.attachments;
   }
 
   /**
@@ -96,6 +101,11 @@ export class Skeleton {
     this.slotIndexMap.clear();
     for (let i = 0; i < this.data.slots.length; i++) {
       this.slotIndexMap.set(this.data.slots[i]!.id, i);
+    }
+
+    this.attachmentById.clear();
+    for (const attachment of this.data.attachments) {
+      this.attachmentById.set(attachment.id, attachment);
     }
   }
 

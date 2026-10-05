@@ -5,6 +5,8 @@ import { useEditorStore, type Tool } from '../store/editorStore';
 const TOOLS: { id: Tool; label: string; hint: string }[] = [
   { id: 'select', label: '▶ Select', hint: 'Select / drag bones (V)' },
   { id: 'create_bone', label: '＋ Bone', hint: 'Click viewport to create a bone (B)' },
+  { id: 'mesh', label: '◈ Mesh', hint: 'Drag mesh vertices of the selected slot (M)' },
+  { id: 'weights', label: '⚖ Weights', hint: 'Paint vertex weights toward the selected bone (W)' },
 ];
 
 export function MainToolbar() {

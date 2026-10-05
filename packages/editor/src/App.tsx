@@ -81,6 +81,10 @@ function Shell() {
         st.setTool('select');
       } else if (e.key === 'b' || e.key === 'B') {
         st.setTool('create_bone');
+      } else if (e.key === 'm' || e.key === 'M') {
+        st.setTool('mesh');
+      } else if (e.key === 'w' || e.key === 'W') {
+        st.setTool('weights');
       }
     };
     window.addEventListener('keydown', onKey);

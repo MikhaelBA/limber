@@ -5,6 +5,7 @@ import { AutoKeyMoveBoneCommand } from '../commands/animationCommands';
 import { AddBoneCommand, MoveBoneCommand } from '../commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../commands/attachmentCommands';
 import { AddSlotCommand } from '../commands/slotCommands';
+import { PaintWeightsCommand, SetMeshVerticesCommand, vertexWeightOf } from '../commands/meshCommands';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { CompositeCommand, type Command } from '../history/history';
 import { useEngine } from '../hooks/useEngine';
@@ -286,10 +287,11 @@ function wireViewport(
     return null;
   };
 
-  // ---- Slot rendering (Phase 4) ----
-  // One quad Mesh per slot, reused across frames. Vertices are transformed on
-  // the CPU against pose.worldMatrices every tick — arbitrary quads AND shear
-  // stay exact, unlike a lossy setFromMatrix decompose (§1 principle 5).
+  // ---- Slot rendering (Phase 4 + Phase 5 meshes) ----
+  // One Mesh per slot, reused across frames. Positions come from the pose
+  // attachment cache — already WORLD-space output of the skinning step
+  // (rigid or weighted LBS + deform), so the renderer never transforms
+  // vertices itself and shear stays exact (§1 principle 5).
 
   interface SlotMesh {
     mesh: Mesh;
@@ -340,8 +342,8 @@ function wireViewport(
 
   /**
    * Per-frame slot sync: attachment switching (animated slotAttachment
-   * timelines), CPU vertex transform against the bone's world matrix, slot
-   * tint/alpha, and zIndex from pose.slotOrder. Allocation-free.
+   * timelines), positions straight from the skinning cache, tint/alpha, and
+   * zIndex from pose.slotOrder. Allocation-free steady-state.
    */
   const updateSlotMeshes = (): void => {
     const skeleton = engine.skeleton;
@@ -354,40 +356,41 @@ function wireViewport(
       if (!entry) continue;
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
-      const region = attachment && attachment.type === 'region' ? attachment : undefined;
+      const local =
+        attachment === undefined ? null : attachment.type === 'mesh' ? attachment.meshVertices : attachment.vertices;
 
       if (slotPose.attachmentId !== entry.attachmentId) {
         entry.attachmentId = slotPose.attachmentId;
-        if (region) {
-          entry.mesh.texture = textureRegistry.get(region.textureId) ?? textureRegistry.placeholder;
-          const uvs = entry.mesh.geometry.uvs;
-          const src = region.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1];
-          for (let k = 0; k < 8; k++) uvs[k] = src[k]!;
-          entry.mesh.geometry.getBuffer('aUV').update();
+        if (attachment && local) {
+          entry.mesh.texture = textureRegistry.get(attachment.textureId) ?? textureRegistry.placeholder;
+          // Topology changed (vertex count / triangles): swap in fresh geometry.
+          const uvs = new Float32Array(local.length);
+          const srcUvs =
+            attachment.type === 'region'
+              ? attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1]
+              : attachment.meshUVs ?? [];
+          for (let k = 0; k < uvs.length; k++) uvs[k] = srcUvs[k] ?? 0;
+          const indices =
+            attachment.type === 'region'
+              ? new Uint32Array([0, 1, 2, 0, 2, 3])
+              : new Uint32Array(attachment.meshTriangles ?? []);
+          entry.mesh.geometry.destroy();
+          entry.mesh.geometry = new MeshGeometry({
+            positions: new Float32Array(local.length),
+            uvs,
+            indices,
+          });
         }
       }
-      if (!region) {
+      const state = attachment && local ? pose.attachments.get(attachment.id) : undefined;
+      if (!attachment || !local || !state) {
         entry.mesh.visible = false;
         continue;
       }
       entry.mesh.visible = true;
 
-      const o = skeleton.boneIndexMap.get(data.slots[i]!.boneId)! * 6;
-      const wm = pose.worldMatrices;
-      const a = wm[o]!;
-      const b = wm[o + 1]!;
-      const c = wm[o + 2]!;
-      const d = wm[o + 3]!;
-      const tx = wm[o + 4]!;
-      const ty = wm[o + 5]!;
-      const v = region.vertices ?? [0, 0, 1, 0, 1, 1, 0, 1];
       const pos = entry.mesh.geometry.positions;
-      for (let k = 0; k < 4; k++) {
-        const lx = v[k * 2]!;
-        const ly = v[k * 2 + 1]!;
-        pos[k * 2] = a * lx + c * ly + tx;
-        pos[k * 2 + 1] = b * lx + d * ly + ty;
-      }
+      for (let k = 0; k < state.verts.length; k++) pos[k] = state.verts[k]!;
       entry.mesh.geometry.getBuffer('aPosition').update();
       const color = slotPose.color;
       entry.mesh.tint = color & 0x00ffffff;
@@ -432,6 +435,87 @@ function wireViewport(
     return null;
   };
 
+  // ---- Mesh/weights editing (Phase 5) ----
+  // Vertex handles + drag (Mesh tool) and weight painting (Weights tool) for
+  // the SELECTED slot's active mesh attachment. Handles read the skinning
+  // cache, so dragged vertices and painted weights update live via tick().
+
+  const handlesG = new Graphics();
+  world.addChild(handlesG); // Above bones — handles are the active edit layer.
+
+  type MeshAttachment = AttachmentData & { type: 'mesh' };
+  interface EditableMesh {
+    slotIndex: number;
+    attachment: MeshAttachment;
+    boneIndex: number; // The slot's bone — local space of meshVertices.
+  }
+
+  const editableMesh = (): EditableMesh | null => {
+    const st = useEditorStore.getState();
+    if (st.activeTool !== 'mesh' && st.activeTool !== 'weights') return null;
+    if (!st.selectedSlotId) return null;
+    const skeleton = engine.skeleton;
+    const slotIndex = skeleton.slotIndexMap.get(st.selectedSlotId);
+    if (slotIndex === undefined) return null;
+    const attId = skeleton.pose.slots[slotIndex]!.attachmentId;
+    if (!attId) return null;
+    const attachment = skeleton.attachmentById.get(attId);
+    if (!attachment || attachment.type !== 'mesh' || !attachment.meshVertices) return null;
+    return {
+      slotIndex,
+      attachment: attachment as MeshAttachment,
+      boneIndex: skeleton.boneIndexMap.get(skeleton.data.slots[slotIndex]!.boneId)!,
+    };
+  };
+
+  const drawHandles = () => {
+    handlesG.clear();
+    const st = useEditorStore.getState();
+    const ed = editableMesh();
+    if (!ed) return;
+    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+    if (!state) return;
+    const r = 4.5 / camera.scale;
+    // Weights tool colors vertices by influence toward the selected bone.
+    const targetIndex =
+      st.activeTool === 'weights' && st.selectedBoneId
+        ? engine.skeleton.boneIndexMap.get(st.selectedBoneId)
+        : undefined;
+    const count = ed.attachment.meshVertices!.length / 2;
+    for (let k = 0; k < count; k++) {
+      let color = 0x9cc7ff;
+      if (targetIndex !== undefined) {
+        const t = vertexWeightOf(ed.attachment.weights, k, targetIndex);
+        const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
+        color =
+          t <= 0
+            ? 0x4a5a70
+            : (mix(0x9c, 0xff) << 16) | (mix(0xc7, 0x50) << 8) | mix(0xff, 0x40);
+      }
+      handlesG.circle(state.verts[k * 2]!, state.verts[k * 2 + 1]!, r).fill({ color });
+    }
+  };
+
+  const pickVertex = (wx: number, wy: number): number => {
+    const ed = editableMesh();
+    if (!ed) return -1;
+    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+    if (!state) return -1;
+    const radius = 12 / camera.scale;
+    let best = -1;
+    let bestD = radius * radius;
+    for (let k = 0; k < state.verts.length / 2; k++) {
+      const dx = state.verts[k * 2]! - wx;
+      const dy = state.verts[k * 2 + 1]! - wy;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    return best;
+  };
+
   /** World point → the LOCAL space of `parentId` (null = skeleton root). */
   const parentLocalOf = (parentId: string | null, wx: number, wy: number) => {
     if (parentId === null) return { x: wx, y: wy };
@@ -448,6 +532,18 @@ function wireViewport(
   let moveCmd: MoveBoneCommand | null = null;
   let autoKeyCmd: AutoKeyMoveBoneCommand | null = null;
   let dragBoneId: string | null = null;
+  let meshDragCmd: SetMeshVerticesCommand | null = null;
+  let paintCmd: PaintWeightsCommand | null = null;
+  let dragVertex = -1;
+
+  const paintAt = (vertexIndex: number): void => {
+    const st = useEditorStore.getState();
+    const ed = editableMesh();
+    if (!ed || !paintCmd || !st.selectedBoneId) return;
+    const boneIndex = engine.skeleton.boneIndexMap.get(st.selectedBoneId);
+    if (boneIndex === undefined) return;
+    paintCmd.update(vertexIndex, boneIndex, ed.boneIndex, 0.35);
+  };
 
   const onPointerDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
@@ -461,6 +557,33 @@ function wireViewport(
     if (e.button !== 0) return;
     const st = useEditorStore.getState();
     const wp = screenToWorld(e);
+
+    // Mesh/weights tools edit the selected slot's mesh — no bone picking.
+    if (st.activeTool === 'mesh' || st.activeTool === 'weights') {
+      const ed = editableMesh();
+      if (!ed) {
+        st.setStatus('Select a slot showing a mesh attachment (or create one: Properties → Grid mesh).');
+        return;
+      }
+      const v = pickVertex(wp.x, wp.y);
+      if (v < 0) return;
+      if (st.activeTool === 'mesh') {
+        meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
+        meshDragCmd.open();
+        dragVertex = v;
+      } else {
+        if (!st.selectedBoneId) {
+          st.setStatus('Pick the bone to paint toward (click it in the hierarchy).');
+          return;
+        }
+        paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);
+        paintCmd.open();
+        dragVertex = v;
+        paintAt(v); // Immediate dab on press.
+      }
+      canvas.style.cursor = 'crosshair';
+      return;
+    }
 
     if (st.activeTool === 'create_bone') {
       const hitId = pickBone(wp.x, wp.y); // Child of the hit bone, else a new root.
@@ -501,6 +624,24 @@ function wireViewport(
       return;
     }
     const wp = screenToWorld(e);
+    if (meshDragCmd && dragVertex >= 0) {
+      // Drag writes BONE-LOCAL positions — the skinning step lifts them to
+      // world space next tick, so the handle follows the cursor exactly.
+      const ed = editableMesh();
+      if (ed) {
+        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
+        meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
+      }
+      return;
+    }
+    if (paintCmd) {
+      const v = pickVertex(wp.x, wp.y);
+      if (v >= 0) {
+        dragVertex = v;
+        paintAt(v);
+      }
+      return;
+    }
     if ((moveCmd || autoKeyCmd) && dragBoneId) {
       const bone = engine.skeleton.data.bones.find((b) => b.id === dragBoneId);
       if (!bone) return;
@@ -514,6 +655,10 @@ function wireViewport(
       return;
     }
     const st = useEditorStore.getState();
+    if (st.activeTool === 'mesh' || st.activeTool === 'weights') {
+      canvas.style.cursor = pickVertex(wp.x, wp.y) >= 0 ? 'crosshair' : 'default';
+      return;
+    }
     const hit = pickBone(wp.x, wp.y);
     if (st.hoveredBoneId !== hit) st.setHover(hit);
     canvas.style.cursor = hit ? 'grab' : pickSlot(wp.x, wp.y) !== null ? 'pointer' : 'default';
@@ -525,6 +670,18 @@ function wireViewport(
       return;
     }
     const st = useEditorStore.getState();
+    if (meshDragCmd) {
+      meshDragCmd.commit();
+      if (meshDragCmd.changed) st.execute(meshDragCmd); // One history entry per drag.
+      meshDragCmd = null;
+      dragVertex = -1;
+    }
+    if (paintCmd) {
+      paintCmd.commit();
+      if (paintCmd.changed) st.execute(paintCmd); // One history entry per stroke.
+      paintCmd = null;
+      dragVertex = -1;
+    }
     if (moveCmd) {
       moveCmd.commit();
       if (moveCmd.changed) st.execute(moveCmd); // One history entry per drag.
@@ -573,6 +730,7 @@ function wireViewport(
     }
     updateSlotMeshes();
     drawBones();
+    drawHandles();
 
     tickCount++;
     const w = window as unknown as Record<string, unknown>;
@@ -582,5 +740,6 @@ function wireViewport(
     w.__slotMeshes = slotsContainer.children.length;
     const first = slotsContainer.children[0] as Mesh | undefined;
     w.__slotMesh0 = first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
+    w.__slotMeshVerts0 = first && first.visible ? first.geometry.positions.length / 2 : 0;
   });
 }

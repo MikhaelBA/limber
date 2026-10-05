@@ -4,6 +4,7 @@ import {
   createPose,
   resetPose,
   solveFK,
+  updateSkinning,
   uuid,
   type Animation,
   type BoneData,
@@ -116,8 +117,9 @@ export class EditorEngine {
   }
 
   /**
-   * Per-frame pipeline (DESIGN.md §4.3, scoped to Phase 3):
-   * reset → apply animation (animate mode only) → FK.
+   * Per-frame pipeline (DESIGN.md §4.3, Phase 3 + Phase 5 MESH step):
+   * reset → apply animation (animate mode only) → FK → skin attachments.
+   * (IK slots in between when Phase 6 lands.)
    */
   tick(deltaMS: number): void {
     const dt = Math.min(deltaMS, 100) / 1000;
@@ -135,6 +137,7 @@ export class EditorEngine {
       for (const e of events) this.lastEvents.push(e);
     }
     solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    updateSkinning(this.skeleton);
     this.emitTransient('time', this.currentTime);
   }
 

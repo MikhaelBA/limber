@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { BonePropertyName } from '../commands/animationCommands';
 import { history, type Command } from '../history/history';
 
-export type Tool = 'select' | 'create_bone';
+export type Tool = 'select' | 'create_bone' | 'mesh' | 'weights';
 export type { BonePropertyName };
 
 /** A keyframe currently selected in the dopesheet (deleted via Del). */

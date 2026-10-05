@@ -10,6 +10,7 @@ export * from './skeleton/topologicalSort';
 export * from './skeleton/pose';
 export * from './skeleton/Skeleton';
 export * from './skeleton/FKSolver';
+export * from './skeleton/skinning';
 
 // Animation
 export * from './animation/bezier';

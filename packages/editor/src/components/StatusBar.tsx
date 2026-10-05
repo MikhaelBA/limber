@@ -17,7 +17,7 @@ export function StatusBar() {
       <span>{bones.length} bones</span>
       <span>{slots.length} slots</span>
       {selectedName && <span className="text-sky-300">◉ {selectedName}</span>}
-      <span className="ml-auto rounded bg-neutral-800 px-1.5 uppercase">{tool === 'select' ? 'select' : 'bone'}</span>
+      <span className="ml-auto rounded bg-neutral-800 px-1.5 uppercase">{tool}</span>
       {status && <span className="max-w-[50%] truncate text-neutral-300">{status}</span>}
     </footer>
   );
