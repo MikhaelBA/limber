@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { DeleteKeyframeCommand } from './commands/animationCommands';
+import {
+  DeleteDrawOrderKeyframeCommand,
+  DeleteKeyframeCommand,
+  DeleteSlotColorKeyframeCommand,
+} from './commands/animationCommands';
 import { RemoveBoneCommand } from './commands/boneCommands';
+import { RemoveSlotCommand } from './commands/slotCommands';
 import { HierarchyPanel } from './components/HierarchyPanel';
 import { MainToolbar } from './components/MainToolbar';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -16,12 +21,14 @@ function Shell() {
   const engine = useEngine();
   const dataRevision = useEditorStore((s) => s.dataRevision);
   const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
+  const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
   const clearSelection = useEditorStore((s) => s.clearSelection);
 
-  // Drop the selection if the bone vanished (e.g. undoing AddBone, or Delete).
+  // Drop the selection if the bone/slot vanished (e.g. undoing Add, or Delete).
   useEffect(() => {
     if (selectedBoneId && !engine.skeleton.boneIndexMap.has(selectedBoneId)) clearSelection();
-  }, [dataRevision, selectedBoneId, engine, clearSelection]);
+    else if (selectedSlotId && !engine.skeleton.slotIndexMap.has(selectedSlotId)) clearSelection();
+  }, [dataRevision, selectedBoneId, selectedSlotId, engine, clearSelection]);
 
   // Global shortcuts — skipped while typing in inputs.
   useEffect(() => {
@@ -40,18 +47,20 @@ function Shell() {
         st.redo();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        // A selected keyframe takes priority (dopesheet workflow); otherwise
-        // the selected bone is deleted.
+        // A selected keyframe takes priority (dopesheet workflow); slot
+        // selection comes next; otherwise the selected bone is deleted.
         if (st.selectedKeyframe && engine.currentAnimation) {
-          st.execute(
-            new DeleteKeyframeCommand(
-              engine,
-              st.selectedKeyframe.boneId,
-              st.selectedKeyframe.property,
-              st.selectedKeyframe.time,
-            ),
-          );
+          const kf = st.selectedKeyframe;
+          if (kf.kind === 'bone') {
+            st.execute(new DeleteKeyframeCommand(engine, kf.boneId, kf.property, kf.time));
+          } else if (kf.kind === 'slotColor') {
+            st.execute(new DeleteSlotColorKeyframeCommand(engine, kf.slotId, kf.time));
+          } else {
+            st.execute(new DeleteDrawOrderKeyframeCommand(engine, kf.time));
+          }
           st.setKeyframeSelection(null);
+        } else if (st.selectedSlotId) {
+          st.execute(new RemoveSlotCommand(engine, st.selectedSlotId));
         } else if (st.selectedBoneId) {
           st.execute(new RemoveBoneCommand(engine, st.selectedBoneId));
         }

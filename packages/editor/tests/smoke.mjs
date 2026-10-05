@@ -18,16 +18,25 @@ const fail = (msg) => {
 };
 
 log('starting; OUT=', OUT);
-const browser = await chromium.launch({ headless: true });
+// HEADLESS=0 runs the probe with a real GPU (TODO.md gotcha #2: ANGLE/D3D11
+// does not tolerate what SwiftShader shrugs off — always verify rendering changes headed).
+const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
 log('browser launched');
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(15000);
 log('page created');
 
 const consoleErrors = [];
+// Headed browsers request the favicon outside the page network stack; if it
+// 404s the generic console error is environment noise, not an app failure.
+let sawFavicon404 = false;
+page.on('response', (res) => {
+  if (res.status() === 404 && res.url().endsWith('/favicon.ico')) sawFavicon404 = true;
+});
 page.on('console', (msg) => {
   const text = msg.text();
-  // SwiftShader/StrictMode destroy noise — not app failures.
+  // SwiftShader/StrictMode destroy noise — not app failures either.
+  if (msg.type() === 'error' && /404/.test(text) && sawFavicon404) return;
   if (msg.type() === 'error' && !/shader|WebGL context/i.test(text)) consoleErrors.push(text);
 });
 page.on('pageerror', (err) => consoleErrors.push(`pageerror: ${err.message}`));
@@ -148,7 +157,7 @@ await shot('07-played.png');
 log('play/pause via Space executed');
 
 // 9. Back to Setup mode, then pan (middle mouse) and zoom (wheel).
-await page.getByRole('button', { name: 'Setup' }).click();
+await page.getByRole('button', { name: /Setup/ }).click();
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 await page.mouse.down({ button: 'middle' });
 await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 40, { steps: 4 });
@@ -157,6 +166,70 @@ await page.mouse.wheel(0, -240);
 await page.waitForTimeout(400);
 await shot('05-panzoom.png');
 log('pan/zoom executed');
+
+// 10. Phase 4 — drop an image file onto the viewport: texture registers, a
+//     slot + region attachment appear bound to the selected bone (root), and
+//     the sprite follows the bone. File dialogs are unsupported in automation,
+//     so the drop is synthesized via DataTransfer (evaluate).
+await rootBoneRow.click(); // Select the root bone (drop targets the selection).
+await page.waitForTimeout(200);
+const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+const pngFile = await page.evaluateHandle(async () => {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 32;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e0533f';
+  g.fillRect(0, 0, 64, 32);
+  g.fillStyle = '#3f7ee0';
+  g.fillRect(8, 8, 20, 12);
+  const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+  return new File([blob], 'spot.png', { type: 'image/png' });
+});
+await dataTransfer.evaluateHandle((dt, f) => {
+  dt.items.add(f);
+  return dt;
+}, pngFile);
+await canvas.dispatchEvent('drop', { dataTransfer, bubbles: true, cancelable: true });
+log('drop dispatched');
+await page.waitForFunction(() => window.__slotMeshes === 1, null, { timeout: 10000 }).catch(() => {});
+await page.waitForTimeout(600);
+const meshes = await page.evaluate(() => window.__slotMeshes ?? -1);
+const mesh0 = await page.evaluate(() => window.__slotMesh0 ?? null);
+log('slot meshes after drop:', meshes, 'first vertex:', JSON.stringify(mesh0));
+if (meshes !== 1) fail(`expected 1 slot mesh after drop, got ${meshes}`);
+if (!Array.isArray(mesh0) || mesh0.length !== 2) fail(`expected a visible slot mesh position, got ${JSON.stringify(mesh0)}`);
+await shot('08-dropped.png');
+
+// The sprite must follow the bone: select root, move it via X, re-read vertex.
+await rootBoneRow.click();
+await page.waitForTimeout(200);
+const xField = page.locator('input[type="number"]').nth(0);
+await xField.fill('120');
+await xField.press('Enter');
+await page.waitForTimeout(400);
+const mesh0Moved = await page.evaluate(() => window.__slotMesh0 ?? null);
+log('first vertex after bone X=120:', JSON.stringify(mesh0Moved));
+const dx = Array.isArray(mesh0Moved) && Array.isArray(mesh0) ? mesh0Moved[0] - mesh0[0] : NaN;
+if (!(Math.abs(dx - 120) < 1.5)) fail(`sprite did not follow the bone: dx=${dx}`);
+else log('sprite-follows-bone verified');
+
+// Undo removes everything: first the X edit, then the whole drop (one
+// composite command). Redo restores both.
+await page.keyboard.press('Control+z'); // undo SetBoneProps (X=120)
+await page.waitForTimeout(200);
+await page.keyboard.press('Control+z'); // undo the drop composite
+await page.waitForTimeout(300);
+const meshesAfterUndo = await page.evaluate(() => window.__slotMeshes ?? -1);
+if (meshesAfterUndo !== 0) fail(`undo should remove the dropped slot mesh, got ${meshesAfterUndo}`);
+await page.keyboard.press('Control+y');
+await page.waitForTimeout(200);
+await page.keyboard.press('Control+y');
+await page.waitForTimeout(300);
+const meshesAfterRedo = await page.evaluate(() => window.__slotMeshes ?? -1);
+if (meshesAfterRedo !== 1) fail(`redo should restore the dropped slot mesh, got ${meshesAfterRedo}`);
+else log('drop undo/redo verified');
+await shot('09-redropped.png');
 
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');

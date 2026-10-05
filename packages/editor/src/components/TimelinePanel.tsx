@@ -4,6 +4,7 @@ import {
   AddAnimationCommand,
   DeleteKeyframeCommand,
   KeyBoneTransformCommand,
+  KeyDrawOrderCommand,
   MoveKeyframeCommand,
   RemoveAnimationCommand,
   SetAnimationMetaCommand,
@@ -39,11 +40,13 @@ export function TimelinePanel() {
   const engine = useEngine();
   useEditorStore((s) => s.dataRevision); // Re-read engine data on undo/redo/commands.
   const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
+  const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
   const selectedKeyframe = useEditorStore((s) => s.selectedKeyframe);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const mode = useEditorStore((s) => s.mode);
   const execute = useEditorStore((s) => s.execute);
   const select = useEditorStore((s) => s.select);
+  const selectSlot = useEditorStore((s) => s.selectSlot);
   const setKeyframeSelection = useEditorStore((s) => s.setKeyframeSelection);
   const setStatus = useEditorStore((s) => s.setStatus);
   const setPlaying = useEditorStore((s) => s.setPlaying);
@@ -102,6 +105,13 @@ export function TimelinePanel() {
     execute(new KeyBoneTransformCommand(engine, selectedBoneId));
   };
 
+  /** Keys the CURRENT slot order as a stepped drawOrder keyframe (Phase 4). */
+  const onKeyDrawOrder = () => {
+    if (!active || mode !== 'animate') return;
+    execute(new KeyDrawOrderCommand(engine));
+    setStatus('Draw order keyed at playhead');
+  };
+
   // ---- Ruler scrubbing ----
   const scrubbingRef = useRef(false);
   const scrubFromEvent = (e: React.PointerEvent) => {
@@ -118,7 +128,7 @@ export function TimelinePanel() {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragKfRef.current = { boneId, property, fromTime: time, moved: false };
     setDragPreview({ property, fromTime: time, dx: 0 });
-    setKeyframeSelection({ boneId, property, time });
+    setKeyframeSelection({ kind: 'bone', boneId, property, time });
     select(boneId);
   };
 
@@ -143,7 +153,7 @@ export function TimelinePanel() {
     );
     if (Math.abs(toTime - drag.fromTime) > 1e-6) {
       execute(new MoveKeyframeCommand(engine, drag.boneId, drag.property, drag.fromTime, toTime));
-      setKeyframeSelection({ boneId: drag.boneId, property: drag.property, time: toTime });
+      setKeyframeSelection({ kind: 'bone', boneId: drag.boneId, property: drag.property, time: toTime });
     }
   };
   const dragPreviewFinalRef = useRef(0);
@@ -157,6 +167,11 @@ export function TimelinePanel() {
 
   // Bone rows mirror the hierarchy (bones are topologically sorted).
   const bones = engine.skeleton.data.bones;
+  const slots = engine.skeleton.data.slots;
+  const slotColorKeyframes = (slotId: string) =>
+    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'slotColor' }> => tl.kind === 'slotColor' && tl.slotId === slotId)?.keyframes ?? [];
+  const drawOrderKeyframes =
+    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'drawOrder' }> => tl.kind === 'drawOrder')?.keyframes ?? [];
   const depthById = new Map<string, number>();
   for (const bone of bones) {
     depthById.set(bone.id, bone.parentId === null ? 0 : (depthById.get(bone.parentId) ?? 0) + 1);
@@ -230,6 +245,14 @@ export function TimelinePanel() {
         >
           ◆ Key
         </button>
+        <button
+          className="rounded px-2 text-xs text-neutral-200 ring-1 ring-neutral-700 hover:bg-neutral-800 disabled:opacity-35"
+          title="Key the current slot order (draw order) at the playhead"
+          disabled={!active || mode !== 'animate' || slots.length === 0}
+          onClick={onKeyDrawOrder}
+        >
+          ◆ Order
+        </button>
         {active && (
           <>
             <label className="ml-1 flex items-center gap-1 text-xs text-neutral-400">
@@ -298,6 +321,25 @@ export function TimelinePanel() {
               </div>
             );
           })}
+
+          {/* Draw order + slot color rows (Phase 4) */}
+          {slots.length > 0 && (
+            <div className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-amber-300/80" style={{ height: ROW_H }}>
+              ◆ draw order
+            </div>
+          )}
+          {slots.map((slot) => (
+            <div
+              key={slot.id}
+              onClick={() => selectSlot(slot.id)}
+              style={{ height: PROP_ROW_H, paddingLeft: 6 }}
+              className={`flex cursor-default items-center gap-1 text-[11px] ${
+                slot.id === selectedSlotId ? 'bg-sky-600/25 text-sky-100' : 'text-neutral-500 hover:bg-neutral-800'
+              }`}
+            >
+              ▣ {slot.name}
+            </div>
+          ))}
         </div>
 
         {/* Time area */}
@@ -378,7 +420,8 @@ export function TimelinePanel() {
                         >
                           {kfs.map((kf) => {
                             const isSelKf =
-                              selectedKeyframe?.boneId === bone.id &&
+                              selectedKeyframe?.kind === 'bone' &&
+                              selectedKeyframe.boneId === bone.id &&
                               selectedKeyframe.property === p.id &&
                               Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
                             const isDragging =
@@ -404,6 +447,62 @@ export function TimelinePanel() {
                 </div>
               );
             })}
+
+            {/* Draw order keyframes (stepped permutations; select + Del). */}
+            {slots.length > 0 && (
+              <div className="relative border-t border-neutral-800" style={{ height: ROW_H }}>
+                {drawOrderKeyframes.map((kf) => {
+                  const isSelKf =
+                    selectedKeyframe?.kind === 'drawOrder' && Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
+                  return (
+                    <div
+                      key={kf.time}
+                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
+                        isSelKf ? 'bg-amber-400' : 'bg-amber-600 hover:bg-amber-500'
+                      }`}
+                      style={{ left: kf.time * PPS - 4 }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setKeyframeSelection({ kind: 'drawOrder', time: kf.time });
+                      }}
+                      title={`draw order @ ${fmtTime(kf.time)} = [${kf.slotOrder.join(', ')}]`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Slot color keyframes — one row per slot (§3.3 SlotColorTimeline). */}
+            {slots.map((slot) => (
+              <div
+                key={slot.id}
+                style={{ height: PROP_ROW_H }}
+                className="relative border-b border-neutral-800/30 bg-neutral-900/40"
+              >
+                {slotColorKeyframes(slot.id).map((kf) => {
+                  const isSelKf =
+                    selectedKeyframe?.kind === 'slotColor' &&
+                    selectedKeyframe.slotId === slot.id &&
+                    Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
+                  const rgb = ((kf.value >>> 8) & 0xffffff).toString(16).padStart(6, '0');
+                  return (
+                    <div
+                      key={kf.time}
+                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
+                        isSelKf ? 'bg-sky-400' : 'bg-fuchsia-500 hover:bg-fuchsia-400'
+                      }`}
+                      style={{ left: kf.time * PPS - 4 }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setKeyframeSelection({ kind: 'slotColor', slotId: slot.id, time: kf.time });
+                        selectSlot(slot.id);
+                      }}
+                      title={`color @ ${fmtTime(kf.time)} = #${rgb} a=${Math.round(((kf.value & 0xff) / 255) * 100)}%`}
+                    />
+                  );
+                })}
+              </div>
+            ))}
 
             {/* Playhead — transient, never re-renders React */}
             <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-full">

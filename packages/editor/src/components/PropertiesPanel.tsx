@@ -1,11 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { SetKeyframeCommand, type BonePropertyName } from '../commands/animationCommands';
+import { SetKeyframeCommand, KeySlotColorCommand, type BonePropertyName } from '../commands/animationCommands';
 import {
   SetBonePropsCommand,
   wouldCreateCycle,
   ReparentBoneCommand,
   type BonePropsSnapshot,
 } from '../commands/boneCommands';
+import {
+  AddAttachmentCommand,
+  RemoveAttachmentCommand,
+  SetAttachmentPropsCommand,
+  SetSlotAttachmentCommand,
+  regionOf,
+  type AttachmentTarget,
+  type RegionParams,
+} from '../commands/attachmentCommands';
+import {
+  RemoveSlotCommand,
+  SetSlotPropsCommand,
+  type SlotPropsSnapshot,
+} from '../commands/slotCommands';
+import { AddSkinCommand, RemoveSkinCommand, SetActiveSkinCommand } from '../commands/skinCommands';
+import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -13,6 +29,11 @@ const DEG = 180 / Math.PI;
 
 function fmt(n: number): string {
   return String(Math.round(n * 1000) / 1000);
+}
+
+/** Packed RGBA uint32 -> "#rrggbb" for <input type="color">. */
+function packedToHex(c: number): string {
+  return '#' + ((c >>> 16) & 0xffffff).toString(16).padStart(6, '0');
 }
 
 /**
@@ -110,114 +131,371 @@ function snapshot(name: string, length: number, setup: BonePropsSnapshot['setup'
   return { name, length, setup: { ...setup } };
 }
 
+function slotSnapshot(s: { name: string; boneId: string; color: number }): SlotPropsSnapshot {
+  return { name: s.name, boneId: s.boneId, color: s.color };
+}
+
 export function PropertiesPanel() {
   const engine = useEngine();
   useEditorStore((s) => s.dataRevision); // Re-read engine data on undo/redo/commands.
   const selected = useEditorStore((s) => s.selectedBoneId);
+  const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
   const mode = useEditorStore((s) => s.mode);
   const execute = useEditorStore((s) => s.execute);
   const setStatus = useEditorStore((s) => s.setStatus);
+  const selectSlot = useEditorStore((s) => s.selectSlot);
+  // Texture picker choice for "New region" — harmless state when no slot selected.
+  const [textureChoice, setTextureChoice] = useState('');
 
-  const bone = selected ? engine.skeleton.data.bones.find((b) => b.id === selected) : undefined;
-  if (!bone) {
-    return (
-      <aside className="flex h-full flex-col bg-neutral-900">
-        <div className="border-b border-neutral-800 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          Properties
-        </div>
-        <p className="p-3 text-xs text-neutral-500">Select a bone to edit its setup pose.</p>
-      </aside>
-    );
-  }
+  const data = engine.skeleton.data;
+  const slot = selectedSlotId ? data.slots.find((s) => s.id === selectedSlotId) : undefined;
+  const bone = selected ? data.bones.find((b) => b.id === selected) : undefined;
 
-  const setup = bone.setupPose;
-  // §5.6: in Animate mode the panel shows the CURRENT animated pose values and
-  // edits write keyframes at the playhead; in Setup mode it edits the rig.
-  const animating = mode === 'animate' && !!engine.currentAnimation;
-  const poseLocal = animating
-    ? engine.skeleton.pose.bones[engine.skeleton.boneIndexMap.get(bone.id)!]?.local
-    : undefined;
-
-  /** Builds before/after snapshots and executes a SETUP-pose edit. */
-  const edit = (apply: (snap: BonePropsSnapshot) => void) => {
-    const before = snapshot(bone.name, bone.length, setup);
-    const after = snapshot(bone.name, bone.length, setup);
+  const editBone = (apply: (snap: BonePropsSnapshot) => void) => {
+    if (!bone) return;
+    const before = snapshot(bone.name, bone.length, bone.setupPose);
+    const after = snapshot(bone.name, bone.length, bone.setupPose);
     apply(after);
     execute(new SetBonePropsCommand(engine, bone.id, before, after));
   };
 
-  /** Animate-mode transform edit: one keyframe command at the playhead. */
-  const keyProp = (prop: BonePropertyName, value: number) => {
-    execute(new SetKeyframeCommand(engine, bone.id, prop, engine.currentTime, value));
+  const editSlot = (apply: (snap: SlotPropsSnapshot) => void) => {
+    if (!slot) return;
+    const before = slotSnapshot(slot);
+    const after = slotSnapshot(slot);
+    apply(after);
+    execute(new SetSlotPropsCommand(engine, slot.id, before, after));
   };
 
-  const src = (prop: BonePropertyName): number =>
-    animating && poseLocal ? poseLocal[prop] : setup[prop];
-  const commitTransform = (prop: BonePropertyName, value: number) => {
-    if (animating) keyProp(prop, value);
-    else edit((s) => (s.setup[prop] = value));
+  const editAttachment = (apply: (region: RegionParams, after: { name: string; region: RegionParams }) => void) => {
+    if (!slot) return;
+    const shownId = shownAttachmentId(engine, slot.id);
+    const attachment = shownId ? data.attachments.find((a) => a.id === shownId) : undefined;
+    if (!attachment) return;
+    const before = { name: attachment.name, region: regionOf(attachment) };
+    const after = { name: attachment.name, region: regionOf(attachment) };
+    apply(after.region, after);
+    execute(new SetAttachmentPropsCommand(engine, attachment.id, before, after));
   };
 
-  const parentOptions = engine.skeleton.data.bones.filter(
-    (b) => b.id !== bone.id && !wouldCreateCycle(engine.skeleton.data, bone.id, b.id),
-  );
+  // ---- Slot section state (safe no-ops when nothing is selected) ----
+  const usingSkin = data.activeSkin !== '';
+  const skinTarget: AttachmentTarget = usingSkin ? 'skin' : 'default';
+  const skin = usingSkin ? data.skins.find((x) => x.name === data.activeSkin) : undefined;
+  const slotIndex = slot ? engine.skeleton.slotIndexMap.get(slot.id) : undefined;
+  const shownColor = slot && slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff;
+  const editValue = slot ? (usingSkin ? skin?.attachments[slot.id] ?? null : slot.defaultAttachmentId) : null;
+  const shownAttId = slot ? shownAttachmentId(engine, slot.id) : null;
+  const shownAtt = shownAttId ? data.attachments.find((a) => a.id === shownAttId) : undefined;
+  const textures = Object.entries(engine.document.assetManifest);
+  const animating = mode === 'animate' && !!engine.currentAnimation;
+
+  /** Animate mode: color edits key at the playhead (§5.6 auto-key). */
+  const commitColor = (color: number) => {
+    if (!slot) return;
+    if (animating) execute(new KeySlotColorCommand(engine, slot.id, color));
+    else editSlot((snap) => (snap.color = color));
+  };
+
+  const title = slot ? 'Slot' : bone ? 'Bone' : 'None';
 
   return (
     <aside className="flex h-full flex-col overflow-auto bg-neutral-900">
       <div className="border-b border-neutral-800 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-        Properties — Bone
+        Properties — {title}
       </div>
-      <div className="flex flex-col gap-1.5 p-2">
-        <TextField label="Name" value={bone.name} onCommit={(name) => edit((s) => (s.name = name))} />
-        <div className="my-1 h-px bg-neutral-800" />
-        <NumberField label="X" value={src('x')} onCommit={(x) => commitTransform('x', x)} />
-        <NumberField label="Y" value={src('y')} onCommit={(y) => commitTransform('y', y)} />
-        {/* Radians in the data model, degrees at the UI boundary (§8.1). */}
-        <NumberField
-          label="Rot °"
-          step={5}
-          value={src('rotation') * DEG}
-          onCommit={(deg) => commitTransform('rotation', deg / DEG)}
-        />
-        <NumberField label="Scale X" step={0.1} value={src('scaleX')} onCommit={(v) => commitTransform('scaleX', v)} />
-        <NumberField label="Scale Y" step={0.1} value={src('scaleY')} onCommit={(v) => commitTransform('scaleY', v)} />
-        <NumberField
-          label="Shear X °"
-          step={5}
-          value={src('shearX') * DEG}
-          onCommit={(deg) => commitTransform('shearX', deg / DEG)}
-        />
-        <NumberField
-          label="Shear Y °"
-          step={5}
-          value={src('shearY') * DEG}
-          onCommit={(deg) => commitTransform('shearY', deg / DEG)}
-        />
-        <NumberField label="Length" value={bone.length} onCommit={(v) => edit((s) => (s.length = v))} />
-        <div className="my-1 h-px bg-neutral-800" />
-        <label className="flex items-center gap-2">
-          <span className="w-16 shrink-0 text-xs text-neutral-400">Parent</span>
-          <select
-            value={bone.parentId ?? ''}
-            onChange={(e) => {
-              const next = e.target.value || null;
-              if (next === bone.id || (next && wouldCreateCycle(engine.skeleton.data, bone.id, next))) {
-                setStatus('Cannot parent a bone under its own descendant.');
-                return;
-              }
-              execute(new ReparentBoneCommand(engine, bone.id, next));
+
+      {!slot && !bone && <p className="p-3 text-xs text-neutral-500">Select a bone or slot to edit it.</p>}
+
+      {/* ---------------- Slot (Phase 4) ---------------- */}
+      {slot && (
+        <div className="flex flex-col gap-1.5 p-2">
+          <TextField label="Name" value={slot.name} onCommit={(name) => editSlot((snap) => (snap.name = name))} />
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Bone</span>
+            <select
+              value={slot.boneId}
+              onChange={(e) => editSlot((snap) => (snap.boneId = e.target.value))}
+              className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            >
+              {data.bones.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="my-1 h-px bg-neutral-800" />
+          <div className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Color</span>
+            <input
+              type="color"
+              value={packedToHex(shownColor)}
+              onChange={(e) => commitColor((parseInt(e.target.value.slice(1), 16) << 24) | (shownColor & 0xff))}
+              className="h-6 w-10 cursor-pointer rounded bg-neutral-800"
+            />
+            <span className="text-[10px] text-neutral-500">alpha</span>
+            <input
+              type="number"
+              min={0}
+              max={1}
+              step={0.1}
+              defaultValue={Math.round(((shownColor & 0xff) / 255) * 100) / 100}
+              key={`alpha-${shownColor & 0xff}`}
+              onBlur={(e) => {
+                const v = Math.min(Math.max(parseFloat(e.target.value) || 0, 0), 1);
+                commitColor((shownColor & 0xffffff00) | Math.round(v * 255));
+              }}
+              className="w-14 rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            />
+            {animating && <span className="text-[10px] text-amber-400/80">auto-key</span>}
+          </div>
+          <div className="my-1 h-px bg-neutral-800" />
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Attach</span>
+            <select
+              value={editValue ?? ''}
+              onChange={(e) => execute(new SetSlotAttachmentCommand(engine, slot.id, e.target.value || null, skinTarget))}
+              className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            >
+              <option value="">(none)</option>
+              {data.attachments.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {usingSkin && (
+            <p className="text-[10px] text-neutral-500">
+              editing skin “{data.activeSkin}” override{editValue === null && ' — falls back to default'}
+            </p>
+          )}
+          {shownAtt && shownAtt.type === 'region' && (
+            <>
+              <div className="my-1 h-px bg-neutral-800" />
+              <TextField
+                label="Att name"
+                value={shownAtt.name}
+                onCommit={(name) => editAttachment((_r, after) => (after.name = name))}
+              />
+              <NumberField label="Att X" value={regionOf(shownAtt).x} onCommit={(x) => editAttachment((r) => (r.x = x))} />
+              <NumberField label="Att Y" value={regionOf(shownAtt).y} onCommit={(y) => editAttachment((r) => (r.y = y))} />
+              <NumberField label="Att W" value={regionOf(shownAtt).width} onCommit={(w) => editAttachment((r) => (r.width = Math.max(1, w)))} />
+              <NumberField label="Att H" value={regionOf(shownAtt).height} onCommit={(h) => editAttachment((r) => (r.height = Math.max(1, h)))} />
+              <button
+                className="mt-1 self-start rounded bg-neutral-800 px-2 py-0.5 text-xs text-red-300 hover:bg-neutral-700"
+                onClick={() => execute(new RemoveAttachmentCommand(engine, shownAtt.id))}
+              >
+                Delete attachment
+              </button>
+            </>
+          )}
+          <div className="my-1 h-px bg-neutral-800" />
+          {textures.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <select
+                value={textureChoice || textures[0]![0]}
+                onChange={(e) => setTextureChoice(e.target.value)}
+                className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+              >
+                {textures.map(([id, meta]) => (
+                  <option key={id} value={id}>
+                    {meta.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="shrink-0 rounded bg-sky-700 px-2 py-0.5 text-xs text-white hover:bg-sky-600"
+                title="Create a region attachment sized to the texture, centered on the bone"
+                onClick={() => {
+                  const textureId = textureChoice || textures[0]![0];
+                  const tex = textureRegistry.get(textureId);
+                  execute(
+                    new AddAttachmentCommand(
+                      engine,
+                      slot.id,
+                      { textureId, x: 0, y: 0, width: tex?.width ?? 100, height: tex?.height ?? 100 },
+                      skinTarget,
+                    ),
+                  );
+                }}
+              >
+                New region
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-500">Drop images on the viewport to import textures.</p>
+          )}
+          <button
+            className="mt-1 self-start rounded bg-neutral-800 px-2 py-0.5 text-xs text-red-300 hover:bg-neutral-700"
+            onClick={() => {
+              execute(new RemoveSlotCommand(engine, slot.id));
+              selectSlot(null);
             }}
-            className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
           >
-            <option value="">(root)</option>
-            {parentOptions.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            Delete slot
+          </button>
+        </div>
+      )}
+
+      {/* ---------------- Bone (Phases 2–3) ---------------- */}
+      {bone && !slot && (
+        <div className="flex flex-col gap-1.5 p-2">
+          <TextField label="Name" value={bone.name} onCommit={(name) => editBone((s) => (s.name = name))} />
+          <div className="my-1 h-px bg-neutral-800" />
+          {/* §5.6: Animate mode shows/keys the CURRENT animated pose; Setup edits the rig. */}
+          <BoneTransformFields engine={engine} boneId={bone.id} />
+          <NumberField label="Length" value={bone.length} onCommit={(v) => editBone((s) => (s.length = v))} />
+          <div className="my-1 h-px bg-neutral-800" />
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Parent</span>
+            <select
+              value={bone.parentId ?? ''}
+              onChange={(e) => {
+                const next = e.target.value || null;
+                if (next === bone.id || (next && wouldCreateCycle(data, bone.id, next))) {
+                  setStatus('Cannot parent a bone under its own descendant.');
+                  return;
+                }
+                execute(new ReparentBoneCommand(engine, bone.id, next));
+              }}
+              className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            >
+              <option value="">(root)</option>
+              {data.bones
+                .filter((b) => b.id !== bone.id && !wouldCreateCycle(data, bone.id, b.id))
+                .map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {/* ---------------- Skins (always visible) ---------------- */}
+      <div className="mt-auto border-t border-neutral-800 p-2">
+        <div className="mb-1 flex items-center gap-1">
+          <span className="mr-auto text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            Skins
+          </span>
+          <button
+            className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            title="Add skin"
+            onClick={() => execute(new AddSkinCommand(engine))}
+          >
+            ＋
+          </button>
+          <button
+            className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
+            title="Delete active skin"
+            disabled={data.activeSkin === ''}
+            onClick={() => {
+              const name = data.activeSkin;
+              execute(new SetActiveSkinCommand(engine, ''));
+              execute(new RemoveSkinCommand(engine, name));
+            }}
+          >
+            🗑
+          </button>
+        </div>
+        <select
+          value={data.activeSkin}
+          onChange={(e) => execute(new SetActiveSkinCommand(engine, e.target.value))}
+          className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+        >
+          <option value="">(no skin — defaults)</option>
+          {data.skins.map((s) => (
+            <option key={s.name} value={s.name}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        {data.skins.length === 0 && (
+          <p className="mt-1 text-[10px] text-neutral-500">
+            Skins override which attachment each slot shows.
+          </p>
+        )}
       </div>
     </aside>
+  );
+}
+
+/** The attachment a slot currently DISPLAYS (skin override, else default). */
+function shownAttachmentId(engine: ReturnType<typeof useEngine>, slotId: string): string | null {
+  const data = engine.skeleton.data;
+  const slot = data.slots.find((s) => s.id === slotId);
+  if (!slot) return null;
+  if (data.activeSkin !== '') {
+    const skin = data.skins.find((s) => s.name === data.activeSkin);
+    if (skin && skin.attachments[slotId] !== undefined) return skin.attachments[slotId]!;
+  }
+  return slot.defaultAttachmentId;
+}
+
+/**
+ * Bone transform fields split out because they need the ANIMATED pose values —
+ * reads engine.skeleton.pose directly (re-rendered via dataRevision/touch).
+ */
+function BoneTransformFields({ engine, boneId }: { engine: ReturnType<typeof useEngine>; boneId: string }) {
+  const mode = useEditorStore((s) => s.mode);
+  const execute = useEditorStore((s) => s.execute);
+  const data = engine.skeleton.data;
+  const bone = data.bones.find((b) => b.id === boneId)!;
+  const animating = mode === 'animate' && !!engine.currentAnimation;
+  const poseLocal = animating
+    ? engine.skeleton.pose.bones[engine.skeleton.boneIndexMap.get(boneId)!]?.local
+    : undefined;
+
+  const keyProp = (prop: BonePropertyName, value: number) => {
+    execute(new SetKeyframeCommand(engine, boneId, prop, engine.currentTime, value));
+  };
+  const src = (prop: BonePropertyName): number =>
+    animating && poseLocal ? poseLocal[prop] : bone.setupPose[prop];
+  const commitTransform = (prop: BonePropertyName, value: number) => {
+    if (animating) keyProp(prop, value);
+    else
+      execute(
+        new SetBonePropsCommand(
+          engine,
+          boneId,
+          { name: bone.name, length: bone.length, setup: { ...bone.setupPose } },
+          (() => {
+            const setup = { ...bone.setupPose };
+            setup[prop] = value;
+            return { name: bone.name, length: bone.length, setup };
+          })(),
+        ),
+      );
+  };
+
+  return (
+    <>
+      <NumberField label="X" value={src('x')} onCommit={(x) => commitTransform('x', x)} />
+      <NumberField label="Y" value={src('y')} onCommit={(y) => commitTransform('y', y)} />
+      {/* Radians in the data model, degrees at the UI boundary (§8.1). */}
+      <NumberField
+        label="Rot °"
+        step={5}
+        value={src('rotation') * DEG}
+        onCommit={(deg) => commitTransform('rotation', deg / DEG)}
+      />
+      <NumberField label="Scale X" step={0.1} value={src('scaleX')} onCommit={(v) => commitTransform('scaleX', v)} />
+      <NumberField label="Scale Y" step={0.1} value={src('scaleY')} onCommit={(v) => commitTransform('scaleY', v)} />
+      <NumberField
+        label="Shear X °"
+        step={5}
+        value={src('shearX') * DEG}
+        onCommit={(deg) => commitTransform('shearX', deg / DEG)}
+      />
+      <NumberField
+        label="Shear Y °"
+        step={5}
+        value={src('shearY') * DEG}
+        onCommit={(deg) => commitTransform('shearY', deg / DEG)}
+      />
+    </>
   );
 }

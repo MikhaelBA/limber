@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { deserializeDocument, serializeDocument } from '@limber/core';
+import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -9,6 +10,7 @@ export function TopMenuBar() {
 
   const onNew = () => {
     engine.newDocument();
+    textureRegistry.clear(); // Object URLs + GPU textures belong to the old doc (§8.2).
     useEditorStore.getState().documentReplaced();
     useEditorStore.getState().setStatus('New project created');
   };
@@ -21,8 +23,9 @@ export function TopMenuBar() {
     try {
       const doc = deserializeDocument(await file.text());
       engine.loadDocument(doc);
+      textureRegistry.clear(); // Embedded pixels aren't serialized — re-drop images.
       st.documentReplaced();
-      st.setStatus(`Opened ${file.name}`);
+      st.setStatus(`Opened ${file.name} — drop images again to restore textures`);
     } catch (err) {
       st.setStatus(`Open failed: ${(err as Error).message}`);
     }

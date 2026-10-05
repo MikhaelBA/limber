@@ -1,14 +1,15 @@
 import { create } from 'zustand';
+import type { BonePropertyName } from '../commands/animationCommands';
 import { history, type Command } from '../history/history';
 
 export type Tool = 'select' | 'create_bone';
+export type { BonePropertyName };
 
 /** A keyframe currently selected in the dopesheet (deleted via Del). */
-export interface KeyframeSelection {
-  boneId: string;
-  property: 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY' | 'shearX' | 'shearY';
-  time: number;
-}
+export type KeyframeSelection =
+  | { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
+  | { kind: 'slotColor'; slotId: string; time: number }
+  | { kind: 'drawOrder'; time: number };
 
 /**
  * UI STATE ONLY (DESIGN.md §5.2). Document/pose data lives in EditorEngine;
@@ -17,6 +18,8 @@ export interface KeyframeSelection {
  */
 interface UIState {
   selectedBoneId: string | null;
+  /** Slot selection is exclusive with bone selection (§5.7 picking order). */
+  selectedSlotId: string | null;
   hoveredBoneId: string | null;
   selectedKeyframe: KeyframeSelection | null;
   activeTool: Tool;
@@ -31,6 +34,7 @@ interface UIState {
   undo: () => void;
   redo: () => void;
   select: (boneId: string | null) => void;
+  selectSlot: (slotId: string | null) => void;
   clearSelection: () => void;
   setHover: (boneId: string | null) => void;
   setTool: (tool: Tool) => void;
@@ -48,6 +52,7 @@ let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useEditorStore = create<UIState>((set, get) => ({
   selectedBoneId: null,
+  selectedSlotId: null,
   hoveredBoneId: null,
   selectedKeyframe: null,
   activeTool: 'select',
@@ -87,8 +92,9 @@ export const useEditorStore = create<UIState>((set, get) => ({
     }
   },
 
-  select: (boneId) => set({ selectedBoneId: boneId, selectedKeyframe: null }),
-  clearSelection: () => set({ selectedBoneId: null }),
+  select: (boneId) => set({ selectedBoneId: boneId, selectedSlotId: null, selectedKeyframe: null }),
+  selectSlot: (slotId) => set({ selectedSlotId: slotId, selectedBoneId: null, selectedKeyframe: null }),
+  clearSelection: () => set({ selectedBoneId: null, selectedSlotId: null }),
   setHover: (boneId) => set({ hoveredBoneId: boneId }),
   setTool: (tool) => set({ activeTool: tool }),
   setMode: (mode) => set({ mode }),
@@ -114,6 +120,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
       canUndo: false,
       canRedo: false,
       selectedBoneId: null,
+      selectedSlotId: null,
       hoveredBoneId: null,
       selectedKeyframe: null,
       mode: 'setup',

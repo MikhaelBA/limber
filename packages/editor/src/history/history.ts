@@ -12,6 +12,25 @@ export interface Command {
   undo(): void;
 }
 
+/**
+ * Sequences several commands as ONE history entry (e.g. dropping an image =
+ * import texture + add slot + add attachment). Undo runs parts in reverse.
+ */
+export class CompositeCommand implements Command {
+  constructor(
+    readonly label: string,
+    private readonly parts: Command[],
+  ) {}
+
+  do(): void {
+    for (const part of this.parts) part.do();
+  }
+
+  undo(): void {
+    for (let i = this.parts.length - 1; i >= 0; i--) this.parts[i]!.undo();
+  }
+}
+
 export class HistoryManager {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];

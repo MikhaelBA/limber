@@ -1,7 +1,12 @@
-import type { Animation, NumberKeyframe } from '@limber/core';
+import type { Animation, ColorKeyframe, DrawOrderKeyframe, NumberKeyframe, SlotColorTimeline, DrawOrderTimeline } from '@limber/core';
 import { defaultCurve } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
+
+/** Draw order never interpolates — permutation keyframes are stepped (§3.3). */
+function steppedCurve() {
+  return { type: 'stepped' as const };
+}
 
 export type BonePropertyName = 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY' | 'shearX' | 'shearY';
 
@@ -393,3 +398,204 @@ export class KeyBoneTransformCommand implements Command {
 }
 
 const PROPERTIES: BonePropertyName[] = ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'shearX', 'shearY'];
+
+// ------------------- slot color & draw order keyframes -------------------
+
+function findSlotColorTimeline(anim: Animation, slotId: string): SlotColorTimeline | undefined {
+  return anim.timelines.find((tl): tl is SlotColorTimeline => tl.kind === 'slotColor' && tl.slotId === slotId);
+}
+
+function findDrawOrderTimeline(anim: Animation): DrawOrderTimeline | undefined {
+  return anim.timelines.find((tl): tl is DrawOrderTimeline => tl.kind === 'drawOrder');
+}
+
+interface SlotColorSnapshot {
+  existed: boolean;
+  timelineIndex: number;
+  keyframes: ColorKeyframe[] | null;
+}
+
+interface DrawOrderSnapshot {
+  existed: boolean;
+  timelineIndex: number;
+  keyframes: DrawOrderKeyframe[] | null;
+}
+
+function snapshotSlotColor(anim: Animation, slotId: string): SlotColorSnapshot {
+  const tl = findSlotColorTimeline(anim, slotId);
+  return tl
+    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })) }
+    : { existed: false, timelineIndex: -1, keyframes: null };
+}
+
+function snapshotDrawOrder(anim: Animation): DrawOrderSnapshot {
+  const tl = findDrawOrderTimeline(anim);
+  return tl
+    ? {
+        existed: true,
+        timelineIndex: anim.timelines.indexOf(tl),
+        keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve }, slotOrder: [...k.slotOrder] })),
+      }
+    : { existed: false, timelineIndex: -1, keyframes: null };
+}
+
+function restoreSlotColor(anim: Animation, slotId: string, snap: SlotColorSnapshot): void {
+  const tl = findSlotColorTimeline(anim, slotId);
+  if (snap.existed) {
+    const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve } }));
+    if (tl) tl.keyframes = kfs;
+    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'slotColor', slotId, keyframes: kfs });
+  } else if (tl) {
+    anim.timelines.splice(anim.timelines.indexOf(tl), 1);
+  }
+}
+
+function restoreDrawOrder(anim: Animation, snap: DrawOrderSnapshot): void {
+  const tl = findDrawOrderTimeline(anim);
+  if (snap.existed) {
+    const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve }, slotOrder: [...k.slotOrder] }));
+    if (tl) tl.keyframes = kfs;
+    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'drawOrder', keyframes: kfs });
+  } else if (tl) {
+    anim.timelines.splice(anim.timelines.indexOf(tl), 1);
+  }
+}
+
+/** Inserts/replaces a slot color key at exactly `time` (sorted, linear curve). */
+export function upsertSlotColorKeyframe(anim: Animation, slotId: string, time: number, value: number): void {
+  let tl = findSlotColorTimeline(anim, slotId);
+  if (!tl) {
+    tl = { kind: 'slotColor', slotId, keyframes: [] };
+    anim.timelines.push(tl);
+  }
+  const kfs = tl.keyframes;
+  const at = kfs.findIndex((kf) => Math.abs(kf.time - time) < 1e-6);
+  if (at >= 0) {
+    kfs[at]!.value = value;
+    return;
+  }
+  const insert = kfs.findIndex((kf) => kf.time > time);
+  const kf: ColorKeyframe = { time, value, curve: defaultCurve() };
+  if (insert === -1) kfs.push(kf);
+  else kfs.splice(insert, 0, kf);
+}
+
+/**
+ * Keys a slot's color at the playhead. Defaults to the slot's CURRENT pose
+ * color (mixer output — what the user sees), so the key matches the viewport.
+ */
+export class KeySlotColorCommand implements Command {
+  readonly label: string;
+  private readonly before: SlotColorSnapshot;
+  private readonly value: number;
+
+  constructor(
+    private engine: EditorEngine,
+    private slotId: string,
+    color?: number,
+  ) {
+    const anim = requireAnimation(engine);
+    this.before = snapshotSlotColor(anim, slotId);
+    const slotIndex = engine.skeleton.slotIndexMap.get(slotId);
+    this.value = color ?? (slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff);
+    this.label = 'Key Slot Color';
+  }
+
+  do(): void {
+    const anim = requireAnimation(this.engine);
+    upsertSlotColorKeyframe(anim, this.slotId, this.engine.currentTime, this.value);
+    refreshDuration(anim);
+  }
+
+  undo(): void {
+    restoreSlotColor(requireAnimation(this.engine), this.slotId, this.before);
+  }
+}
+
+export class DeleteSlotColorKeyframeCommand implements Command {
+  readonly label = 'Delete Slot Color Key';
+  private readonly before: SlotColorSnapshot;
+
+  constructor(
+    private engine: EditorEngine,
+    private slotId: string,
+    private time: number,
+  ) {
+    this.before = snapshotSlotColor(requireAnimation(engine), slotId);
+  }
+
+  do(): void {
+    const tl = findSlotColorTimeline(requireAnimation(this.engine), this.slotId);
+    if (!tl) return;
+    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - this.time) < 1e-6);
+    if (at >= 0) tl.keyframes.splice(at, 1);
+  }
+
+  undo(): void {
+    restoreSlotColor(requireAnimation(this.engine), this.slotId, this.before);
+  }
+}
+
+/**
+ * Keys the CURRENT draw order (pose.slotOrder permutation) at the playhead as
+ * a stepped keyframe. `explicitOrder` overrides the capture — the animate-mode
+ * reorder flow passes the fresh identity order because pose.slotOrder is
+ * still holding the previously APPLIED (timeline) permutation at that moment.
+ */
+export class KeyDrawOrderCommand implements Command {
+  readonly label = 'Key Draw Order';
+  private readonly before: DrawOrderSnapshot;
+  private readonly slotOrder: number[];
+
+  constructor(private engine: EditorEngine, explicitOrder?: number[]) {
+    const anim = requireAnimation(engine);
+    this.before = snapshotDrawOrder(anim);
+    this.slotOrder = [...(explicitOrder ?? engine.skeleton.pose.slotOrder)];
+  }
+
+  do(): void {
+    const anim = requireAnimation(this.engine);
+    let tl = findDrawOrderTimeline(anim);
+    if (!tl) {
+      tl = { kind: 'drawOrder', keyframes: [] };
+      anim.timelines.push(tl);
+    }
+    const kfs = tl.keyframes;
+    const at = kfs.findIndex((kf) => Math.abs(kf.time - this.engine.currentTime) < 1e-6);
+    const kf: DrawOrderKeyframe = { time: this.engine.currentTime, slotOrder: [...this.slotOrder], curve: steppedCurve() };
+    if (at >= 0) kfs[at] = kf;
+    else {
+      const insert = kfs.findIndex((k) => k.time > this.engine.currentTime);
+      if (insert === -1) kfs.push(kf);
+      else kfs.splice(insert, 0, kf);
+    }
+    refreshDuration(anim);
+  }
+
+  undo(): void {
+    restoreDrawOrder(requireAnimation(this.engine), this.before);
+  }
+}
+
+export class DeleteDrawOrderKeyframeCommand implements Command {
+  readonly label = 'Delete Draw Order Key';
+  private readonly before: DrawOrderSnapshot;
+
+  constructor(
+    private engine: EditorEngine,
+    private time: number,
+  ) {
+    this.before = snapshotDrawOrder(requireAnimation(engine));
+  }
+
+  do(): void {
+    const tl = findDrawOrderTimeline(requireAnimation(this.engine));
+    if (!tl) return;
+    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - this.time) < 1e-6);
+    if (at >= 0) tl.keyframes.splice(at, 1);
+  }
+
+  undo(): void {
+    restoreDrawOrder(requireAnimation(this.engine), this.before);
+  }
+}

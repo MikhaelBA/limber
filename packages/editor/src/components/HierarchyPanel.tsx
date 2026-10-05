@@ -7,6 +7,9 @@ import {
   RemoveBoneCommand,
   ReparentBoneCommand,
 } from '../commands/boneCommands';
+import { AddSlotCommand, RemoveSlotCommand, ReorderSlotCommand } from '../commands/slotCommands';
+import { KeyDrawOrderCommand } from '../commands/animationCommands';
+import { CompositeCommand, type Command } from '../history/history';
 
 interface Row {
   id: string;
@@ -19,7 +22,9 @@ export function HierarchyPanel() {
   // Subscribe ONLY to the revision — data itself is read imperatively (§5.4).
   useEditorStore((s) => s.dataRevision);
   const selected = useEditorStore((s) => s.selectedBoneId);
+  const selectedSlot = useEditorStore((s) => s.selectedSlotId);
   const select = useEditorStore((s) => s.select);
+  const selectSlot = useEditorStore((s) => s.selectSlot);
   const execute = useEditorStore((s) => s.execute);
   const setStatus = useEditorStore((s) => s.setStatus);
 
@@ -27,6 +32,7 @@ export function HierarchyPanel() {
   const draggedIdRef = useRef<string | null>(null);
 
   const data = engine.skeleton.data;
+  const boneName = new Map(data.bones.map((b) => [b.id, b.name]));
 
   // data.bones is topologically sorted ⇒ parents come first, so a single pass
   // with an id→depth map builds the flat indented tree.
@@ -67,6 +73,33 @@ export function HierarchyPanel() {
   const isDropTarget = (targetId: string) => {
     const dragged = draggedIdRef.current;
     return dragged !== null && dragged !== targetId && !wouldCreateCycle(data, dragged, targetId);
+  };
+
+  /**
+   * Reorder = setup-data edit; in Animate mode it also keys the NEW default
+   * order at the playhead (§5.6 auto-key), as ONE undo step. The explicit
+   * identity order is passed because pose.slotOrder still holds the
+   * previously applied timeline permutation at that instant.
+   */
+  const reorderSlot = (slotId: string, delta: -1 | 1) => {
+    const cmds: Command[] = [new ReorderSlotCommand(engine, slotId, delta)];
+    if (useEditorStore.getState().mode === 'animate' && engine.currentAnimation) {
+      cmds.push(new KeyDrawOrderCommand(engine, engine.skeleton.data.slots.map((_, i) => i)));
+    }
+    execute(new CompositeCommand(`Reorder Slot`, cmds));
+  };
+
+  const addSlot = () => {
+    // Slot binds to the selected bone, else the root bone (§3.1: a slot MUST
+    // have a bone — there is no "unbound" slot).
+    const boneId = selected ?? data.bones[0]?.id ?? null;
+    if (!boneId) {
+      setStatus('Create a bone before adding a slot.');
+      return;
+    }
+    const cmd = new AddSlotCommand(engine, boneId);
+    execute(cmd);
+    selectSlot(cmd.slotId);
   };
 
   return (
@@ -152,6 +185,79 @@ export function HierarchyPanel() {
               }`}
             >
               {row.name}
+            </div>
+          );
+        })}
+
+        {/* Slots — array order IS the default draw order (§3.1). */}
+        <div className="mt-1 flex items-center gap-1 border-t border-neutral-800 px-2 py-1">
+          <span className="mr-auto text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            Slots
+          </span>
+          <button
+            className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+            title="Add slot (to selected bone or root)"
+            onClick={addSlot}
+          >
+            ＋
+          </button>
+        </div>
+        {data.slots.length === 0 && (
+          <p className="p-2 text-xs text-neutral-500">
+            No slots. Drop an image on the viewport or use ＋.
+          </p>
+        )}
+        {data.slots.map((slot, i) => {
+          const isSlotSel = slot.id === selectedSlot;
+          return (
+            <div
+              key={slot.id}
+              onClick={() => selectSlot(slot.id)}
+              className={`flex cursor-default items-center gap-1 rounded py-0.5 pl-2 pr-1 text-sm ${
+                isSlotSel
+                  ? 'bg-sky-600/30 text-sky-100 ring-1 ring-sky-500/40'
+                  : 'text-neutral-300 hover:bg-neutral-800'
+              }`}
+            >
+              <span className="w-4 shrink-0 text-right text-[10px] text-neutral-500">{i + 1}</span>
+              <span className="truncate">
+                {slot.name}
+                <span className="ml-1 text-[10px] text-neutral-500">@{boneName.get(slot.boneId) ?? '?'}</span>
+              </span>
+              <span className="ml-auto flex shrink-0 items-center">
+                <button
+                  className="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-700 disabled:opacity-30"
+                  title="Draw earlier"
+                  disabled={i === 0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    reorderSlot(slot.id, -1);
+                  }}
+                >
+                  ↑
+                </button>
+                <button
+                  className="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-700 disabled:opacity-30"
+                  title="Draw later"
+                  disabled={i === data.slots.length - 1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    reorderSlot(slot.id, 1);
+                  }}
+                >
+                  ↓
+                </button>
+                <button
+                  className="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-700"
+                  title="Delete slot"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    execute(new RemoveSlotCommand(engine, slot.id));
+                  }}
+                >
+                  🗑
+                </button>
+              </span>
             </div>
           );
         })}

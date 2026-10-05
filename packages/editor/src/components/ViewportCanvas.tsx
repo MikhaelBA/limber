@@ -1,7 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { Application, Container, Graphics } from 'pixi.js';
+import { useEffect, useRef, useState } from 'react';
+import { Application, Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
+import type { AttachmentData } from '@limber/core';
 import { AutoKeyMoveBoneCommand } from '../commands/animationCommands';
 import { AddBoneCommand, MoveBoneCommand } from '../commands/boneCommands';
+import { AddAttachmentCommand, AddTextureCommand } from '../commands/attachmentCommands';
+import { AddSlotCommand } from '../commands/slotCommands';
+import { textureRegistry } from '../engine/TextureRegistry';
+import { CompositeCommand, type Command } from '../history/history';
 import { useEngine } from '../hooks/useEngine';
 import { distToSegment, inverseTransformPoint } from '../math/matrix';
 import { useEditorStore } from '../store/editorStore';
@@ -72,6 +77,7 @@ export function ViewportCanvas() {
   const engine = useEngine();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dropping, setDropping] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -105,9 +111,64 @@ export function ViewportCanvas() {
     };
   }, [engine]);
 
+  /**
+   * Phase 4 texture import (DESIGN.md §3.5): image files land here via the
+   * File API (NOT File System Access). Each drop registers the texture and,
+   * when a bone is selected, creates slot + region attachment in ONE undo
+   * step — the sprite immediately follows that bone.
+   */
+  const onDropFiles = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropping(false);
+    const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) return;
+    const st = useEditorStore.getState();
+    for (const file of files) {
+      try {
+        const loaded = await textureRegistry.loadFile(file);
+        const boneId = st.selectedBoneId ?? engine.skeleton.data.bones[0]?.id ?? null;
+        const cmds: Command[] = [new AddTextureCommand(engine, loaded.textureId, loaded.name)];
+        let slotId: string | null = null;
+        if (boneId) {
+          const slotCmd = new AddSlotCommand(engine, boneId);
+          cmds.push(
+            slotCmd,
+            new AddAttachmentCommand(engine, slotCmd.slotId, {
+              textureId: loaded.textureId,
+              x: 0,
+              y: 0,
+              width: loaded.width,
+              height: loaded.height,
+            }),
+          );
+          slotId = slotCmd.slotId;
+        }
+        st.execute(new CompositeCommand(`Drop Image ${loaded.name}`, cmds));
+        if (slotId) st.selectSlot(slotId);
+        else st.setStatus('Texture imported — create a bone first to attach it.');
+      } catch (err) {
+        st.setStatus((err as Error).message);
+      }
+    }
+  };
+
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-neutral-800">
+    <div
+      ref={wrapRef}
+      className={`relative h-full w-full overflow-hidden bg-neutral-800 ${dropping ? 'ring-2 ring-inset ring-sky-400' : ''}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault();
+          setDropping(true);
+        }
+      }}
+      onDragLeave={() => setDropping(false)}
+      onDrop={onDropFiles}
+    >
       <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" />
+      <div className="pointer-events-none absolute bottom-1 left-2 text-[10px] text-neutral-500">
+        drop images to attach
+      </div>
     </div>
   );
 }
@@ -122,6 +183,10 @@ function wireViewport(
   theApp.stage.addChild(world);
   const grid = new Graphics();
   world.addChild(grid);
+  // Slots render BETWEEN grid and bone gizmos — sprites are the content,
+  // gizmos are the overlay. zIndex follows pose.slotOrder (draw order).
+  const slotsContainer = new Container({ sortableChildren: true });
+  world.addChild(slotsContainer);
   const bonesG = new Graphics();
   world.addChild(bonesG);
 
@@ -221,6 +286,152 @@ function wireViewport(
     return null;
   };
 
+  // ---- Slot rendering (Phase 4) ----
+  // One quad Mesh per slot, reused across frames. Vertices are transformed on
+  // the CPU against pose.worldMatrices every tick — arbitrary quads AND shear
+  // stay exact, unlike a lossy setFromMatrix decompose (§1 principle 5).
+
+  interface SlotMesh {
+    mesh: Mesh;
+    /** Last attachmentId the mesh was built for (null = hidden placeholder state). */
+    attachmentId: string | null;
+  }
+
+  const slotMeshes = new Map<string, SlotMesh>();
+  let attachmentById = new Map<string, AttachmentData>();
+  let recDataRev = -1;
+  let recTexVer = -1;
+  let recSkeleton: unknown = null;
+  const drawPosOfSlot: number[] = [];
+  const scratchPoint = { x: 0, y: 0 };
+
+  const makeSlotMesh = (): SlotMesh => {
+    const geometry = new MeshGeometry({
+      positions: new Float32Array(8),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    });
+    const mesh = new Mesh({ geometry, texture: textureRegistry.placeholder });
+    slotsContainer.addChild(mesh);
+    return { mesh, attachmentId: null };
+  };
+
+  /** Syncs the mesh SET (and attachment lookup) when the document changed. */
+  const reconcileSlots = (dataRev: number, texVer: number): void => {
+    const data = engine.skeleton.data;
+    attachmentById = new Map(data.attachments.map((a) => [a.id, a]));
+    const liveIds = new Set(data.slots.map((s) => s.id));
+    for (const [slotId, entry] of slotMeshes) {
+      if (!liveIds.has(slotId)) {
+        slotsContainer.removeChild(entry.mesh);
+        entry.mesh.destroy();
+        slotMeshes.delete(slotId);
+      }
+    }
+    for (const slot of data.slots) {
+      if (!slotMeshes.has(slot.id)) slotMeshes.set(slot.id, makeSlotMesh());
+    }
+    // Textures may have arrived (registry.version) — force re-resolution.
+    for (const entry of slotMeshes.values()) entry.attachmentId = null;
+    recDataRev = dataRev;
+    recTexVer = texVer;
+    recSkeleton = engine.skeleton;
+  };
+
+  /**
+   * Per-frame slot sync: attachment switching (animated slotAttachment
+   * timelines), CPU vertex transform against the bone's world matrix, slot
+   * tint/alpha, and zIndex from pose.slotOrder. Allocation-free.
+   */
+  const updateSlotMeshes = (): void => {
+    const skeleton = engine.skeleton;
+    const data = skeleton.data;
+    const pose = skeleton.pose;
+    for (let p = 0; p < pose.slotOrder.length; p++) drawPosOfSlot[pose.slotOrder[p]!] = p;
+
+    for (let i = 0; i < data.slots.length; i++) {
+      const entry = slotMeshes.get(data.slots[i]!.id);
+      if (!entry) continue;
+      const slotPose = pose.slots[i]!;
+      const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
+      const region = attachment && attachment.type === 'region' ? attachment : undefined;
+
+      if (slotPose.attachmentId !== entry.attachmentId) {
+        entry.attachmentId = slotPose.attachmentId;
+        if (region) {
+          entry.mesh.texture = textureRegistry.get(region.textureId) ?? textureRegistry.placeholder;
+          const uvs = entry.mesh.geometry.uvs;
+          const src = region.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1];
+          for (let k = 0; k < 8; k++) uvs[k] = src[k]!;
+          entry.mesh.geometry.getBuffer('aUV').update();
+        }
+      }
+      if (!region) {
+        entry.mesh.visible = false;
+        continue;
+      }
+      entry.mesh.visible = true;
+
+      const o = skeleton.boneIndexMap.get(data.slots[i]!.boneId)! * 6;
+      const wm = pose.worldMatrices;
+      const a = wm[o]!;
+      const b = wm[o + 1]!;
+      const c = wm[o + 2]!;
+      const d = wm[o + 3]!;
+      const tx = wm[o + 4]!;
+      const ty = wm[o + 5]!;
+      const v = region.vertices ?? [0, 0, 1, 0, 1, 1, 0, 1];
+      const pos = entry.mesh.geometry.positions;
+      for (let k = 0; k < 4; k++) {
+        const lx = v[k * 2]!;
+        const ly = v[k * 2 + 1]!;
+        pos[k * 2] = a * lx + c * ly + tx;
+        pos[k * 2 + 1] = b * lx + d * ly + ty;
+      }
+      entry.mesh.geometry.getBuffer('aPosition').update();
+      const color = slotPose.color;
+      entry.mesh.tint = color & 0x00ffffff;
+      entry.mesh.alpha = (color >>> 24) / 255;
+      entry.mesh.zIndex = drawPosOfSlot[i] ?? i;
+    }
+  };
+
+  /** Attachment picking (§5.7): topmost-first point-in-quad, bones win first. */
+  const pointInQuad = (v: number[], x: number, y: number): boolean => {
+    let sign = 0;
+    for (let i = 0; i < 4; i++) {
+      const j = ((i + 1) & 3) * 2;
+      const x1 = v[i * 2]!;
+      const y1 = v[i * 2 + 1]!;
+      const cross = (v[j]! - x1) * (y - y1) - (v[j + 1]! - y1) * (x - x1);
+      const s = Math.sign(cross);
+      if (s === 0) continue;
+      if (sign === 0) sign = s;
+      else if (s !== sign) return false;
+    }
+    return true;
+  };
+
+  const pickSlot = (wx: number, wy: number): string | null => {
+    const skeleton = engine.skeleton;
+    const pose = skeleton.pose;
+    for (let p = pose.slotOrder.length - 1; p >= 0; p--) {
+      const i = pose.slotOrder[p]!;
+      const slotPose = pose.slots[i]!;
+      const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
+      if (!attachment || attachment.type !== 'region' || !attachment.vertices) continue;
+      inverseTransformPoint(
+        pose.worldMatrices,
+        skeleton.boneIndexMap.get(skeleton.data.slots[i]!.boneId)!,
+        wx,
+        wy,
+        scratchPoint,
+      );
+      if (pointInQuad(attachment.vertices, scratchPoint.x, scratchPoint.y)) return skeleton.data.slots[i]!.id;
+    }
+    return null;
+  };
+
   /** World point → the LOCAL space of `parentId` (null = skeleton root). */
   const parentLocalOf = (parentId: string | null, wx: number, wy: number) => {
     if (parentId === null) return { x: wx, y: wy };
@@ -261,8 +472,8 @@ function wireViewport(
     }
 
     const hitId = pickBone(wp.x, wp.y);
-    st.select(hitId);
     if (hitId) {
+      st.select(hitId);
       dragBoneId = hitId;
       // Animate mode: drags write keyframes at the playhead (auto-key §5.6).
       // Setup mode: drags edit the rig's setup pose.
@@ -274,6 +485,9 @@ function wireViewport(
         moveCmd.open();
       }
       canvas.style.cursor = 'grabbing';
+    } else {
+      // No bone under the cursor — attachments pick second (§5.7 priority).
+      st.selectSlot(pickSlot(wp.x, wp.y));
     }
   };
 
@@ -302,7 +516,7 @@ function wireViewport(
     const st = useEditorStore.getState();
     const hit = pickBone(wp.x, wp.y);
     if (st.hoveredBoneId !== hit) st.setHover(hit);
-    canvas.style.cursor = hit ? 'grab' : 'default';
+    canvas.style.cursor = hit ? 'grab' : pickSlot(wp.x, wp.y) !== null ? 'pointer' : 'default';
   };
 
   const onPointerUp = (e: PointerEvent) => {
@@ -352,8 +566,21 @@ function wireViewport(
   theApp.ticker.add(() => {
     // Delta capped: background tabs must not fast-forward the clock (DESIGN.md §5.5).
     engine.tick(Math.min(theApp.ticker.deltaMS, 100));
+
+    const st = useEditorStore.getState();
+    if (st.dataRevision !== recDataRev || textureRegistry.version !== recTexVer || recSkeleton !== engine.skeleton) {
+      reconcileSlots(st.dataRevision, textureRegistry.version);
+    }
+    updateSlotMeshes();
     drawBones();
+
     tickCount++;
-    (window as unknown as Record<string, unknown>).__ticks = tickCount;
+    const w = window as unknown as Record<string, unknown>;
+    w.__ticks = tickCount;
+    // Test hooks for the smoke suite: how many slot meshes render + where the
+    // first one sits (skeleton space) so "sprite follows bone" is assertable.
+    w.__slotMeshes = slotsContainer.children.length;
+    const first = slotsContainer.children[0] as Mesh | undefined;
+    w.__slotMesh0 = first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
   });
 }
