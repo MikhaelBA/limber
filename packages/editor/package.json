@@ -18,6 +18,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@esotericsoftware/spine-core": "4.2.120",
     "@tailwindcss/vite": "^4.1.4",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

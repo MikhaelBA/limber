@@ -148,7 +148,7 @@ describe('exportSpineJson', () => {
     expect(json.ik[0]).toMatchObject({ name: 'ik1', bones: ['a', 'b'], target: 'b', bendDirection: -1, mix: 0.5 });
   });
 
-  it('merges per-property timelines into packed tracks with flipped values and curves', () => {
+  it('merges per-property timelines into packed OFFSET tracks with flipped values and curves', () => {
     const d = doc();
     d.animations = [
       {
@@ -182,13 +182,16 @@ describe('exportSpineJson', () => {
     ];
     const json = JSON.parse(exportSpineJson(d));
     const bones = json.animations.walk.bones.a;
-    expect(bones.rotate[0].angle).toBeCloseTo(-90, 3);
+    // 4.2 semantics: rotate uses the "value" field and keys are offsets from
+    // setup (rotation 0.5): -(1.5708-0.5)·DEG = -61.35°, -(0-0.5)·DEG = +28.65°.
+    expect(bones.rotate[0].value).toBeCloseTo(-61.352, 2);
+    expect(bones.rotate[1].value).toBeCloseTo(28.648, 2);
     expect(bones.rotate[1].curve).toBe('stepped');
-    // translate merges x (t=0) and y (t=0.5) at the union of times; y holds 0
-    // until keyed, x holds 5 after.
+    // translate offsets from setup (10, -20): x key 5 → -5; y key -7 → -13;
+    // before y's first key the offset holds 0 (= setup).
     expect(bones.translate).toEqual([
-      { time: 0, x: 5, y: 0, curve: [0.2, -0.4, 0.8, -1.2] },
-      { time: 0.5, x: 5, y: 7 }, // y=-7 → +7 (flip)
+      { time: 0, x: -5, y: 0, curve: [0.2, -0.4, 0.8, -1.2] },
+      { time: 0.5, x: -5, y: -13 },
     ]);
   });
 

@@ -31,7 +31,7 @@ import { Skeleton } from '../skeleton/Skeleton';
  * JSON paths and the packed atlas regions agree exactly).
  */
 
-const SPINE_VERSION = '4.1.23';
+const SPINE_VERSION = '4.2.120';
 const DEG = 180 / Math.PI;
 
 interface Json {
@@ -348,19 +348,21 @@ function animationJson(
 ): Json {
   const out: Json = {};
 
-  // ---- bone tracks ----
-  // Component transforms under the y-flip conjugation:
-  //   translate: x→x, y→−y · scale: unchanged · shear: −v in degrees.
+  // ---- bone tracks (4.2 semantics, verified against spine-core) ----
+  // rotate/translate/shear keyframes are OFFSETS FROM THE SETUP POSE; scale is
+  // ABSOLUTE. The y-flip conjugation applies to the DELTAS:
+  //   translate: x: v−setup.x · y: −(v−setup.y)
+  //   rotate/shear (degrees out): −(v−setup)·DEG · scale: v unchanged.
   const pairs: {
     a: 'x' | 'scaleX' | 'shearX';
     b: 'y' | 'scaleY' | 'shearY';
     track: string;
-    fa: (v: number) => number;
-    fb: (v: number) => number;
+    fa: (v: number, setup: number) => number;
+    fb: (v: number, setup: number) => number;
   }[] = [
-    { a: 'x', b: 'y', track: 'translate', fa: (v) => v, fb: (v) => -v },
+    { a: 'x', b: 'y', track: 'translate', fa: (v, s) => v - s, fb: (v, s) => -(v - s) },
     { a: 'scaleX', b: 'scaleY', track: 'scale', fa: (v) => v, fb: (v) => v },
-    { a: 'shearX', b: 'shearY', track: 'shear', fa: (v) => -v * DEG, fb: (v) => -v * DEG },
+    { a: 'shearX', b: 'shearY', track: 'shear', fa: (v, s) => -(v - s) * DEG, fb: (v, s) => -(v - s) * DEG },
   ];
   const bones: Json = {};
   for (const bone of data.bones) {
@@ -369,8 +371,11 @@ function animationJson(
     const rotate = tl('rotation');
     const perBone: Json = {};
     if (rotate) {
+      const setupRot = bone.setupPose.rotation;
       perBone.rotate = rotate.keyframes.map((kf) => {
-        const o: Json = { time: round(kf.time), angle: round(-kf.value * DEG) };
+        // 4.2 JSON reads the single-value field as "value" (4.1's "angle" is
+        // silently ignored — values collapse to 0; caught by the runtime test).
+        const o: Json = { time: round(kf.time), value: round(-(kf.value - setupRot) * DEG) };
         if (kf.curve.type !== 'linear') o.curve = curveJson(kf.curve, (v) => -v * DEG);
         return o;
       });
@@ -384,8 +389,10 @@ function animationJson(
         const ka = heldKeyframe(ta, t);
         const kb = heldKeyframe(tb, t);
         const o: Json = { time: t };
-        o.x = round(p.fa(ka?.value ?? 0));
-        o.y = round(p.fb(kb?.value ?? 0));
+        // Missing timeline ⇒ the raw value IS the setup value: offset tracks
+        // collapse to 0 (hold setup) and absolute scale holds its setup value.
+        o.x = round(p.fa(ka?.value ?? bone.setupPose[p.a], bone.setupPose[p.a]));
+        o.y = round(p.fb(kb?.value ?? bone.setupPose[p.b], bone.setupPose[p.b]));
         // Curve only from a keyframe EXACTLY at this time — a held key's curve
         // must not leak onto the merged keyframe.
         const exact = [ta, tb]
@@ -394,7 +401,7 @@ function animationJson(
         if (exact && exact.curve.type !== 'linear') {
           // Shared pair curve: value-space flip from the y component (approx —
           // one curve serves both axes in Spine).
-          o.curve = curveJson(exact.curve, p.fb);
+          o.curve = curveJson(exact.curve, (v) => p.fb(v, 0));
         }
         return o;
       });
