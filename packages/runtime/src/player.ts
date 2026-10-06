@@ -53,7 +53,7 @@ export class RuntimePlayer {
   private readonly loopDefault: boolean;
   /** Events crossed during the last update() — also dispatched to onEvent(). */
   readonly events: EventFrame[] = [];
-  readonly animations: readonly ExportedDocument['animations'];
+  readonly animations: ExportedDocument['animations'];
 
   constructor(
     doc: ExportedDocument | { skeleton: ExportedDocument['skeleton']; animations: ExportedDocument['animations'] },
