@@ -10,6 +10,12 @@ export interface TextureMeta {
   source: 'embedded' | 'atlas';
   /** Atlas region — populated in Phase 8 when packing. */
   region?: { x: number; y: number; width: number; height: number; rotated?: boolean };
+  /**
+   * Self-contained projects (v2, additive): the texture pixels as a data URL.
+   * Written by the editor's Save when the pixels are still in the registry;
+   * on Open, textures re-register from here — no re-dropping images.
+   */
+  dataUrl?: string;
 }
 
 export type AssetManifest = Record<string, TextureMeta>;

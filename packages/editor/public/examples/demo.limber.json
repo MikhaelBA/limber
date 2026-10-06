@@ -1,0 +1,515 @@
+{
+  "version": 2,
+  "skeleton": {
+    "bones": [
+      {
+        "id": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "name": "root",
+        "parentId": null,
+        "length": 80,
+        "setupPose": {
+          "x": 0,
+          "y": 0,
+          "rotation": 0,
+          "scaleX": 1,
+          "scaleY": 1,
+          "shearX": 0,
+          "shearY": 0
+        }
+      },
+      {
+        "id": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+        "name": "bone",
+        "parentId": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "length": 90,
+        "setupPose": {
+          "x": 100,
+          "y": 0,
+          "rotation": -0.45,
+          "scaleX": 1,
+          "scaleY": 1,
+          "shearX": 0,
+          "shearY": 0
+        }
+      },
+      {
+        "id": "b3bbc5d6-576a-4803-a744-c849b03ea2b3",
+        "name": "bone2",
+        "parentId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+        "length": 80,
+        "setupPose": {
+          "x": 90,
+          "y": 0,
+          "rotation": 0.35,
+          "scaleX": 1,
+          "scaleY": 1,
+          "shearX": 0,
+          "shearY": 0
+        }
+      },
+      {
+        "id": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+        "name": "bone2-ik",
+        "parentId": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "length": 8,
+        "setupPose": {
+          "x": 170,
+          "y": 130,
+          "rotation": 0,
+          "scaleX": 1,
+          "scaleY": 1,
+          "shearX": 0,
+          "shearY": 0
+        }
+      }
+    ],
+    "slots": [
+      {
+        "id": "38305aa4-9010-458a-b4c3-4370860ee7b8",
+        "name": "slot",
+        "boneId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+        "defaultAttachmentId": "2b5b8f44-b37d-4fa3-b40e-e6f10ef1120f",
+        "color": 4294967295
+      }
+    ],
+    "attachments": [
+      {
+        "id": "459d5da3-b066-4c3c-886f-fc4f4699786c",
+        "name": "demo-limb",
+        "type": "region",
+        "textureId": "demo-tex",
+        "vertices": [
+          -30,
+          -55,
+          120,
+          -55,
+          120,
+          55,
+          -30,
+          55
+        ],
+        "uvs": [
+          0,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "2b5b8f44-b37d-4fa3-b40e-e6f10ef1120f",
+        "name": "demo-limb2",
+        "type": "mesh",
+        "textureId": "demo-tex",
+        "meshVertices": [
+          -30,
+          -55,
+          7.5,
+          -55,
+          45,
+          -55,
+          82.5,
+          -55,
+          120,
+          -55,
+          -30,
+          -18.333333333333336,
+          7.5,
+          -18.333333333333336,
+          45,
+          -18.333333333333336,
+          82.5,
+          -18.333333333333336,
+          120,
+          -18.333333333333336,
+          -30,
+          18.33333333333333,
+          7.5,
+          18.33333333333333,
+          45,
+          18.33333333333333,
+          82.5,
+          18.33333333333333,
+          120,
+          18.33333333333333,
+          -30,
+          55,
+          7.5,
+          55,
+          45,
+          55,
+          82.5,
+          55,
+          120,
+          55
+        ],
+        "meshTriangles": [
+          0,
+          1,
+          6,
+          0,
+          6,
+          5,
+          1,
+          2,
+          7,
+          1,
+          7,
+          6,
+          2,
+          3,
+          8,
+          2,
+          8,
+          7,
+          3,
+          4,
+          9,
+          3,
+          9,
+          8,
+          5,
+          6,
+          11,
+          5,
+          11,
+          10,
+          6,
+          7,
+          12,
+          6,
+          12,
+          11,
+          7,
+          8,
+          13,
+          7,
+          13,
+          12,
+          8,
+          9,
+          14,
+          8,
+          14,
+          13,
+          10,
+          11,
+          16,
+          10,
+          16,
+          15,
+          11,
+          12,
+          17,
+          11,
+          17,
+          16,
+          12,
+          13,
+          18,
+          12,
+          18,
+          17,
+          13,
+          14,
+          19,
+          13,
+          19,
+          18
+        ],
+        "meshUVs": [
+          0,
+          0,
+          0.25,
+          0,
+          0.5,
+          0,
+          0.75,
+          0,
+          1,
+          0,
+          0,
+          0.3333333333333333,
+          0.25,
+          0.3333333333333333,
+          0.5,
+          0.3333333333333333,
+          0.75,
+          0.3333333333333333,
+          1,
+          0.3333333333333333,
+          0,
+          0.6666666666666666,
+          0.25,
+          0.6666666666666666,
+          0.5,
+          0.6666666666666666,
+          0.75,
+          0.6666666666666666,
+          1,
+          0.6666666666666666,
+          0,
+          1,
+          0.25,
+          1,
+          0.5,
+          1,
+          0.75,
+          1,
+          1,
+          1
+        ],
+        "meshHull": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          9,
+          14,
+          19,
+          18,
+          17,
+          16,
+          15,
+          10,
+          5
+        ],
+        "weights": [
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          0.7,
+          2,
+          0.3,
+          2,
+          1,
+          0.4,
+          2,
+          0.6,
+          2,
+          1,
+          0.09999999999999998,
+          2,
+          0.9,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          0.7,
+          2,
+          0.3,
+          2,
+          1,
+          0.4,
+          2,
+          0.6,
+          2,
+          1,
+          0.09999999999999998,
+          2,
+          0.9,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          0.7,
+          2,
+          0.3,
+          2,
+          1,
+          0.4,
+          2,
+          0.6,
+          2,
+          1,
+          0.09999999999999998,
+          2,
+          0.9,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          1,
+          2,
+          0,
+          2,
+          1,
+          0.7,
+          2,
+          0.3,
+          2,
+          1,
+          0.4,
+          2,
+          0.6,
+          2,
+          1,
+          0.09999999999999998,
+          2,
+          0.9
+        ]
+      }
+    ],
+    "ikConstraints": [
+      {
+        "id": "c472863b-ec7b-4f70-bd3a-a21f191a2317",
+        "bones": [
+          "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+          "b3bbc5d6-576a-4803-a744-c849b03ea2b3"
+        ],
+        "targetId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+        "poleVectorId": null,
+        "bendDirection": 1,
+        "mix": 1,
+        "softness": 0,
+        "order": 0
+      }
+    ],
+    "skins": [],
+    "activeSkin": ""
+  },
+  "animations": [
+    {
+      "name": "wave",
+      "duration": 1.5,
+      "loop": true,
+      "timelines": [
+        {
+          "kind": "boneProperty",
+          "boneId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+          "property": "rotation",
+          "keyframes": [
+            {
+              "time": 0,
+              "value": -0.45,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 0.6,
+              "value": 0.35,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 1.2,
+              "value": -0.45,
+              "curve": {
+                "type": "linear"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "boneProperty",
+          "boneId": "b3bbc5d6-576a-4803-a744-c849b03ea2b3",
+          "property": "rotation",
+          "keyframes": [
+            {
+              "time": 0,
+              "value": 0.35,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 0.6,
+              "value": -0.2,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 1.2,
+              "value": 0.35,
+              "curve": {
+                "type": "linear"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "boneProperty",
+          "boneId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+          "property": "x",
+          "keyframes": [
+            {
+              "time": 0,
+              "value": 170,
+              "curve": {
+                "type": "linear"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "boneProperty",
+          "boneId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+          "property": "y",
+          "keyframes": [
+            {
+              "time": 0,
+              "value": 130,
+              "curve": {
+                "type": "linear"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "event",
+          "keyframes": [
+            {
+              "time": 0,
+              "eventName": "swoosh",
+              "curve": {
+                "type": "stepped"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "demo-tex": {
+      "name": "demo-limb.png",
+      "source": "embedded",
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAAD/////AAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1Bree/////wAAAABJRU5Ejk56dg=="
+    }
+  }
+}

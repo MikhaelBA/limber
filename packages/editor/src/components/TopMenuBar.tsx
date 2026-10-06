@@ -1,10 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
-import { deserializeDocument, exportSpineJson, serializeDocument } from '@limber/core';
+import {
+  deserializeDocument,
+  exportSpineJson,
+  serializeDocument,
+  type EditorDocument,
+  type TextureMeta,
+} from '@limber/core';
 import { buildSpineBundle } from '../export/spineBundle';
 import { clearAutosave, readAutosave } from '../persistence/autosave';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('dataURL encode failed'));
+    reader.readAsDataURL(blob);
+  });
+
+/** Project file with every still-loaded texture embedded as a data URL. */
+async function serializeSelfContained(doc: EditorDocument): Promise<{ json: string; embedded: number }> {
+  const blobs = new Map(textureRegistry.blobEntries().map((e) => [e.textureId, e]));
+  const manifest: Record<string, TextureMeta> = {};
+  let embedded = 0;
+  for (const [textureId, meta] of Object.entries(doc.assetManifest)) {
+    const blob = blobs.get(textureId);
+    if (blob) {
+      manifest[textureId] = { ...meta, dataUrl: await blobToDataUrl(blob.blob) };
+      embedded++;
+    } else {
+      manifest[textureId] = { ...meta };
+    }
+  }
+  return { json: serializeDocument({ ...doc, assetManifest: manifest }), embedded };
+}
 
 export function TopMenuBar() {
   const engine = useEngine();
@@ -42,9 +73,26 @@ export function TopMenuBar() {
     try {
       const doc = deserializeDocument(await file.text());
       engine.loadDocument(doc);
-      textureRegistry.clear(); // Embedded pixels aren't serialized — re-drop images.
+      textureRegistry.clear();
+      // Self-contained files carry their pixels: re-register every embedded
+      // texture under its ORIGINAL id so attachments resolve instantly.
+      let restored = 0;
+      for (const [textureId, meta] of Object.entries(doc.assetManifest)) {
+        if (!meta.dataUrl) continue;
+        try {
+          const blob = await (await fetch(meta.dataUrl)).blob();
+          await textureRegistry.loadBlob(textureId, meta.name, blob);
+          restored++;
+        } catch {
+          /* A broken embed must not abort the open — placeholder shows. */
+        }
+      }
       st.documentReplaced();
-      st.setStatus(`Opened ${file.name} — drop images again to restore textures`);
+      st.setStatus(
+        restored > 0
+          ? `Opened ${file.name} — ${restored} embedded texture(s) restored`
+          : `Opened ${file.name} — drop images again to restore textures`,
+      );
     } catch (err) {
       st.setStatus(`Open failed: ${(err as Error).message}`);
     }
@@ -59,9 +107,15 @@ export function TopMenuBar() {
     URL.revokeObjectURL(url);
   };
 
-  const onSave = () => {
-    download(new Blob([serializeDocument(engine.document)], { type: 'application/json' }), 'project.limber.json');
-    useEditorStore.getState().setStatus('Project saved (JSON download)');
+  const onSave = async () => {
+    const st = useEditorStore.getState();
+    try {
+      const { json, embedded } = await serializeSelfContained(engine.document);
+      download(new Blob([json], { type: 'application/json' }), 'project.limber.json');
+      st.setStatus(`Project saved — ${embedded} texture(s) embedded (self-contained file)`);
+    } catch (err) {
+      st.setStatus(`Save failed: ${(err as Error).message}`);
+    }
   };
 
   const onExportSpine = () => {

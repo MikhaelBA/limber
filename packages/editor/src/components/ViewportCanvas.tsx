@@ -65,6 +65,8 @@ interface CanvasAppEntry {
 
 const canvasApps = new WeakMap<HTMLCanvasElement, CanvasAppEntry>();
 const wiredApps = new WeakSet<Application>();
+/** Watchdog interval per wired app — cleared when the app is destroyed. */
+const renderWatchdogs = new WeakMap<Application, ReturnType<typeof setInterval>>();
 
 function acquireApp(canvas: HTMLCanvasElement, initOpts: Parameters<Application['init']>[0]): CanvasAppEntry {
   let entry = canvasApps.get(canvas);
@@ -89,12 +91,16 @@ function releaseApp(canvas: HTMLCanvasElement): void {
   if (!entry) return;
   entry.users--;
   if (entry.users <= 0) {
-    queueMicrotask(() => {
+      queueMicrotask(() => {
       const current = canvasApps.get(canvas);
       if (current && current.users <= 0) {
         canvasApps.delete(canvas);
         // removeView=false: React owns the canvas and removes it with the tree.
-        current.ready.then((app) => app.destroy(false, { children: true })).catch(() => {});
+        current.ready.then((app) => {
+          const watchdog = renderWatchdogs.get(app);
+          if (watchdog !== undefined) clearInterval(watchdog);
+          app.destroy(false, { children: true });
+        }).catch(() => {});
       }
     });
   }
@@ -1365,7 +1371,9 @@ function wireViewport(
   resizeToWrapper();
 
   let tickCount = 0;
+  let lastTickAt = performance.now();
   theApp.ticker.add(() => {
+    lastTickAt = performance.now();
     // Delta capped: background tabs must not fast-forward the clock (DESIGN.md §5.5).
     engine.tick(Math.min(theApp.ticker.deltaMS, 100));
 
@@ -1431,4 +1439,15 @@ function wireViewport(
       w.__ikTarget0 = null;
     }
   });
+
+  // rAF-frozen webviews (observed in the in-app browser: 0 frames in 2.5s
+  // while visibility reports "visible") leave the canvas on its very first
+  // frame — the user edits and sees NOTHING change. Throttled timers still
+  // fire there (~1fps), so a watchdog pumps the ticker whenever rAF stalls.
+  // When rAF is healthy, lastTickAt stays fresh and the watchdog is a no-op.
+  const watchdog = setInterval(() => {
+    const now = performance.now();
+    if (now - lastTickAt > 250) theApp.ticker.update(now);
+  }, 120);
+  renderWatchdogs.set(theApp, watchdog);
 }
