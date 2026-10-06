@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  deserializeDocument,
+  deserializeProject,
   exportSpineJson,
-  serializeDocument,
-  type EditorDocument,
+  serializeProject,
+  type BoneByBoneProject,
   type TextureMeta,
 } from '@limber/core';
 import { buildSpineBundle } from '../export/spineBundle';
@@ -21,7 +21,7 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
   });
 
 /** Project file with every still-loaded texture embedded as a data URL. */
-async function serializeSelfContained(doc: EditorDocument): Promise<{ json: string; embedded: number }> {
+async function serializeSelfContained(doc: BoneByBoneProject): Promise<{ json: string; embedded: number }> {
   const blobs = new Map(textureRegistry.blobEntries().map((e) => [e.textureId, e]));
   const manifest: Record<string, TextureMeta> = {};
   let embedded = 0;
@@ -34,7 +34,7 @@ async function serializeSelfContained(doc: EditorDocument): Promise<{ json: stri
       manifest[textureId] = { ...meta };
     }
   }
-  return { json: serializeDocument({ ...doc, assetManifest: manifest }), embedded };
+  return { json: serializeProject({ ...doc, assetManifest: manifest }), embedded };
 }
 
 export function TopMenuBar() {
@@ -71,8 +71,8 @@ export function TopMenuBar() {
     if (!file) return;
     const st = useEditorStore.getState();
     try {
-      const doc = deserializeDocument(await file.text());
-      engine.loadDocument(doc);
+      const doc = deserializeProject(await file.text(), file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''));
+      engine.loadProject(doc);
       textureRegistry.clear();
       // Self-contained files carry their pixels: re-register every embedded
       // texture under its ORIGINAL id so attachments resolve instantly.
@@ -110,8 +110,8 @@ export function TopMenuBar() {
   const onSave = async () => {
     const st = useEditorStore.getState();
     try {
-      const { json, embedded } = await serializeSelfContained(engine.document);
-      download(new Blob([json], { type: 'application/json' }), 'project.limber.json');
+      const { json, embedded } = await serializeSelfContained(engine.project);
+      download(new Blob([json], { type: 'application/json' }), 'project.bbbproj');
       st.setStatus(`Project saved — ${embedded} texture(s) embedded (self-contained file)`);
     } catch (err) {
       st.setStatus(`Save failed: ${(err as Error).message}`);
@@ -156,9 +156,9 @@ export function TopMenuBar() {
       return;
     }
     try {
-      const doc = deserializeDocument(rec.json);
+      const doc = deserializeProject(rec.json);
+      engine.loadProject(doc);
       textureRegistry.clear();
-      engine.loadDocument(doc);
       // Re-register every texture under its ORIGINAL id so attachments resolve.
       await Promise.all(
         rec.textures.map((t) => textureRegistry.loadBlob(t.textureId, t.name, t.blob).catch(() => null)),
@@ -186,7 +186,7 @@ export function TopMenuBar() {
 
   return (
     <header className="flex items-center gap-1 border-b border-neutral-800 bg-neutral-900 px-2 py-1">
-      <span className="mr-2 text-sm font-bold tracking-wide text-sky-400">Limber</span>
+      <span className="mr-2 text-sm font-bold tracking-wide text-sky-400">BoneByBone</span>
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onNew}>
         New
       </button>
@@ -221,7 +221,7 @@ export function TopMenuBar() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".bbbproj,.json,application/json"
         className="hidden"
         onChange={onOpen}
       />

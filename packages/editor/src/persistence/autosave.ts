@@ -1,4 +1,4 @@
-import { serializeDocument, type EditorDocument } from '@limber/core';
+import { serializeProject, type BoneByBoneProject } from '@limber/core';
 
 /**
  * Crash-safe autosave (DESIGN.md §7): the serialized document + the source
@@ -34,12 +34,12 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function writeAutosave(doc: EditorDocument, textures: AutosaveTexture[]): Promise<void> {
+export async function writeAutosave(doc: BoneByBoneProject, textures: AutosaveTexture[]): Promise<void> {
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put({ json: serializeDocument(doc), textures, savedAt: Date.now() } satisfies AutosaveRecord, KEY);
+      tx.objectStore(STORE).put({ json: serializeProject(doc), textures, savedAt: Date.now() } satisfies AutosaveRecord, KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error ?? new Error('autosave write failed'));
     });
@@ -80,7 +80,7 @@ export async function clearAutosave(): Promise<void> {
 let timer: ReturnType<typeof setTimeout> | undefined;
 let pending = 0;
 
-export function scheduleAutosave(get: () => { doc: EditorDocument; textures: () => AutosaveTexture[] }, delayMs = 1500): void {
+export function scheduleAutosave(get: () => { doc: BoneByBoneProject; textures: () => AutosaveTexture[] }, delayMs = 1500): void {
   if (timer) clearTimeout(timer);
   pending++;
   const seq = pending;

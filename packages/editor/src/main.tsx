@@ -20,7 +20,7 @@ window.addEventListener('unhandledrejection', (e) =>
 if (import.meta.env.DEV) {
   setInterval(() => {
     const w = window as unknown as Record<string, unknown>;
-    document.title = `limber E${(w.__errors as string[]).length} T${String(w.__ticks ?? '-')} ${
+    document.title = `BoneByBone E${(w.__errors as string[]).length} T${String(w.__ticks ?? '-')} ${
       w.__reactError ? 'REACTERR' : ''
     }`;
   }, 500);

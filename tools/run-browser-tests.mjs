@@ -30,7 +30,7 @@ try {
     await setTimeout(100);
   }
   if (!ready) throw new Error('Test server did not start.');
-  for (const test of ['smoke.mjs', 'viewport-feedback.mjs']) {
+  for (const test of ['smoke.mjs', 'viewport-feedback.mjs', 'project-files.mjs']) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {
         cwd: root,

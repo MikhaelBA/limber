@@ -7,6 +7,11 @@ import {
   solveIK,
   updateSkinning,
   uuid,
+  projectFromLegacy,
+  activeRigDocument,
+  validateProject,
+  sceneTransform,
+  type BoneByBoneProject,
   type Animation,
   type BoneData,
   type EditorDocument,
@@ -48,6 +53,7 @@ export function emptySkeletonData(withRoot: boolean): SkeletonData {
  * the transient 'time' channel instead.
  */
 export class EditorEngine {
+  project: BoneByBoneProject;
   document: EditorDocument;
   skeleton: Skeleton;
   animState = new AnimationState();
@@ -63,20 +69,36 @@ export class EditorEngine {
 
   constructor() {
     const data = emptySkeletonData(true);
-    this.document = { skeleton: data, animations: [], assetManifest: {} };
-    this.skeleton = new Skeleton(data);
+    this.project = projectFromLegacy({ skeleton: data, animations: [], assetManifest: {} });
+    this.document = activeRigDocument(this.project)!;
+    this.skeleton = new Skeleton(this.document.skeleton);
   }
 
   newDocument(): void {
     const data = emptySkeletonData(true);
-    this.document = { skeleton: data, animations: [], assetManifest: {} };
-    this.skeleton = new Skeleton(data);
-    this.resetAnimationState();
+    this.loadDocument({ skeleton: data, animations: [], assetManifest: {} });
   }
 
   loadDocument(doc: EditorDocument): void {
+    this.loadProject(projectFromLegacy(doc));
+  }
+
+  loadProject(project: BoneByBoneProject): void {
+    validateProject(project);
+    const doc = activeRigDocument(project);
+    if (!doc) throw new Error('This milestone opens projects with an active character rig. Scene-only editing is coming in the scene workspace milestone.');
+    const artboard = project.artboards.find((a) => a.id === project.editor.activeArtboardId)!;
+    const rig = artboard.nodes.find((n) => n.id === project.editor.activeRigId)!;
+    const identity = sceneTransform();
+    if (artboard.nodes.length !== 1 || rig.parentId !== null || !rig.visible || rig.opacity !== 1 ||
+        Object.keys(identity).some((key) => rig.transform[key as keyof typeof identity] !== identity[key as keyof typeof identity])) {
+      throw new Error('This artboard needs scene rendering, which is not available in this milestone. The open project has been kept unchanged.');
+    }
+    // Finish validation/construction before replacing the current document.
+    const skeleton = new Skeleton(doc.skeleton);
+    this.project = project;
     this.document = doc;
-    this.skeleton = new Skeleton(doc.skeleton);
+    this.skeleton = skeleton;
     this.resetAnimationState();
   }
 

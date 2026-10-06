@@ -46,7 +46,7 @@ function Shell() {
   useEffect(() => {
     return useEditorStore.subscribe((state, prev) => {
       if (state.dataRevision === prev.dataRevision) return;
-      scheduleAutosave(() => ({ doc: engine.document, textures: () => textureRegistry.blobEntries() }));
+      scheduleAutosave(() => ({ doc: engine.project, textures: () => textureRegistry.blobEntries() }));
     });
   }, [engine]);
 
