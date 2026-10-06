@@ -67,6 +67,7 @@ const canvasApps = new WeakMap<HTMLCanvasElement, CanvasAppEntry>();
 const wiredApps = new WeakSet<Application>();
 /** Watchdog interval per wired app — cleared when the app is destroyed. */
 const renderWatchdogs = new WeakMap<Application, ReturnType<typeof setInterval>>();
+const viewportCleanups = new WeakMap<Application, () => void>();
 
 function acquireApp(canvas: HTMLCanvasElement, initOpts: Parameters<Application['init']>[0]): CanvasAppEntry {
   let entry = canvasApps.get(canvas);
@@ -99,6 +100,7 @@ function releaseApp(canvas: HTMLCanvasElement): void {
         current.ready.then((app) => {
           const watchdog = renderWatchdogs.get(app);
           if (watchdog !== undefined) clearInterval(watchdog);
+          viewportCleanups.get(app)?.();
           app.destroy(false, { children: true });
         }).catch(() => {});
       }
@@ -271,6 +273,7 @@ function wireViewport(
       camera.y = h * 0.42;
       applyCamera();
     }
+    renderNow();
   };
   const resizeObserver = new ResizeObserver(resizeToWrapper);
   resizeObserver.observe(wrap);
@@ -362,6 +365,13 @@ function wireViewport(
   let recSkeleton: unknown = null;
   const drawPosOfSlot: number[] = [];
   const scratchPoint = { x: 0, y: 0 };
+
+  // Input feedback must not depend on rAF or drop the final event in a burst.
+  // Only the ticker advances playback; input redraws the current pose.
+  const renderNow = (): void => {
+    updateViewport(0);
+    theApp.render();
+  };
 
   // ---- Ghosting (onion skin, Phase 8) ----
   // Evaluates the CURRENT animation at offset times on a scratch skeleton and
@@ -594,7 +604,7 @@ function wireViewport(
     shapesG.lineTo(verts[0]!, verts[1]!).stroke();
   };
 
-  /** Attachment picking (§5.7): topmost-first point-in-quad, bones win first. */
+  /** Attachment picking (§5.7): topmost-first region/mesh hit test, bones win first. */
   const pointInQuad = (v: number[], x: number, y: number): boolean => {
     let sign = 0;
     for (let i = 0; i < 4; i++) {
@@ -617,7 +627,15 @@ function wireViewport(
       const i = pose.slotOrder[p]!;
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
-      if (!attachment || attachment.type !== 'region' || !attachment.vertices) continue;
+      if (!attachment || (slotPose.color >>> 24) === 0) continue;
+      if (attachment.type === 'mesh') {
+        const state = pose.attachments.get(attachment.id);
+        if (state && pointInMeshHull({
+          meshVertices: Array.from(state.verts), meshHull: attachment.meshHull,
+        }, wx, wy)) return skeleton.data.slots[i]!.id;
+        continue;
+      }
+      if (attachment.type !== 'region' || !attachment.vertices) continue;
       inverseTransformPoint(
         pose.worldMatrices,
         skeleton.boneIndexMap.get(skeleton.data.slots[i]!.boneId)!,
@@ -731,10 +749,12 @@ function wireViewport(
       useEditorStore.getState().setStatus('Hull drawing cancelled.');
       e.stopImmediatePropagation();
       e.preventDefault();
+      renderNow();
     } else if (e.key === 'Enter') {
       closeHull();
       e.stopImmediatePropagation();
       e.preventDefault();
+      renderNow();
     }
   };
   window.addEventListener('keydown', onHullKey, true);
@@ -742,17 +762,45 @@ function wireViewport(
   const drawHandles = () => {
     handlesG.clear();
     const st = useEditorStore.getState();
+    if (createDrag && mouseWorld) {
+      handlesG.setStrokeStyle({ width: 2 / camera.scale, color: 0xffa028 });
+      handlesG.moveTo(createWx, createWy).lineTo(mouseWorld.x, mouseWorld.y).stroke();
+      handlesG.circle(createWx, createWy, 3.5 / camera.scale).fill({ color: 0xffa028 });
+    }
     const ed = editableMesh();
     if (ed) {
       const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
       if (state) {
-        const r = 4.5 / camera.scale;
+        const s = camera.scale;
+        const count = ed.attachment.meshVertices!.length / 2;
+        // Triangulation wireframe first (world-space, from the skinning cache)
+        // — makes the mesh's structure visible and obviously editable, like
+        // Spine's mesh tool. Skipped for bbox/clipping polygons (no triangles).
+        const tris = ed.attachment.meshTriangles ?? [];
+        if (tris.length >= 3) {
+          handlesG.setStrokeStyle({
+            width: 1 / s,
+            color: st.activeTool === 'weights' ? 0x4a5a70 : 0x9cc7ff,
+            alpha: 0.55,
+          });
+          for (let t = 0; t < tris.length; t += 3) {
+            const a = tris[t]! * 2;
+            const b = tris[t + 1]! * 2;
+            const c = tris[t + 2]! * 2;
+            handlesG
+              .moveTo(state.verts[a]!, state.verts[a + 1]!)
+              .lineTo(state.verts[b]!, state.verts[b + 1]!)
+              .lineTo(state.verts[c]!, state.verts[c + 1]!)
+              .lineTo(state.verts[a]!, state.verts[a + 1]!)
+              .stroke();
+          }
+        }
+        const r = 4.5 / s;
         // Weights tool colors vertices by influence toward the selected bone.
         const targetIndex =
           st.activeTool === 'weights' && st.selectedBoneId
             ? engine.skeleton.boneIndexMap.get(st.selectedBoneId)
             : undefined;
-        const count = ed.attachment.meshVertices!.length / 2;
         for (let k = 0; k < count; k++) {
           let color = 0x9cc7ff;
           if (targetIndex !== undefined) {
@@ -937,6 +985,9 @@ function wireViewport(
 
     // Mesh tool: over a region → hull drawing; over a mesh → vertex editing.
     if (st.activeTool === 'mesh') {
+      if (!editableRegion() && !editableMesh()) {
+        st.selectSlot(pickSlot(wp.x, wp.y));
+      }
       const reg = editableRegion();
       if (reg) {
         inverseTransformPoint(engine.skeleton.pose.worldMatrices, reg.boneIndex, wp.x, wp.y, scratchPoint);
@@ -1039,6 +1090,11 @@ function wireViewport(
     }
 
     const hitId = pickBone(wp.x, wp.y);
+    const hitSlotId = hitId ? null : pickSlot(wp.x, wp.y);
+    if (hitSlotId) {
+      st.selectSlot(hitSlotId);
+      return;
+    }
     // Spine: dragging in EMPTY SPACE adjusts the selected item; clicking empty
     // space deselects (resolved at pointerup by movement).
     const targetId = hitId ?? (isTransformTool(st.activeTool) ? st.selectedBoneId : null);
@@ -1362,20 +1418,10 @@ function wireViewport(
     if (isTransformTool(st.activeTool)) st.clearSelection(); // Spine: dblclick deselects.
   };
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup', onPointerUp);
-  canvas.addEventListener('dblclick', onDoubleClick);
-  canvas.addEventListener('wheel', onWheel, { passive: false });
-  canvas.addEventListener('contextmenu', onContextMenu);
-  resizeToWrapper();
-
   let tickCount = 0;
   let lastTickAt = performance.now();
-  theApp.ticker.add(() => {
-    lastTickAt = performance.now();
-    // Delta capped: background tabs must not fast-forward the clock (DESIGN.md §5.5).
-    engine.tick(Math.min(theApp.ticker.deltaMS, 100));
+  const updateViewport = (deltaMS: number): void => {
+    engine.tick(deltaMS);
 
     const st = useEditorStore.getState();
     if (st.dataRevision !== recDataRev || textureRegistry.version !== recTexVer || recSkeleton !== engine.skeleton) {
@@ -1407,7 +1453,7 @@ function wireViewport(
     w.__deformKeyframes = deformKeys;
     w.__eventKeys = eventKeys;
     // Event dispatch during playback: surface fired events on the status bar.
-    if (engine.lastEvents.length > 0) {
+    if (deltaMS > 0 && engine.lastEvents.length > 0) {
       const names = engine.lastEvents.map((e) => e.eventName).join(', ');
       useEditorStore.getState().setStatus(`⚡ ${names}`);
     }
@@ -1438,6 +1484,11 @@ function wireViewport(
     } else {
       w.__ikTarget0 = null;
     }
+  };
+  theApp.ticker.add(() => {
+    lastTickAt = performance.now();
+    // Background tabs must not fast-forward playback.
+    updateViewport(Math.min(theApp.ticker.deltaMS, 100));
   });
 
   // rAF-frozen webviews (observed in the in-app browser: 0 frames in 2.5s
@@ -1450,4 +1501,57 @@ function wireViewport(
     if (now - lastTickAt > 250) theApp.ticker.update(now);
   }, 120);
   renderWatchdogs.set(theApp, watchdog);
+
+  const afterInput = <E extends Event,>(handler: (event: E) => void) => (event: E) => {
+    handler(event);
+    renderNow();
+  };
+  const down = afterInput(onPointerDown);
+  const move = afterInput(onPointerMove);
+  const up = afterInput(onPointerUp);
+  const cancel = afterInput((e: PointerEvent) => {
+    // Keep completed edits undoable, but don't create a bone on cancellation.
+    createDrag = null;
+    panning = false;
+    onPointerUp(e);
+  });
+  const doubleClick = afterInput(onDoubleClick);
+  const wheel = afterInput(onWheel);
+  const contextMenu = afterInput(onContextMenu);
+  canvas.addEventListener('pointerdown', down);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', cancel);
+  canvas.addEventListener('dblclick', doubleClick);
+  canvas.addEventListener('wheel', wheel, { passive: false });
+  canvas.addEventListener('contextmenu', contextMenu);
+
+  // Inspector edits, undo/redo and tool changes also need immediate feedback.
+  // Defer until the complete command/selection update has finished.
+  let disposed = false;
+  let queued = false;
+  const unsubscribe = useEditorStore.subscribe((state, previous) => {
+    if (Object.keys(state).every((key) => key === 'statusMessage' ||
+          state[key as keyof typeof state] === previous[key as keyof typeof previous])) return;
+    if (queued) return;
+    queued = true;
+    queueMicrotask(() => {
+      queued = false;
+      if (!disposed) renderNow();
+    });
+  });
+  viewportCleanups.set(theApp, () => {
+    disposed = true;
+    unsubscribe();
+    resizeObserver.disconnect();
+    window.removeEventListener('keydown', onHullKey, true);
+    canvas.removeEventListener('pointerdown', down);
+    canvas.removeEventListener('pointermove', move);
+    canvas.removeEventListener('pointerup', up);
+    canvas.removeEventListener('pointercancel', cancel);
+    canvas.removeEventListener('dblclick', doubleClick);
+    canvas.removeEventListener('wheel', wheel);
+    canvas.removeEventListener('contextmenu', contextMenu);
+  });
+  resizeToWrapper();
 }

@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "dev": "npm run dev -w @limber/editor",
     "smoke": "node packages/editor/tests/smoke.mjs",
+    "smoke:viewport": "node packages/editor/tests/viewport-feedback.mjs",
     "typecheck": "tsc -p packages/editor",
     "docker:build": "docker build -t limber:latest .",
     "docker:run": "docker run --rm -p 8080:80 limber:latest",
