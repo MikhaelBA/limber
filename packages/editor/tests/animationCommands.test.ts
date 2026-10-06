@@ -7,8 +7,11 @@ import {
   DeleteKeyframeCommand,
   KeyBoneTransformCommand,
   MoveKeyframeCommand,
+  DeleteEventKeyframeCommand,
+  KeyEventCommand,
   SetAnimationMetaCommand,
   SetKeyframeCommand,
+  SetKeyframeCurveCommand,
   upsertKeyframe,
 } from '../src/commands/animationCommands';
 
@@ -197,5 +200,50 @@ describe('EditorEngine animation pipeline', () => {
     expect(engine.currentTime).toBeCloseTo(0.5, 4);
     for (let i = 0; i < 20; i++) engine.tick(100); // Loops within duration 1.5.
     expect(engine.currentTime).toBeLessThan(1.5);
+  });
+});
+
+describe('events & curves (Phase 7)', () => {
+  it('KeyEventCommand keys at the playhead, replaces same name+time, undo removes', () => {
+    const { engine } = bootWithAnimation();
+    engine.scrub(0.5);
+    const cmd = new KeyEventCommand(engine, 'footstep', 2);
+    cmd.do();
+    const tl = engine.currentAnimation!.timelines[0]!;
+    expect(tl.kind).toBe('event');
+    expect(tl.keyframes[0]).toMatchObject({ time: 0.5, eventName: 'footstep', payload: 2 });
+    new KeyEventCommand(engine, 'footstep', 9).do(); // Same time+name → replace.
+    expect((tl as { keyframes: unknown[] }).keyframes).toHaveLength(1);
+    cmd.undo(); // Reverts to the ORIGINAL (no timeline at all).
+    expect(engine.currentAnimation!.timelines).toHaveLength(0);
+  });
+
+  it('DeleteEventKeyframeCommand removes one (time, name) pair', () => {
+    const { engine } = bootWithAnimation();
+    new KeyEventCommand(engine, 'a').do();
+    engine.scrub(0.4);
+    new KeyEventCommand(engine, 'b').do();
+    const del = new DeleteEventKeyframeCommand(engine, 0.4, 'b');
+    del.do();
+    const tl = engine.currentAnimation!.timelines[0] as { keyframes: { eventName: string }[] };
+    expect(tl.keyframes.map((k) => k.eventName)).toEqual(['a']);
+    del.undo();
+    expect(tl.keyframes.map((k) => k.eventName)).toEqual(['a', 'b']);
+  });
+
+  it('SetKeyframeCurveCommand rewrites the selected keyframe curve (undoable)', () => {
+    const { engine, boneId } = bootWithAnimation();
+    upsertKeyframe(engine.currentAnimation!, boneId, 'x', 0, 0);
+    upsertKeyframe(engine.currentAnimation!, boneId, 'x', 1, 10);
+    const cmd = new SetKeyframeCurveCommand(
+      engine,
+      { kind: 'bone', boneId, property: 'x', time: 0 },
+      { type: 'bezier', c1: 0.42, c2: 0, c3: 0.58, c4: 1 },
+    );
+    cmd.do();
+    const tl = timelineOf(engine, boneId, 'x')!;
+    expect(tl.keyframes[0]!.curve).toEqual({ type: 'bezier', c1: 0.42, c2: 0, c3: 0.58, c4: 1 });
+    cmd.undo();
+    expect(tl.keyframes[0]!.curve.type).toBe('linear');
   });
 });

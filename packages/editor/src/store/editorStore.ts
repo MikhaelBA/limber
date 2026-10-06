@@ -11,7 +11,8 @@ export type KeyframeSelection =
   | { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
   | { kind: 'slotColor'; slotId: string; time: number }
   | { kind: 'drawOrder'; time: number }
-  | { kind: 'deform'; attachmentId: string; time: number };
+  | { kind: 'deform'; attachmentId: string; time: number }
+  | { kind: 'event'; time: number; eventName: string };
 
 /**
  * UI STATE ONLY (DESIGN.md §5.2). Document/pose data lives in EditorEngine;

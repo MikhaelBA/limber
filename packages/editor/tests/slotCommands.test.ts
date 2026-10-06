@@ -3,7 +3,7 @@ import type { Animation, Timeline } from '@limber/core';
 import { EditorEngine } from '../src/engine/EditorEngine';
 import { HistoryManager, CompositeCommand } from '../src/history/history';
 import { AddBoneCommand } from '../src/commands/boneCommands';
-import { AddSlotCommand, RemoveSlotCommand, SetSlotPropsCommand, ReorderSlotCommand } from '../src/commands/slotCommands';
+import { AddSlotCommand, RemoveSlotCommand, SetSlotPropsCommand, ReorderSlotCommand, SetSlotBlendCommand } from '../src/commands/slotCommands';
 import {
   AddTextureCommand,
   AddAttachmentCommand,
@@ -524,5 +524,21 @@ describe('HistoryManager + CompositeCommand', () => {
     history.redo();
     expect(engine.skeleton.data.slots).toHaveLength(1);
     expect(engine.skeleton.data.slots[0]!.defaultAttachmentId).toBe(attCmd.attachmentId);
+  });
+});
+
+describe('SetSlotBlendCommand (Phase 7)', () => {
+  it('toggles additive blending with undo', () => {
+    const engine = new EditorEngine();
+    const rootId = engine.skeleton.data.bones[0]!.id;
+    const add = new AddSlotCommand(engine, rootId);
+    add.do();
+    const cmd = new SetSlotBlendCommand(engine, add.slotId, 'add');
+    cmd.do();
+    expect(engine.skeleton.data.slots[0]!.blendMode).toBe('add');
+    cmd.undo();
+    expect(engine.skeleton.data.slots[0]!.blendMode ?? 'normal').toBe('normal');
+    cmd.do();
+    expect(engine.skeleton.data.slots[0]!.blendMode).toBe('add');
   });
 });

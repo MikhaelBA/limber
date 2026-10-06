@@ -19,6 +19,7 @@ import { AddMeshCommand } from '../commands/meshCommands';
 import { AddIKConstraintCommand, RemoveIKConstraintCommand, SetIKPropsCommand } from '../commands/ikCommands';
 import {
   RemoveSlotCommand,
+  SetSlotBlendCommand,
   SetSlotPropsCommand,
   type SlotPropsSnapshot,
 } from '../commands/slotCommands';
@@ -252,6 +253,18 @@ export function PropertiesPanel() {
             />
             {animating && <span className="text-[10px] text-amber-400/80">auto-key</span>}
           </div>
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Blend</span>
+            <select
+              value={slot.blendMode ?? 'normal'}
+              onChange={(e) => execute(new SetSlotBlendCommand(engine, slot.id, e.target.value as 'normal' | 'add'))}
+              className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+              title="Additive blending for glow effects"
+            >
+              <option value="normal">normal</option>
+              <option value="add">add</option>
+            </select>
+          </label>
           <div className="my-1 h-px bg-neutral-800" />
           <label className="flex items-center gap-2">
             <span className="w-16 shrink-0 text-xs text-neutral-400">Attach</span>

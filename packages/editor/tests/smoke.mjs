@@ -351,6 +351,18 @@ const autosaved = await page.evaluate(
 if (autosaved !== true) fail('autosave record not found in IndexedDB');
 else log('autosave verified in IndexedDB');
 
+// 16. Event keying — Animate mode, type a name, key it, verify the dopesheet row.
+await page.getByRole('button', { name: /Animate/ }).click();
+await page.waitForTimeout(300);
+await page.locator('input[title="Event name"]').fill('boom');
+await page.getByRole('button', { name: /⚡ Event/ }).click();
+await page.waitForTimeout(300);
+const eventKeys = await page.evaluate(() => window.__eventKeys ?? -1);
+log('event keyframes after keying:', eventKeys);
+if (eventKeys < 1) fail(`expected >=1 event keyframe after keying, got ${eventKeys}`);
+else log('event keying verified');
+await shot('14-event-keyed.png');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

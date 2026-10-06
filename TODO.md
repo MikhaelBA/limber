@@ -1,7 +1,7 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after Phase 7 chunk 1: Spine JSON export + autosave).
+> Last updated: 2026-10-06 (after Phase 7 chunk 2: events UI + QoL batch).
 
 ## Current status
 
@@ -14,6 +14,8 @@
 | Phase 5 — Meshes, weights & deform | ✅ done (chunks 1+2; runtime accessor pending) |
 | Phase 6 — IK (solver + editor UI) | ✅ done |
 | Phase 7 — Export & persistence: Spine JSON export + IndexedDB autosave | ✅ chunk 1 done |
+| Events UI (keying, dopesheet row, dispatch) | ✅ done |
+| QoL: playback speed, curve presets, slot blend modes | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
@@ -24,13 +26,30 @@ Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
 IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
 ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD.
 
-Verification baseline: **157 unit tests green**, typecheck green, editor production
+Verification baseline: **161 unit tests green**, typecheck green, editor production
 build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
 drop-image → sprite-follows-bone, composite undo/redo, region→grid-mesh convert,
 **region→hull-mesh by clicking 4 points + closing on the first**,
 **animate-mode mesh-vertex drag → deform keyframe**,
-**IK add → drag target → chain follows (angle asserted against the live target)**, and
-**IndexedDB autosave written after the debounce window**.
+**IK add → drag target → chain follows (angle asserted against the live target)**,
+**IndexedDB autosave written after the debounce window**, and
+**event keying via the timeline UI**.
+
+## Phase 7 chunk 2 (events + QoL) — what landed (2026-10-06)
+
+- **Events**: `KeyEventCommand` / `DeleteEventKeyframeCommand`; timeline header
+  has an event-name input + "⚡ Event" key button (Animate mode); violet
+  "⚡ events" dopesheet row (click-select, Del deletes by time+name); during
+  playback, fired events (engine.lastEvents) flash on the status bar. Event
+  DEFINITIONS are collected from keyframes (Spine export emits them; no
+  separate definitions editor yet).
+- **QoL**: playback speed (×0.1–4, TimelinePanel, non-undoable engine setting);
+  curve presets for the selected keyframe (linear/stepped/ease-in/out/in-out →
+  `SetKeyframeCurveCommand`, bone/slotColor/deform kinds); slot blend modes
+  (normal/add → `SetSlotBlendCommand`, additive rendering in the viewport,
+  `blend` exported to Spine JSON; `SlotData.blendMode` optional — v2 additive).
+- Ghosting/onion-skin deliberately deferred (needs an offset-pose evaluation
+  pass in the viewport — listed under F).
 
 ## Phase 7 chunk 1 (export & persistence) — what landed (2026-10-06)
 
@@ -206,7 +225,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 157 unit tests (vitest)
+npm test           # 161 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle

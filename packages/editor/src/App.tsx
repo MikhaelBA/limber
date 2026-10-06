@@ -3,6 +3,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   DeleteDeformKeyframeCommand,
   DeleteDrawOrderKeyframeCommand,
+  DeleteEventKeyframeCommand,
   DeleteKeyframeCommand,
   DeleteSlotColorKeyframeCommand,
 } from './commands/animationCommands';
@@ -69,6 +70,8 @@ function Shell() {
             st.execute(new DeleteSlotColorKeyframeCommand(engine, kf.slotId, kf.time));
           } else if (kf.kind === 'deform') {
             st.execute(new DeleteDeformKeyframeCommand(engine, kf.attachmentId, kf.time));
+          } else if (kf.kind === 'event') {
+            st.execute(new DeleteEventKeyframeCommand(engine, kf.time, kf.eventName));
           } else {
             st.execute(new DeleteDrawOrderKeyframeCommand(engine, kf.time));
           }

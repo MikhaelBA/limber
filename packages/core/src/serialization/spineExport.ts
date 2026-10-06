@@ -85,6 +85,7 @@ export function exportSpineJson(doc: EditorDocument): string {
     const o: Json = { name: s.name, bone: boneName.get(s.boneId)! };
     if (s.defaultAttachmentId !== null) o.attachment = attName.get(s.defaultAttachmentId) ?? null;
     o.color = colorString(s.color);
+    if (s.blendMode === 'add') o.blend = 'add';
     return o;
   });
 

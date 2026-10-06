@@ -138,6 +138,38 @@ export interface SlotPropsSnapshot {
   color: number;
 }
 
+/** Toggles a slot's blend mode (additive glows). Data-only — no pose impact. */
+export class SetSlotBlendCommand implements Command {
+  readonly label: string;
+  private before: 'normal' | 'add' | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private slotId: string,
+    private blend: 'normal' | 'add',
+  ) {
+    const slot = engine.skeleton.data.slots.find((s) => s.id === slotId);
+    if (!slot) throw new Error(`SetSlotBlendCommand: slot "${slotId}" not found.`);
+    this.label = `${blend === 'add' ? 'Additive' : 'Normal'} blend ${slot.name}`;
+  }
+
+  do(): void {
+    this.apply(this.blend);
+  }
+
+  undo(): void {
+    if (this.before === null) return;
+    this.apply(this.before);
+  }
+
+  private apply(blend: 'normal' | 'add'): void {
+    const slot = this.engine.skeleton.data.slots.find((s) => s.id === this.slotId);
+    if (!slot) return;
+    if (this.before === null) this.before = slot.blendMode ?? 'normal';
+    slot.blendMode = blend;
+  }
+}
+
 /** Edits a slot's name/color, optionally re-binding it to another bone. */
 export class SetSlotPropsCommand implements Command {
   readonly label: string;

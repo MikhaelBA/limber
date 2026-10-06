@@ -55,6 +55,8 @@ export interface SlotData {
   defaultAttachmentId: string | null;
   /** Packed RGBA uint32 (0xRRGGBBAA). No color strings past the UI boundary (§8.2). */
   color: number;
+  /** Additive rendering (glows). Absent = 'normal' (format v2, additive). */
+  blendMode?: 'normal' | 'add';
 }
 
 export interface AttachmentData {

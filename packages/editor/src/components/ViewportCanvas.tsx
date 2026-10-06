@@ -420,6 +420,7 @@ function wireViewport(
       const color = slotPose.color;
       entry.mesh.tint = color & 0x00ffffff;
       entry.mesh.alpha = (color >>> 24) / 255;
+      entry.mesh.blendMode = data.slots[i]!.blendMode === 'add' ? 'add' : 'normal';
       entry.mesh.zIndex = drawPosOfSlot[i] ?? i;
     }
   };
@@ -962,10 +963,20 @@ function wireViewport(
     w.__slotMeshVerts0 = first && first.visible ? first.geometry.positions.length / 2 : 0;
     // Total deform keyframes across all animations (deform auto-key smoke).
     let deformKeys = 0;
+    let eventKeys = 0;
     for (const anim of engine.document.animations) {
-      for (const tl of anim.timelines) if (tl.kind === 'deform') deformKeys += tl.keyframes.length;
+      for (const tl of anim.timelines) {
+        if (tl.kind === 'deform') deformKeys += tl.keyframes.length;
+        else if (tl.kind === 'event') eventKeys += tl.keyframes.length;
+      }
     }
     w.__deformKeyframes = deformKeys;
+    w.__eventKeys = eventKeys;
+    // Event dispatch during playback: surface fired events on the status bar.
+    if (engine.lastEvents.length > 0) {
+      const names = engine.lastEvents.map((e) => e.eventName).join(', ');
+      useEditorStore.getState().setStatus(`⚡ ${names}`);
+    }
     // Camera transform for the smoke suite. page.mouse coordinates are PAGE-
     // relative while camera.x/y are canvas-relative — include the rect offset.
     w.__worldToScreen = (x: number, y: number): [number, number] => {

@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import type { Animation, Timeline } from '@limber/core';
 import {
   AddAnimationCommand,
+  CURVE_PRESETS,
   DeleteKeyframeCommand,
+  KeyEventCommand,
   KeyBoneTransformCommand,
   KeyDrawOrderCommand,
   MoveKeyframeCommand,
   RemoveAnimationCommand,
   SetAnimationMetaCommand,
+  SetKeyframeCurveCommand,
   type BonePropertyName,
 } from '../commands/animationCommands';
 import { useEngine } from '../hooks/useEngine';
@@ -112,6 +115,14 @@ export function TimelinePanel() {
     setStatus('Draw order keyed at playhead');
   };
 
+  // ---- Event keying (Phase 7): name typed inline, keyed at the playhead ----
+  const [eventName, setEventName] = useState('footstep');
+  const onKeyEvent = () => {
+    if (!active || mode !== 'animate' || !eventName.trim()) return;
+    execute(new KeyEventCommand(engine, eventName.trim()));
+    setStatus(`Event "${eventName.trim()}" keyed at playhead`);
+  };
+
   // ---- Ruler scrubbing ----
   const scrubbingRef = useRef(false);
   const scrubFromEvent = (e: React.PointerEvent) => {
@@ -172,6 +183,8 @@ export function TimelinePanel() {
     (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'slotColor' }> => tl.kind === 'slotColor' && tl.slotId === slotId)?.keyframes ?? [];
   const drawOrderKeyframes =
     (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'drawOrder' }> => tl.kind === 'drawOrder')?.keyframes ?? [];
+  const eventKeyframes =
+    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'event' }> => tl.kind === 'event')?.keyframes ?? [];
   /** The MESH attachment a slot currently shows (deform row source), if any. */
   const shownMeshAttachmentId = (slotId: string): string | null => {
     const slotIndex = engine.skeleton.slotIndexMap.get(slotId);
@@ -264,6 +277,22 @@ export function TimelinePanel() {
         >
           ◆ Order
         </button>
+        <input
+          type="text"
+          value={eventName}
+          onChange={(e) => setEventName(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()} // Keep global shortcuts away.
+          title="Event name"
+          className="w-20 rounded bg-neutral-800 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+        />
+        <button
+          className="rounded px-2 text-xs text-neutral-200 ring-1 ring-neutral-700 hover:bg-neutral-800 disabled:opacity-35"
+          title="Key this event at the playhead (fires during playback)"
+          disabled={!active || mode !== 'animate' || !eventName.trim()}
+          onClick={onKeyEvent}
+        >
+          ⚡ Event
+        </button>
         {active && (
           <>
             <label className="ml-1 flex items-center gap-1 text-xs text-neutral-400">
@@ -294,6 +323,49 @@ export function TimelinePanel() {
               />
               loop
             </label>
+            <label className="flex items-center gap-1 text-xs text-neutral-400" title="Playback speed">
+              ×
+              <input
+                type="number"
+                min={0.1}
+                max={4}
+                step={0.1}
+                defaultValue={engine.playbackSpeed}
+                key={`speed-${engine.playbackSpeed}`}
+                className="w-12 rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+                onBlur={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (Number.isFinite(v)) engine.playbackSpeed = Math.min(4, Math.max(0.1, v));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+              />
+            </label>
+            {selectedKeyframe &&
+              (selectedKeyframe.kind === 'bone' || selectedKeyframe.kind === 'slotColor' || selectedKeyframe.kind === 'deform') && (
+                <label className="flex items-center gap-1 text-xs text-neutral-400" title="Curve leaving the selected keyframe">
+                  ⌒
+                  <select
+                    onChange={(e) => {
+                      const preset = CURVE_PRESETS.find((p) => p.id === e.target.value);
+                      if (preset) {
+                        execute(new SetKeyframeCurveCommand(engine, selectedKeyframe, structuredClone(preset.curve)));
+                        setStatus(`Curve set to ${preset.label}`);
+                      }
+                      e.target.value = ''; // Re-selectable for consecutive keys.
+                    }}
+                    className="rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  >
+                    <option value="">curve</option>
+                    {CURVE_PRESETS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
           </>
         )}
         {!hasAnim && <span className="text-xs text-neutral-500">Create an animation to start keyframing</span>}
@@ -337,6 +409,11 @@ export function TimelinePanel() {
           {slots.length > 0 && (
             <div className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-amber-300/80" style={{ height: ROW_H }}>
               ◆ draw order
+            </div>
+          )}
+          {eventKeyframes.length > 0 && (
+            <div className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-violet-300/80" style={{ height: ROW_H }}>
+              ⚡ events
             </div>
           )}
           {slots.map((slot) => (
@@ -483,6 +560,32 @@ export function TimelinePanel() {
                         setKeyframeSelection({ kind: 'drawOrder', time: kf.time });
                       }}
                       title={`draw order @ ${fmtTime(kf.time)} = [${kf.slotOrder.join(', ')}]`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Event keyframes — one global row (Phase 7). */}
+            {eventKeyframes.length > 0 && (
+              <div className="relative border-t border-neutral-800" style={{ height: ROW_H }}>
+                {eventKeyframes.map((kf) => {
+                  const isSelKf =
+                    selectedKeyframe?.kind === 'event' &&
+                    Math.abs(selectedKeyframe.time - kf.time) < 1e-6 &&
+                    selectedKeyframe.eventName === kf.eventName;
+                  return (
+                    <div
+                      key={`${kf.time}-${kf.eventName}`}
+                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
+                        isSelKf ? 'bg-sky-400' : 'bg-violet-500 hover:bg-violet-400'
+                      }`}
+                      style={{ left: kf.time * PPS - 4 }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setKeyframeSelection({ kind: 'event', time: kf.time, eventName: kf.eventName });
+                      }}
+                      title={`event "${kf.eventName}" @ ${fmtTime(kf.time)}${kf.payload !== undefined ? ` = ${String(kf.payload)}` : ''}`}
                     />
                   );
                 })}

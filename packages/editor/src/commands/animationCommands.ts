@@ -1,10 +1,13 @@
 import type {
   Animation,
   ColorKeyframe,
+  Curve,
   DeformKeyframe,
   DeformTimeline,
   DrawOrderKeyframe,
   DrawOrderTimeline,
+  EventKeyframe,
+  EventTimeline,
   NumberKeyframe,
   SlotColorTimeline,
 } from '@limber/core';
@@ -748,6 +751,158 @@ export class DeleteDeformKeyframeCommand implements Command {
 
   undo(): void {
     restoreDeform(requireAnimation(this.engine), this.attachmentId, this.before);
+  }
+}
+
+// ------------------- event keyframes (Phase 7) -------------------
+
+function findEventTimeline(anim: Animation): EventTimeline | undefined {
+  return anim.timelines.find((tl): tl is EventTimeline => tl.kind === 'event');
+}
+
+interface EventSnapshot {
+  existed: boolean;
+  timelineIndex: number;
+  keyframes: EventKeyframe[] | null;
+}
+
+function snapshotEvents(anim: Animation): EventSnapshot {
+  const tl = findEventTimeline(anim);
+  return tl
+    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })) }
+    : { existed: false, timelineIndex: -1, keyframes: null };
+}
+
+function restoreEvents(anim: Animation, snap: EventSnapshot): void {
+  const tl = findEventTimeline(anim);
+  if (snap.existed) {
+    const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve } }));
+    if (tl) tl.keyframes = kfs;
+    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'event', keyframes: kfs });
+  } else if (tl) {
+    anim.timelines.splice(anim.timelines.indexOf(tl), 1);
+  }
+}
+
+/** Keys an event (name + optional payload) at the playhead. */
+export class KeyEventCommand implements Command {
+  readonly label: string;
+  private readonly before: EventSnapshot;
+
+  constructor(
+    private engine: EditorEngine,
+    readonly eventName: string,
+    private payload?: number | string,
+  ) {
+    this.before = snapshotEvents(requireAnimation(engine));
+    this.label = `Key Event ${eventName}`;
+  }
+
+  do(): void {
+    const anim = requireAnimation(this.engine);
+    let tl = findEventTimeline(anim);
+    if (!tl) {
+      tl = { kind: 'event', keyframes: [] };
+      anim.timelines.push(tl);
+    }
+    const kf: EventKeyframe = {
+      time: this.engine.currentTime,
+      eventName: this.eventName,
+      ...(this.payload !== undefined ? { payload: this.payload } : {}),
+      curve: steppedCurve(),
+    };
+    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - kf.time) < 1e-6 && k.eventName === this.eventName);
+    if (at >= 0) tl.keyframes[at] = kf;
+    else {
+      const insert = tl.keyframes.findIndex((k) => k.time > kf.time);
+      if (insert === -1) tl.keyframes.push(kf);
+      else tl.keyframes.splice(insert, 0, kf);
+    }
+    refreshDuration(anim);
+  }
+
+  undo(): void {
+    restoreEvents(requireAnimation(this.engine), this.before);
+  }
+}
+
+/** Deletes the event key at (time, name) — several events may share a time. */
+export class DeleteEventKeyframeCommand implements Command {
+  readonly label = 'Delete Event Key';
+  private readonly before: EventSnapshot;
+
+  constructor(
+    private engine: EditorEngine,
+    private time: number,
+    private eventName: string,
+  ) {
+    this.before = snapshotEvents(requireAnimation(engine));
+  }
+
+  do(): void {
+    const tl = findEventTimeline(requireAnimation(this.engine));
+    if (!tl) return;
+    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - this.time) < 1e-6 && k.eventName === this.eventName);
+    if (at >= 0) tl.keyframes.splice(at, 1);
+  }
+
+  undo(): void {
+    restoreEvents(requireAnimation(this.engine), this.before);
+  }
+}
+
+// ------------------- keyframe curves (Phase 7 QoL) -------------------
+
+/** Curve presets for the dopesheet's selected keyframe. */
+export const CURVE_PRESETS: { id: string; label: string; curve: Curve }[] = [
+  { id: 'linear', label: 'linear', curve: { type: 'linear' } },
+  { id: 'stepped', label: 'stepped', curve: { type: 'stepped' } },
+  { id: 'ease-in', label: 'ease in', curve: { type: 'bezier', c1: 0.42, c2: 0, c3: 1, c4: 1 } },
+  { id: 'ease-out', label: 'ease out', curve: { type: 'bezier', c1: 0, c2: 0, c3: 0.58, c4: 1 } },
+  { id: 'ease-in-out', label: 'ease in-out', curve: { type: 'bezier', c1: 0.42, c2: 0, c3: 0.58, c4: 1 } },
+];
+
+/** Rewrites the curve leaving the selected keyframe (bone/slotColor/deform). */
+export class SetKeyframeCurveCommand implements Command {
+  readonly label = 'Set Curve';
+  private before: Curve | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private sel: { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
+      | { kind: 'slotColor'; slotId: string; time: number }
+      | { kind: 'deform'; attachmentId: string; time: number },
+    private curve: Curve,
+  ) {}
+
+  private find(): { curve: Curve } | null {
+    const anim = requireAnimation(this.engine);
+    if (this.sel.kind === 'bone') {
+      const tl = findTimeline(anim, this.sel.boneId, this.sel.property);
+      const kf = tl?.keyframes.find((k) => Math.abs(k.time - this.sel.time) < 1e-6);
+      return kf ?? null;
+    }
+    if (this.sel.kind === 'slotColor') {
+      const tl = findSlotColorTimeline(anim, this.sel.slotId);
+      const kf = tl?.keyframes.find((k) => Math.abs(k.time - this.sel.time) < 1e-6);
+      return kf ?? null;
+    }
+    const tl = findDeformTimeline(anim, this.sel.attachmentId);
+    const kf = tl?.keyframes.find((k) => Math.abs(k.time - (this.sel as { time: number }).time) < 1e-6);
+    return kf ?? null;
+  }
+
+  do(): void {
+    const kf = this.find();
+    if (!kf) return;
+    if (this.before === null) this.before = { ...kf.curve };
+    kf.curve = structuredClone(this.curve);
+  }
+
+  undo(): void {
+    const kf = this.find();
+    if (!kf || this.before === null) return;
+    kf.curve = { ...this.before };
   }
 }
 
