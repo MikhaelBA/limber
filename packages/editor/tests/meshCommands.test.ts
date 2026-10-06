@@ -47,6 +47,9 @@ function setupAnimatedMesh() {
   return { engine, slotId, meshId: add.attachmentId };
 }
 
+/** Narrowed view for asserting on deform keyframes. */
+type DeformTimelineView = { kind: 'deform'; keyframes: { time: number; offsets: number[] | null }[] };
+
 describe('buildGridMesh', () => {
   it('generates a 3x3-vertex lattice with 2 triangles per cell', () => {
     const g = buildGridMesh({ textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
@@ -369,7 +372,7 @@ describe('AutoKeyDeformCommand', () => {
     cmd.commit();
     expect(cmd.changed).toBe(true);
 
-    const tl = engine.currentAnimation!.timelines[0]!;
+    const tl = engine.currentAnimation!.timelines[0] as DeformTimelineView;
     expect(tl.kind).toBe('deform');
     expect(tl.keyframes).toHaveLength(1);
     expect(tl.keyframes[0]!.offsets![8]).toBe(5);
@@ -396,10 +399,7 @@ describe('AutoKeyDeformCommand', () => {
     cmd.open(); // base = the interpolated pose at t=0 (all ones).
     cmd.update(4, 6, 6); // setup (0,0) → offsets (6,6), everything else stays 1.
     cmd.commit();
-    const tl = engine.currentAnimation!.timelines[0]! as Extract<
-      (typeof engine.currentAnimation)['timelines'][number],
-      { kind: 'deform' }
-    >;
+    const tl = engine.currentAnimation!.timelines[0] as DeformTimelineView;
     expect(tl.keyframes).toHaveLength(1);
     expect(tl.keyframes[0]!.offsets![0]).toBe(1); // untouched vertex keeps the base.
     expect(tl.keyframes[0]!.offsets![8]).toBe(6);
