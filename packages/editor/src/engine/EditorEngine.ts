@@ -4,6 +4,7 @@ import {
   createPose,
   resetPose,
   solveFK,
+  solveIK,
   updateSkinning,
   uuid,
   type Animation,
@@ -137,6 +138,12 @@ export class EditorEngine {
       for (const e of events) this.lastEvents.push(e);
     }
     solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    // IK reads the FK'd world matrices, writes LOCAL rotations and refreshes
+    // the world matrices itself (constraint order matters; solveIK is safe to
+    // call even with zero constraints).
+    if (this.skeleton.data.ikConstraints.length > 0) {
+      solveIK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    }
     updateSkinning(this.skeleton);
     this.emitTransient('time', this.currentTime);
   }

@@ -148,6 +148,14 @@ export class Skeleton {
           throw new Error(`IK constraint "${constraint.id}" references unknown boneId "${boneId}".`);
         }
       }
+      if (constraint.bones.length === 2) {
+        const childParentId = this.data.bones.find((b) => b.id === constraint.bones[1])?.parentId;
+        if (childParentId !== constraint.bones[0]) {
+          throw new Error(
+            `IK constraint "${constraint.id}": the second bone must be a direct child of the first.`,
+          );
+        }
+      }
       if (constraint.poleVectorId !== null && !boneIds.has(constraint.poleVectorId)) {
         throw new Error(
           `IK constraint "${constraint.id}" references unknown poleVectorId "${constraint.poleVectorId}".`,

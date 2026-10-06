@@ -8,6 +8,7 @@ import {
   ReparentBoneCommand,
 } from '../commands/boneCommands';
 import { AddSlotCommand, RemoveSlotCommand, ReorderSlotCommand } from '../commands/slotCommands';
+import { AddIKConstraintCommand } from '../commands/ikCommands';
 import { KeyDrawOrderCommand } from '../commands/animationCommands';
 import { CompositeCommand, type Command } from '../history/history';
 
@@ -100,6 +101,18 @@ export function HierarchyPanel() {
     const cmd = new AddSlotCommand(engine, boneId);
     execute(cmd);
     selectSlot(cmd.slotId);
+  };
+
+  /** IK chain = the selected bone + its parent; target bone lands at the tip. */
+  const addIk = () => {
+    if (!selected) {
+      setStatus('Select a bone first — IK controls it (plus its parent).');
+      return;
+    }
+    const cmd = new AddIKConstraintCommand(engine, selected);
+    execute(cmd);
+    select(cmd.targetBoneId); // Immediately draggable — the chain follows live.
+    setStatus('IK created — drag the target bone; edit mix/bend in Properties.');
   };
 
   return (
@@ -257,6 +270,44 @@ export function HierarchyPanel() {
                 >
                   🗑
                 </button>
+              </span>
+            </div>
+          );
+        })}
+
+        {/* IK constraints — chain → target, click selects the chain end. */}
+        <div className="mt-1 flex items-center gap-1 border-t border-neutral-800 px-2 py-1">
+          <span className="mr-auto text-xs font-semibold uppercase tracking-wider text-neutral-400">IK</span>
+          <button
+            className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
+            title="Add IK controlling the selected bone (+ its parent)"
+            disabled={!selected}
+            onClick={addIk}
+          >
+            ＋
+          </button>
+        </div>
+        {data.ikConstraints.length === 0 && (
+          <p className="p-2 text-xs text-neutral-500">
+            No IK constraints. Select a bone and ＋.
+          </p>
+        )}
+        {data.ikConstraints.map((c) => {
+          const endId = c.bones[c.bones.length - 1]!;
+          const chainLabel = c.bones.map((id) => boneName.get(id) ?? '?').join('→');
+          return (
+            <div
+              key={c.id}
+              onClick={() => select(endId)}
+              className={`flex cursor-default items-center gap-1 rounded py-0.5 pl-2 pr-1 text-sm ${
+                selected === endId || selected === c.targetId
+                  ? 'bg-sky-600/30 text-sky-100 ring-1 ring-sky-500/40'
+                  : 'text-neutral-300 hover:bg-neutral-800'
+              }`}
+              title={`IK: ${chainLabel} → ${boneName.get(c.targetId) ?? '?'} (mix ${c.mix})`}
+            >
+              <span className="truncate text-amber-300/90">
+                ⚙ {chainLabel} ⇢ {boneName.get(c.targetId) ?? '?'}
               </span>
             </div>
           );

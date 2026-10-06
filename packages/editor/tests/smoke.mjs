@@ -293,6 +293,40 @@ if (deformKeys < 1) fail(`expected >=1 deform keyframe after the drag, got ${def
 else log('deform auto-key verified');
 await shot('12-deform-keyed.png');
 
+// 14. IK — add a constraint on the root bone (1-bone chain + auto target at
+//     the tip), then drag the target: the root must rotate to follow it.
+await page.getByRole('button', { name: /Setup/ }).click();
+await page.waitForTimeout(300);
+await rootBoneRow.click();
+await page.waitForTimeout(200);
+await page.getByRole('button', { name: '＋ Add IK' }).click();
+await page.waitForTimeout(300);
+const ikRow = page.locator('span', { hasText: /^⚙ root ⇢ root-ik$/ }).first();
+if (!(await ikRow.count())) fail('IK row (root ⇢ root-ik) not visible in the hierarchy');
+else log('IK constraint listed in hierarchy');
+await page.keyboard.press('v'); // Select tool — bones draggable again.
+const target0 = await page.evaluate(() => window.__ikTarget0 ?? null); // root moved earlier — read the live position.
+if (!Array.isArray(target0)) fail(`no __ikTarget0 exposed: ${JSON.stringify(target0)}`);
+const [tx0, ty0] = await toScreen(target0[0], target0[1]);
+await page.mouse.move(tx0, ty0);
+await page.mouse.down();
+await page.mouse.move(tx0 + 40, ty0 + 30, { steps: 5 });
+await page.mouse.up();
+await page.waitForTimeout(400);
+const { rootAngle, expectedAngle } = await page.evaluate(() => {
+  const t = window.__ikTarget0 ?? [0, 0];
+  const o = window.__boneOrigin0 ?? [0, 0];
+  return {
+    rootAngle: window.__boneAngle0 ?? NaN,
+    expectedAngle: Math.atan2(t[1] - o[1], t[0] - o[0]),
+  };
+});
+log('root world angle after target drag:', rootAngle, 'expected:', expectedAngle);
+if (!(Math.abs(rootAngle - expectedAngle) < 0.01)) {
+  fail(`root should point at the live IK target (${expectedAngle.toFixed(3)}) after the drag, got ${rootAngle}`);
+} else log('IK target drag verified — chain follows');
+await shot('13-ik-follow.png');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

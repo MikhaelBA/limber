@@ -267,6 +267,22 @@ function wireViewport(
         bonesG.circle(ox, oy, 9 / s).fill({ color: 0xffa028, alpha: 0.15 });
       }
     }
+    // IK reach lines: chain tip → target, for constraints touching the selection.
+    for (const c of data.ikConstraints) {
+      if (st.selectedBoneId !== c.targetId && !(st.selectedBoneId && c.bones.includes(st.selectedBoneId))) continue;
+      const endIdx = engine.skeleton.boneIndexMap.get(c.bones[c.bones.length - 1]!);
+      const tIdx = engine.skeleton.boneIndexMap.get(c.targetId);
+      if (endIdx === undefined || tIdx === undefined) continue;
+      const e = endIdx * 6;
+      const endBone = data.bones[endIdx]!;
+      const tipX = wm[e]! * endBone.length + wm[e + 4]!;
+      const tipY = wm[e + 1]! * endBone.length + wm[e + 5]!;
+      const t = tIdx * 6;
+      bonesG.setStrokeStyle({ width: 1.5 / s, color: 0xffc247, alpha: 0.85 });
+      bonesG.moveTo(tipX, tipY).lineTo(wm[t + 4]!, wm[t + 5]!).stroke();
+      bonesG.setStrokeStyle({ width: 2 / s, color: 0xffc247, alpha: 0.95 });
+      bonesG.circle(wm[t + 4]!, wm[t + 5]!, 6 / s).stroke();
+    }
   };
 
   const screenToWorld = (e: { clientX: number; clientY: number }) => {
@@ -950,10 +966,30 @@ function wireViewport(
       for (const tl of anim.timelines) if (tl.kind === 'deform') deformKeys += tl.keyframes.length;
     }
     w.__deformKeyframes = deformKeys;
-    // Camera transform for the smoke suite (clicking world-space points).
-    w.__worldToScreen = (x: number, y: number): [number, number] => [
-      x * camera.scale + camera.x,
-      y * camera.scale + camera.y,
+    // Camera transform for the smoke suite. page.mouse coordinates are PAGE-
+    // relative while camera.x/y are canvas-relative — include the rect offset.
+    w.__worldToScreen = (x: number, y: number): [number, number] => {
+      const r = canvas.getBoundingClientRect();
+      return [r.left + x * camera.scale + camera.x, r.top + y * camera.scale + camera.y];
+    };
+    // Root bone world angle + origin (IK-follows-target smoke assertion).
+    w.__boneAngle0 = Math.atan2(
+      engine.skeleton.pose.worldMatrices[1]!,
+      engine.skeleton.pose.worldMatrices[0]!,
+    );
+    w.__boneOrigin0 = [
+      engine.skeleton.pose.worldMatrices[4]!,
+      engine.skeleton.pose.worldMatrices[5]!,
     ];
+    // First IK constraint's target world position (drag source in smoke).
+    const ik0 = engine.skeleton.data.ikConstraints[0];
+    if (ik0) {
+      const ti = engine.skeleton.boneIndexMap.get(ik0.targetId);
+      w.__ikTarget0 = ti !== undefined
+        ? [engine.skeleton.pose.worldMatrices[ti * 6 + 4]!, engine.skeleton.pose.worldMatrices[ti * 6 + 5]!]
+        : null;
+    } else {
+      w.__ikTarget0 = null;
+    }
   });
 }

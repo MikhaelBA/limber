@@ -12,6 +12,7 @@
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
 | Phase 4 — Attachments, draw order & skins | ✅ done |
 | Phase 5 — Meshes, weights & deform | ✅ done (chunks 1+2; runtime accessor pending) |
+| Phase 6 — IK (solver + editor UI) | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
@@ -22,11 +23,40 @@ Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
 IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
 ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD.
 
-Verification baseline: **137 unit tests green**, typecheck green, editor production
+Verification baseline: **146 unit tests green**, typecheck green, editor production
 build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
 drop-image → sprite-follows-bone, composite undo/redo, region→grid-mesh convert,
-**region→hull-mesh by clicking 4 points + closing on the first**, and
-**animate-mode mesh-vertex drag → deform keyframe**.
+**region→hull-mesh by clicking 4 points + closing on the first**,
+**animate-mode mesh-vertex drag → deform keyframe**, and
+**IK add → drag target → chain follows (angle asserted against the live target)**.
+
+## Phase 6 (IK) — what landed (2026-10-06)
+
+- **Core solver** (`core/skeleton/IKSolver.ts` — NEW): analytic 1/2-bone IK run
+  AFTER FK. Law-of-cosines solve in world space; `bendDirection` flips the
+  elbow; `mix` blends shortest-arc toward the pre-IK pose; targets beyond reach
+  clamp into the reachable annulus (fully-extended chain). Writes LOCAL
+  rotations (bone2's relative to bone1's SOLVED angle — the stale-matrix trap)
+  and re-runs FK per constraint so later constraints/skinning see the result.
+  Assumes no shear/positive scale along the chain (documented). L1 = current
+  distance between the two origins; L2 = second bone's `length`.
+  `EditorEngine.tick`: reset → apply → FK → IK → skinning.
+  Skeleton validation now also enforces: 2-bone chains must be parent→child.
+- **Editor commands** (`editor/src/commands/ikCommands.ts` — NEW):
+  `AddIKConstraintCommand` (chain = selected bone + its parent; auto-creates a
+  target bone at the chain tip's SETUP world position, parented into the chain
+  root's parent; one undo removes bone + constraint; lazy unique naming),
+  `RemoveIKConstraintCommand` (constraint only — target stays), `SetIKPropsCommand`
+  (mix/bendDirection/target; rebuild only on target swap). RemoveBoneCommand's
+  existing IK cleanup covers deletions.
+- **UI**: IK section in the hierarchy (chain ⇢ target rows; ＋ uses the selected
+  bone), per-bone IK editor in Properties (mix, bend cw/ccw flip, target select,
+  delete, "＋ Add IK" when none exist), and an orange tip→target reach line +
+  target ring in the viewport for constraints touching the selection. Target
+  bones drag like any bone (setup drag = MoveBone; animate drag = auto-key) —
+  the chain follows live through tick.
+- **Not yet**: IK timeline keys (animatable mix/bend — needs a new timeline
+  kind), softness, pole vectors. Solver ignores them (stored, unsolved).
 
 ## Phase 5 chunk 2 — what landed (2026-10-06)
 
@@ -151,7 +181,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 137 unit tests (vitest)
+npm test           # 146 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle
