@@ -28,8 +28,11 @@ const CRC_TABLE = (() => {
 })();
 
 function crc32(buf: Buffer): number {
+  // Standard reflected table-driven CRC-32: index by the LOW byte, then fold
+  // the rest of c back in. (Verified byte-for-byte against Python's
+  // zlib.crc32 — the first version omitted the `& 0xff` + `>>> 8` fold.)
   let c = 0xffffffff;
-  for (const b of buf) c = CRC_TABLE[(c ^ b)!]!;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 

@@ -3,7 +3,7 @@
   "skeleton": {
     "bones": [
       {
-        "id": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "id": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
         "name": "root",
         "parentId": null,
         "length": 80,
@@ -18,9 +18,9 @@
         }
       },
       {
-        "id": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+        "id": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
         "name": "bone",
-        "parentId": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "parentId": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
         "length": 90,
         "setupPose": {
           "x": 100,
@@ -33,9 +33,9 @@
         }
       },
       {
-        "id": "b3bbc5d6-576a-4803-a744-c849b03ea2b3",
+        "id": "eb57f3dc-797a-4d52-99e3-706129f28fc2",
         "name": "bone2",
-        "parentId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+        "parentId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
         "length": 80,
         "setupPose": {
           "x": 90,
@@ -48,9 +48,9 @@
         }
       },
       {
-        "id": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+        "id": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
         "name": "bone2-ik",
-        "parentId": "6492398c-65fd-43cc-8cfe-249a66b32d4f",
+        "parentId": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
         "length": 8,
         "setupPose": {
           "x": 170,
@@ -65,16 +65,16 @@
     ],
     "slots": [
       {
-        "id": "38305aa4-9010-458a-b4c3-4370860ee7b8",
+        "id": "4d528bcf-d6e2-4d81-a327-806980f87562",
         "name": "slot",
-        "boneId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
-        "defaultAttachmentId": "2b5b8f44-b37d-4fa3-b40e-e6f10ef1120f",
+        "boneId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
+        "defaultAttachmentId": "48e784ac-69d2-4bc7-b98c-7c38e421f932",
         "color": 4294967295
       }
     ],
     "attachments": [
       {
-        "id": "459d5da3-b066-4c3c-886f-fc4f4699786c",
+        "id": "6df338b1-e45d-4ded-94d9-6dcde7dce3cb",
         "name": "demo-limb",
         "type": "region",
         "textureId": "demo-tex",
@@ -100,7 +100,7 @@
         ]
       },
       {
-        "id": "2b5b8f44-b37d-4fa3-b40e-e6f10ef1120f",
+        "id": "48e784ac-69d2-4bc7-b98c-7c38e421f932",
         "name": "demo-limb2",
         "type": "mesh",
         "textureId": "demo-tex",
@@ -384,12 +384,12 @@
     ],
     "ikConstraints": [
       {
-        "id": "c472863b-ec7b-4f70-bd3a-a21f191a2317",
+        "id": "9f565020-d417-46b4-aef8-47a4a9905f6f",
         "bones": [
-          "63c1b1a6-fcf9-4c70-baa4-70808582802a",
-          "b3bbc5d6-576a-4803-a744-c849b03ea2b3"
+          "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
+          "eb57f3dc-797a-4d52-99e3-706129f28fc2"
         ],
-        "targetId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+        "targetId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
         "poleVectorId": null,
         "bendDirection": 1,
         "mix": 1,
@@ -408,7 +408,7 @@
       "timelines": [
         {
           "kind": "boneProperty",
-          "boneId": "63c1b1a6-fcf9-4c70-baa4-70808582802a",
+          "boneId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
           "property": "rotation",
           "keyframes": [
             {
@@ -436,7 +436,7 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "b3bbc5d6-576a-4803-a744-c849b03ea2b3",
+          "boneId": "eb57f3dc-797a-4d52-99e3-706129f28fc2",
           "property": "rotation",
           "keyframes": [
             {
@@ -464,7 +464,7 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+          "boneId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
           "property": "x",
           "keyframes": [
             {
@@ -478,7 +478,7 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "8acae3dc-64eb-4194-b4ba-d8b8d4e907f3",
+          "boneId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
           "property": "y",
           "keyframes": [
             {
@@ -509,7 +509,7 @@
     "demo-tex": {
       "name": "demo-limb.png",
       "source": "embedded",
-      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAAD/////AAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1Bree/////wAAAABJRU5Ejk56dg=="
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1BreeoOwe0QAAAABJRU5ErkJggg=="
     }
   }
 }
