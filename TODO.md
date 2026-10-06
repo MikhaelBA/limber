@@ -290,3 +290,11 @@ npm run docker:build && npm run docker:run   # nginx on :8080
     `new DataTransfer()` via `evaluateHandle`, add the file, then
     `locator.dispatchEvent('drop', { dataTransfer, bubbles: true })`. Real file
     dialogs are unavailable to automation.
+13. **`npx tsc -b` does NOT typecheck the editor package** — it only builds the
+    referenced projects (core, runtime). CI runs `npm run typecheck`
+    (= `tsc -p packages/editor`, INCLUDES tests). Three pushes went red before
+    this clicked. Before every push: `npm run typecheck` AND `npm test`.
+14. **`page.mouse` coordinates are PAGE-relative; camera.x/y are CANVAS-relative** —
+    include `canvas.getBoundingClientRect()` when bridging world→screen for
+    tests (see `__worldToScreen`), and assert against LIVE positions
+    (`__ikTarget0`) rather than assumed setup poses.
