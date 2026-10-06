@@ -62,8 +62,8 @@ export interface SlotData {
 export interface AttachmentData {
   id: string;
   name: string;
-  type: 'region' | 'mesh';
-  /** Key into the asset manifest / texture registry — NOT a URL (DESIGN.md §3.5). */
+  type: 'region' | 'mesh' | 'boundingBox' | 'clipping';
+  /** Key into the asset manifest / texture registry — NOT a URL (DESIGN.md §3.5). Empty for untextured types. */
   textureId: string;
 
   // --- Region (4 corners) ---
@@ -84,6 +84,10 @@ export interface AttachmentData {
    * vertices in index order — the triangulator fallback for pre-v2 documents.
    */
   meshHull?: number[];
+
+  // --- Clipping (polygon; clips subsequent slots until endSlotId) ---
+  /** Where the clip STOPS (exclusive); null = through the last slot. */
+  endSlotId?: string | null;
 
   /**
    * Skinning weights — interleaved PER VERTEX (mesh) / per corner (region):

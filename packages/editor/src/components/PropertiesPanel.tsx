@@ -8,8 +8,10 @@ import {
 } from '../commands/boneCommands';
 import {
   AddAttachmentCommand,
+  AddPolygonAttachmentCommand,
   RemoveAttachmentCommand,
   SetAttachmentPropsCommand,
+  SetClipEndSlotCommand,
   SetSlotAttachmentCommand,
   regionOf,
   type AttachmentTarget,
@@ -312,6 +314,34 @@ export function PropertiesPanel() {
               ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
             </p>
           )}
+          {shownAtt && (shownAtt.type === 'boundingBox' || shownAtt.type === 'clipping') && shownAtt.meshVertices && (
+            <>
+              <p className="text-[10px] text-neutral-500">
+                {shownAtt.type === 'boundingBox' ? 'bounding box' : 'clipping'} —{' '}
+                {shownAtt.meshVertices.length / 2} vertices · edit with the ◈ Mesh tool
+              </p>
+              {shownAtt.type === 'clipping' && (
+                <label className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 text-xs text-neutral-400">end slot</span>
+                  <select
+                    value={shownAtt.endSlotId ?? ''}
+                    onChange={(e) =>
+                      execute(new SetClipEndSlotCommand(engine, shownAtt.id, e.target.value || null))
+                    }
+                    className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    title="Clipping applies until this slot (exclusive)"
+                  >
+                    <option value="">(last slot)</option>
+                    {data.slots.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          )}
           <div className="my-1 h-px bg-neutral-800" />
           {textures.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -369,6 +399,35 @@ export function PropertiesPanel() {
                 }}
               >
                 Grid mesh
+              </button>
+              <button
+                className="shrink-0 rounded bg-neutral-700 px-2 py-0.5 text-xs text-white hover:bg-neutral-600"
+                title="Add a bounding box polygon (hit-testing; editable with the Mesh tool)"
+                onClick={() => {
+                  const tex = textureRegistry.get(textureChoice || textures[0]![0]);
+                  execute(
+                    new AddPolygonAttachmentCommand(
+                      engine,
+                      slot.id,
+                      { x: 0, y: 0, width: tex?.width ?? 60, height: tex?.height ?? 60 },
+                      'boundingBox',
+                      skinTarget,
+                    ),
+                  );
+                }}
+              >
+                BBox
+              </button>
+              <button
+                className="shrink-0 rounded bg-violet-800 px-2 py-0.5 text-xs text-white hover:bg-violet-700"
+                title="Add a clipping polygon — clips subsequent slots (until the end slot)"
+                onClick={() => {
+                  execute(
+                    new AddPolygonAttachmentCommand(engine, slot.id, { x: 0, y: 0, width: 80, height: 80 }, 'clipping', skinTarget),
+                  );
+                }}
+              >
+                Clip
               </button>
             </div>
           ) : (

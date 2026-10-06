@@ -273,3 +273,39 @@ describe('exportSpineJson', () => {
     expect(json.skins[1].attachments.slotA.head.type).toBe('region');
   });
 });
+
+describe('exportSpineJson — polygon attachments', () => {
+  it('exports bounding boxes and clipping with vertexCount + y-flipped pairs + end slot', () => {
+    const d = doc();
+    d.skeleton.slots.push({ id: 's2', name: 'slotB', boneId: 'b', defaultAttachmentId: 'bb1', color: 0xffffffff });
+    d.skeleton.attachments.push(
+      {
+        id: 'bb1',
+        name: 'hitbox',
+        type: 'boundingBox',
+        textureId: '',
+        meshVertices: [-20, -10, 20, -10, 20, 10, -20, 10],
+        meshHull: [0, 1, 2, 3],
+      },
+      {
+        id: 'clip1',
+        name: 'window',
+        type: 'clipping',
+        textureId: '',
+        meshVertices: [0, 0, 30, 0, 30, 30, 0, 30],
+        meshHull: [0, 1, 2, 3],
+        endSlotId: 's2',
+      },
+    );
+    d.skeleton.slots[1]!.defaultAttachmentId = 'clip1';
+    d.skeleton.slots.push({ id: 's3', name: 'slotC', boneId: 'a', defaultAttachmentId: 'bb1', color: 0xffffffff });
+    const json = JSON.parse(exportSpineJson(d));
+    const clip = json.skins[0].attachments.slotB.window;
+    expect(clip).toMatchObject({ type: 'clipping', vertexCount: 4 });
+    expect(clip.vertices).toEqual([0, 0, 30, 0, 30, -30, 0, -30]);
+    expect(clip.end).toBe('slotB');
+    const bb = json.skins[0].attachments.slotC.hitbox;
+    expect(bb).toMatchObject({ type: 'boundingbox', vertexCount: 4 });
+    expect(bb.vertices).toEqual([-20, 10, 20, 10, 20, -10, -20, -10]);
+  });
+});

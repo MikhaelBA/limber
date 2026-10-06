@@ -27,6 +27,8 @@ export function MainToolbar() {
   const brushStrength = useEditorStore((s) => s.brushStrength);
   const brushMode = useEditorStore((s) => s.brushMode);
   const setBrush = useEditorStore((s) => s.setBrush);
+  const ghostingEnabled = useEditorStore((s) => s.ghostingEnabled);
+  const toggleGhosting = useEditorStore((s) => s.toggleGhosting);
 
   const switchMode = (next: 'setup' | 'animate') => {
     if (next === 'animate' && engine.document.animations.length === 0) {
@@ -75,6 +77,18 @@ export function MainToolbar() {
         title="Redo (Ctrl+Shift+Z / Ctrl+Y)"
       >
         ↷ Redo
+      </button>
+
+      <div className="mx-2 h-4 w-px bg-neutral-700" />
+
+      <button
+        className={`rounded px-2 py-0.5 text-sm ${
+          ghostingEnabled ? 'bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50' : 'text-neutral-300 hover:bg-neutral-800'
+        }`}
+        title="Ghosting: onion-skin outlines before/after the playhead (G) — Animate mode"
+        onClick={toggleGhosting}
+      >
+        👁 Ghost
       </button>
 
       <div className="mx-2 h-4 w-px bg-neutral-700" />

@@ -363,6 +363,21 @@ if (eventKeys < 1) fail(`expected >=1 event keyframe after keying, got ${eventKe
 else log('event keying verified');
 await shot('14-event-keyed.png');
 
+// 17. Ghosting — toggle with G in Animate mode: future ghosts (past depends on
+//     the playhead) must evaluate; toggling off clears them.
+await page.keyboard.press('g');
+await page.waitForTimeout(400);
+const ghostsOn = await page.evaluate(() => window.__ghostCount ?? -1);
+log('ghosts drawn after G:', ghostsOn);
+if (ghostsOn < 3) fail(`expected >=3 ghosts (future side) after enabling ghosting, got ${ghostsOn}`);
+else log('ghosting enabled — outlines drawn');
+await shot('15-ghosting.png');
+await page.keyboard.press('g');
+await page.waitForTimeout(300);
+const ghostsOff = await page.evaluate(() => window.__ghostCount ?? -1);
+if (ghostsOff !== 0) fail(`ghosts should clear after toggling off, got ${ghostsOff}`);
+else log('ghosting toggled off cleanly');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

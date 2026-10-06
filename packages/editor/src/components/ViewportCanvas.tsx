@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Application, Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
 import type { AttachmentData } from '@limber/core';
+import {
+  applyTimeline,
+  resetPose,
+  Skeleton,
+  solveFK,
+  solveIK,
+  updateSkinning,
+} from '@limber/core';
 import { AutoKeyDeformCommand, AutoKeyMoveBoneCommand } from '../commands/animationCommands';
 import { AddBoneCommand, MoveBoneCommand } from '../commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../commands/attachmentCommands';
@@ -193,10 +201,18 @@ function wireViewport(
   theApp.stage.addChild(world);
   const grid = new Graphics();
   world.addChild(grid);
+  // Ghost outlines sit UNDER the content (onion skin), slots above them.
+  const ghostG = new Graphics();
+  world.addChild(ghostG);
   // Slots render BETWEEN grid and bone gizmos — sprites are the content,
   // gizmos are the overlay. zIndex follows pose.slotOrder (draw order).
   const slotsContainer = new Container({ sortableChildren: true });
   world.addChild(slotsContainer);
+  // Untextured polygon gizmos (bounding boxes, clipping) + the clip mask.
+  const shapesG = new Graphics();
+  world.addChild(shapesG);
+  const clipMask = new Graphics();
+  world.addChild(clipMask);
   const bonesG = new Graphics();
   world.addChild(bonesG);
 
@@ -332,6 +348,84 @@ function wireViewport(
   const drawPosOfSlot: number[] = [];
   const scratchPoint = { x: 0, y: 0 };
 
+  // ---- Ghosting (onion skin, Phase 8) ----
+  // Evaluates the CURRENT animation at offset times on a scratch skeleton and
+  // strokes attachment hulls: past = blue, future = orange. Animate mode only.
+  let ghostSkeleton: Skeleton | null = null;
+  let ghostDrawn = 0;
+
+  const evaluateGhostAt = (t: number): void => {
+    const gs = ghostSkeleton;
+    if (!gs) return;
+    const data = engine.skeleton.data;
+    resetPose(data, gs.pose);
+    const anim = engine.currentAnimation;
+    if (anim) {
+      for (const tl of anim.timelines) applyTimeline(tl, gs, t, t, 1, null, anim.name);
+    }
+    solveFK(data, gs.boneIndexMap, gs.pose);
+    if (data.ikConstraints.length > 0) solveIK(data, gs.boneIndexMap, gs.pose);
+    updateSkinning(gs);
+  };
+
+  const strokeGhost = (color: number, alpha: number): void => {
+    const gs = ghostSkeleton;
+    if (!gs) return;
+    const data = engine.skeleton.data;
+    const s = camera.scale;
+    ghostG.setStrokeStyle({ width: 1.25 / s, color, alpha });
+    for (let i = 0; i < data.slots.length; i++) {
+      const attId = gs.pose.slots[i]!.attachmentId;
+      if (!attId) continue;
+      const attachment = gs.attachmentById.get(attId);
+      const state = gs.pose.attachments.get(attId);
+      if (!attachment || !state || state.verts.length < 4) continue;
+      const n = state.verts.length / 2;
+      const ring =
+        attachment.type === 'mesh' &&
+        attachment.meshVertices &&
+        attachment.meshVertices.length / 2 === n &&
+        attachment.meshHull &&
+        attachment.meshHull.length >= 3
+          ? attachment.meshHull
+          : null;
+      ghostG.moveTo(state.verts[0]!, state.verts[1]!);
+      if (ring) {
+        for (let k = 0; k < ring.length; k++) {
+          const idx = ring[k]!;
+          ghostG.lineTo(state.verts[idx * 2]!, state.verts[idx * 2 + 1]!);
+        }
+      } else {
+        for (let k = 1; k < n; k++) ghostG.lineTo(state.verts[k * 2]!, state.verts[k * 2 + 1]!);
+      }
+      ghostG.lineTo(state.verts[0]!, state.verts[1]!).stroke();
+    }
+  };
+
+  const drawGhosts = (): void => {
+    ghostG.clear();
+    ghostDrawn = 0;
+    const st = useEditorStore.getState();
+    if (!st.ghostingEnabled || st.mode !== 'animate' || !engine.currentAnimation || !ghostSkeleton) return;
+    const duration = engine.currentAnimation.duration;
+    const step = 1 / 12; // ~2 frames at 24fps.
+    const count = 3;
+    for (let i = 1; i <= count; i++) {
+      const before = engine.currentTime - i * step;
+      const after = engine.currentTime + i * step;
+      if (before >= 0) {
+        evaluateGhostAt(before);
+        strokeGhost(0x5b8def, 0.42 - i * 0.09);
+        ghostDrawn++;
+      }
+      if (after <= duration + 1e-6) {
+        evaluateGhostAt(after);
+        strokeGhost(0xef8b5b, 0.42 - i * 0.09);
+        ghostDrawn++;
+      }
+    }
+  };
+
   const makeSlotMesh = (): SlotMesh => {
     const geometry = new MeshGeometry({
       positions: new Float32Array(8),
@@ -360,6 +454,8 @@ function wireViewport(
     }
     // Textures may have arrived (registry.version) — force re-resolution.
     for (const entry of slotMeshes.values()) entry.attachmentId = null;
+    // The ghost evaluator shares the (read-only) data but owns its pose/maps.
+    ghostSkeleton = new Skeleton(data);
     recDataRev = dataRev;
     recTexVer = texVer;
     recSkeleton = engine.skeleton;
@@ -368,7 +464,8 @@ function wireViewport(
   /**
    * Per-frame slot sync: attachment switching (animated slotAttachment
    * timelines), positions straight from the skinning cache, tint/alpha, and
-   * zIndex from pose.slotOrder. Allocation-free steady-state.
+   * zIndex from pose.slotOrder. Allocation-free steady-state. Untextured
+   * polygon attachments (boundingBox/clipping) render via `shapesG` instead.
    */
   const updateSlotMeshes = (): void => {
     const skeleton = engine.skeleton;
@@ -376,17 +473,32 @@ function wireViewport(
     const pose = skeleton.pose;
     for (let p = 0; p < pose.slotOrder.length; p++) drawPosOfSlot[pose.slotOrder[p]!] = p;
 
+    shapesG.clear();
+    clipMask.clear();
+    let activeClip: { attachment: AttachmentData; verts: Float32Array } | null = null;
+
     for (let i = 0; i < data.slots.length; i++) {
       const entry = slotMeshes.get(data.slots[i]!.id);
       if (!entry) continue;
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
-      const local =
-        attachment === undefined ? null : attachment.type === 'mesh' ? attachment.meshVertices : attachment.vertices;
+      const isTextured = attachment !== undefined && (attachment.type === 'region' || attachment.type === 'mesh');
+      const local = attachment === undefined || !isTextured ? null : attachment.type === 'mesh' ? attachment.meshVertices : attachment.vertices;
+      const state = attachment ? pose.attachments.get(attachment.id) : undefined;
+
+      // Entering the end slot releases the active clip (Spine semantics).
+      if (activeClip && data.slots[i]!.id === activeClip.attachment.endSlotId) activeClip = null;
+
+      if (attachment && state && attachment.type === 'clipping') {
+        drawPolygonOutline(attachment, state.verts, 0xb45bef, 0.85);
+        activeClip = { attachment, verts: state.verts };
+      } else if (attachment && state && attachment.type === 'boundingBox') {
+        drawPolygonOutline(attachment, state.verts, 0xe6d55a, 0.9);
+      }
 
       if (slotPose.attachmentId !== entry.attachmentId) {
         entry.attachmentId = slotPose.attachmentId;
-        if (attachment && local) {
+        if (attachment && isTextured && local) {
           entry.mesh.texture = textureRegistry.get(attachment.textureId) ?? textureRegistry.placeholder;
           // Topology changed (vertex count / triangles): swap in fresh geometry.
           const uvs = new Float32Array(local.length);
@@ -407,9 +519,10 @@ function wireViewport(
           });
         }
       }
-      const state = attachment && local ? pose.attachments.get(attachment.id) : undefined;
-      if (!attachment || !local || !state) {
+
+      if (!attachment || !isTextured || !local || !state) {
         entry.mesh.visible = false;
+        entry.mesh.mask = null;
         continue;
       }
       entry.mesh.visible = true;
@@ -422,7 +535,48 @@ function wireViewport(
       entry.mesh.alpha = (color >>> 24) / 255;
       entry.mesh.blendMode = data.slots[i]!.blendMode === 'add' ? 'add' : 'normal';
       entry.mesh.zIndex = drawPosOfSlot[i] ?? i;
+
+      // World-space polygon mask (mask + meshes share the `world` container's
+      // local space, so the skinning cache coords line up exactly).
+      if (activeClip) {
+        updateClipMask(activeClip.verts);
+        entry.mesh.mask = clipMask;
+      } else {
+        entry.mesh.mask = null;
+      }
     }
+  };
+
+  const updateClipMask = (verts: Float32Array): void => {
+    const n = verts.length / 2;
+    if (n < 3) return;
+    clipMask.clear();
+    clipMask.moveTo(verts[0]!, verts[1]!);
+    for (let k = 1; k < n; k++) clipMask.lineTo(verts[k * 2]!, verts[k * 2 + 1]!);
+    clipMask.lineTo(verts[0]!, verts[1]!).fill({ color: 0xffffff });
+  };
+
+  /** Closed polygon outline (bounding boxes / clipping gizmos). */
+  const drawPolygonOutline = (
+    attachment: AttachmentData,
+    verts: Float32Array,
+    color: number,
+    alpha: number,
+  ): void => {
+    const n = verts.length / 2;
+    if (n < 2) return;
+    const ring = attachment.meshHull && attachment.meshHull.length >= 2 ? attachment.meshHull : null;
+    shapesG.setStrokeStyle({ width: 1.5 / camera.scale, color, alpha });
+    shapesG.moveTo(verts[0]!, verts[1]!);
+    if (ring) {
+      for (let k = 0; k < ring.length; k++) {
+        const idx = ring[k]!;
+        shapesG.lineTo(verts[idx * 2]!, verts[idx * 2 + 1]!);
+      }
+    } else {
+      for (let k = 1; k < n; k++) shapesG.lineTo(verts[k * 2]!, verts[k * 2 + 1]!);
+    }
+    shapesG.lineTo(verts[0]!, verts[1]!).stroke();
   };
 
   /** Attachment picking (§5.7): topmost-first point-in-quad, bones win first. */
@@ -469,7 +623,7 @@ function wireViewport(
   const handlesG = new Graphics();
   world.addChild(handlesG); // Above bones — handles are the active edit layer.
 
-  type MeshAttachment = AttachmentData & { type: 'mesh' };
+  type MeshAttachment = AttachmentData & { type: 'mesh' | 'boundingBox' | 'clipping' };
   type RegionAttachment = AttachmentData & { type: 'region' };
   interface EditableMesh {
     slotIndex: number;
@@ -492,7 +646,8 @@ function wireViewport(
     const attId = skeleton.pose.slots[slotIndex]!.attachmentId;
     if (!attId) return null;
     const attachment = skeleton.attachmentById.get(attId);
-    if (!attachment || attachment.type !== 'mesh' || !attachment.meshVertices) return null;
+    if (!attachment || !attachment.meshVertices) return null; // Any polygon-bearing attachment.
+    if (attachment.type !== 'mesh' && attachment.type !== 'boundingBox' && attachment.type !== 'clipping') return null;
     return {
       slotIndex,
       attachment: attachment as MeshAttachment,
@@ -949,6 +1104,7 @@ function wireViewport(
       reconcileSlots(st.dataRevision, textureRegistry.version);
     }
     updateSlotMeshes();
+    drawGhosts();
     drawBones();
     drawHandles();
 
@@ -983,6 +1139,8 @@ function wireViewport(
       const r = canvas.getBoundingClientRect();
       return [r.left + x * camera.scale + camera.x, r.top + y * camera.scale + camera.y];
     };
+    // Ghosts drawn last frame (ghosting smoke assertion).
+    w.__ghostCount = ghostDrawn;
     // Root bone world angle + origin (IK-follows-target smoke assertion).
     w.__boneAngle0 = Math.atan2(
       engine.skeleton.pose.worldMatrices[1]!,

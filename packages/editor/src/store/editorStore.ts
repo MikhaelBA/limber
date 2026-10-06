@@ -32,6 +32,8 @@ interface UIState {
   brushRadius: number;
   brushStrength: number;
   brushMode: BrushMode;
+  /** Onion-skin ghosts of the animation before/after the playhead (G). */
+  ghostingEnabled: boolean;
   dataRevision: number;
   canUndo: boolean;
   canRedo: boolean;
@@ -48,6 +50,7 @@ interface UIState {
   setMode: (mode: 'setup' | 'animate') => void;
   setPlaying: (playing: boolean) => void;
   setBrush: (patch: { radius?: number; strength?: number; mode?: BrushMode }) => void;
+  toggleGhosting: () => void;
   setKeyframeSelection: (kf: KeyframeSelection | null) => void;
   setStatus: (msg: string) => void;
   /** Bump dataRevision so panels re-read engine data (e.g. after scrub/pause). */
@@ -69,6 +72,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
   brushRadius: 60,
   brushStrength: 0.4,
   brushMode: 'add',
+  ghostingEnabled: false,
   dataRevision: 0,
   canUndo: false,
   canRedo: false,
@@ -116,6 +120,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
       brushStrength: patch.strength !== undefined ? Math.min(1, Math.max(0.02, patch.strength)) : s.brushStrength,
       brushMode: patch.mode ?? s.brushMode,
     })),
+  toggleGhosting: () => set((s) => ({ ghostingEnabled: !s.ghostingEnabled })),
   setKeyframeSelection: (kf) => set({ selectedKeyframe: kf }),
 
   touch: () => set((s) => ({ dataRevision: s.dataRevision + 1 })),

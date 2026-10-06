@@ -22,7 +22,9 @@ export function computeAttachmentVertices(
   wm: Float32Array,
   state: AttachmentPoseState,
 ): void {
-  const local = attachment.type === 'mesh' ? attachment.meshVertices : attachment.vertices;
+  // Regions carry their quad in `vertices`; meshes, bounding boxes and
+  // clipping polygons all live in `meshVertices`.
+  const local = attachment.type === 'region' ? attachment.vertices : attachment.meshVertices;
   if (!local) return;
   const { verts, deform } = state;
   const w = attachment.weights;

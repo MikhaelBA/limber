@@ -1,7 +1,7 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after Phase 8 chunk 1: texture atlas packing).
+> Last updated: 2026-10-06 (after Phase 8 chunk 2: ghosting + bounding boxes + clipping).
 
 ## Current status
 
@@ -17,6 +17,7 @@
 | Events UI (keying, dopesheet row, dispatch) | ✅ done |
 | QoL: playback speed, curve presets, slot blend modes | ✅ done |
 | Phase 8 chunk 1 — Texture atlas packing (Spine bundle export) | ✅ done |
+| Phase 8 chunk 2 — Ghosting + bounding boxes + clipping | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
@@ -26,16 +27,44 @@ Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
 **A** mesh completion (this chunk) → **B** IK UI → **C** Spine-runtime JSON export +
 IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
 ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD/ghosting.
-A–E landed 2026-10-06; F is in progress (atlas packing = F chunk 1 below).
+A–E landed 2026-10-06; F chunks 1–2 (atlas, ghosting, bbox, clipping) done.
+Remaining F: path/physics constraints, audio, PSD import.
 
-Verification baseline: **169 unit tests green**, typecheck green (incl. the CI
+Verification baseline: **172 unit tests green**, typecheck green (incl. the CI
 `tsc -p packages/editor`), editor production build green, Playwright smoke green
 **headless AND headed** (`HEADLESS=0`), including drop-image → sprite-follows-bone,
 composite undo/redo, region→grid-mesh convert, **region→hull-mesh by clicking
 4 points + closing on the first**, **animate-mode mesh-vertex drag → deform
 keyframe**, **IK add → drag target → chain follows (angle asserted against the
-live target)**, **IndexedDB autosave written after the debounce window**, and
-**event keying via the timeline UI**.
+live target)**, **IndexedDB autosave written after the debounce window**,
+**event keying via the timeline UI**, and **G-toggled ghosting (6 outlines on,
+0 off)**.
+
+## Phase 8 chunk 2 (ghosting + polygons) — what landed (2026-10-06)
+
+- **Ghosting / onion skin** ("👁 Ghost" button, G key): evaluates the current
+  animation at t ± k/12 (k=1..3) on a scratch `Skeleton` that SHARES the data
+  (own pose/maps, recreated on structural changes) — resetPose → applyTimeline
+  (no mixer, no events) → FK → IK → skinning — then strokes attachment hull
+  outlines UNDER the content: past = blue, future = orange, fading with
+  distance. Animate mode only. `__ghostCount` smoke hook.
+- **Bounding box attachments** (`type: 'boundingBox'`): untextured polygon
+  (meshVertices + hull), yellow outline via the new `shapesG` overlay, created
+  from the slot properties ("BBox" button, sized to the texture), editable
+  with the Mesh tool (vertex drag; skinning paths handle it — the pose cache
+  and every `type === 'mesh' ? meshVertices : vertices` lookup became
+  `type === 'region' ? ... : meshVertices`). Exported as Spine `boundingbox`
+  (vertexCount + y-flipped pairs).
+- **Clipping attachments** (`type: 'clipping'`): violet outline; subsequent
+  slots in draw order are masked to the polygon (Pixi Graphics mask in the
+  world container's space — mask coords == skinning cache coords) until the
+  END SLOT (selectable in Properties; null = through the last slot). "Clip"
+  button; Mesh-tool editable; exported as Spine `clipping` with `end`.
+- One active clip at a time is rendered (first clipping attachment in draw
+  order wins its range); overlapping clips are outlined but don't stack —
+  documented limitation.
+- `AddPolygonAttachmentCommand` + `SetClipEndSlotCommand` (both undoable);
+  4 new tests (creation/skin/undo/export shapes).
 
 ## Phase 8 chunk 1 (atlas packing) — what landed (2026-10-06)
 
@@ -245,7 +274,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 169 unit tests (vitest)
+npm test           # 172 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle

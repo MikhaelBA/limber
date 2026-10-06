@@ -3,7 +3,9 @@ import type { AttachmentPoseState, SkeletonPose } from '../types/pose';
 
 /** Number of local-space floats an attachment's vertex data uses (0 = none). */
 export function attachmentVertexCount(a: AttachmentData): number {
-  const local = a.type === 'mesh' ? a.meshVertices : a.vertices;
+  // Regions carry their quad in `vertices`; every other type (mesh, bounding
+  // box, clipping) is a polygon in `meshVertices`.
+  const local = a.type === 'region' ? a.vertices : a.meshVertices;
   return local ? local.length : 0;
 }
 

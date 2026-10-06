@@ -451,7 +451,7 @@ export class AddMeshVertexCommand implements Command {
 
   private mesh(): AttachmentData {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
-    if (!a || a.type !== 'mesh' || !a.meshVertices) {
+    if (!a || !a.meshVertices) { // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`AddMeshVertexCommand: mesh "${this.attachmentId}" not found.`);
     }
     return a;
@@ -498,7 +498,7 @@ export class RemoveMeshVertexCommand implements Command {
 
   private mesh(): AttachmentData {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
-    if (!a || a.type !== 'mesh' || !a.meshVertices) {
+    if (!a || !a.meshVertices) { // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`RemoveMeshVertexCommand: mesh "${this.attachmentId}" not found.`);
     }
     return a;
@@ -551,7 +551,7 @@ export class SetMeshVerticesCommand implements Command {
 
   private mesh(): AttachmentData {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
-    if (!a || a.type !== 'mesh' || !a.meshVertices) {
+    if (!a || !a.meshVertices) { // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`SetMeshVerticesCommand: mesh "${this.attachmentId}" not found.`);
     }
     return a;
@@ -611,7 +611,7 @@ export class PaintWeightsCommand implements Command {
 
   private mesh(): AttachmentData {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
-    if (!a || a.type !== 'mesh' || !a.meshVertices) {
+    if (!a || !a.meshVertices) { // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`PaintWeightsCommand: mesh "${this.attachmentId}" not found.`);
     }
     return a;

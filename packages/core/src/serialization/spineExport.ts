@@ -178,7 +178,7 @@ function attachmentBounds(
     if (!slot.defaultAttachmentId) continue;
     const att = skeleton.attachmentById.get(slot.defaultAttachmentId);
     if (!att) continue;
-    const local = att.type === 'mesh' ? att.meshVertices : att.vertices;
+    const local = att.type === 'region' ? att.vertices : att.meshVertices;
     if (!local) continue;
     const bi = skeleton.boneIndexMap.get(slot.boneId)!;
     const o = bi * 6;
@@ -240,6 +240,24 @@ function attachmentJson(
   const path =
     texturePaths?.get(att.textureId) ??
     (doc.assetManifest[att.textureId]?.name ?? att.textureId).replace(/\.[a-z0-9]+$/i, '');
+  if (att.type === 'boundingBox' || att.type === 'clipping') {
+    // Untextured polygons: plain slot-bone-local pairs (y-flipped). Spine's
+    // type strings are lowercase.
+    const vs = att.meshVertices ?? [];
+    const verts: number[] = [];
+    for (let k = 0; k < vs.length; k += 2) verts.push(round(vs[k]!), round(-vs[k + 1]!));
+    const o: Json = {
+      type: att.type === 'boundingBox' ? 'boundingbox' : 'clipping',
+      name: att.name,
+      vertexCount: vs.length / 2,
+      vertices: verts,
+    };
+    if (att.type === 'clipping') {
+      const endName = att.endSlotId ? data.slots.find((s) => s.id === att.endSlotId)?.name : undefined;
+      if (endName) o.end = endName;
+    }
+    return o;
+  }
   if (att.type === 'region') {
     const v = att.vertices ?? [0, 0, 1, 0, 1, 1, 0, 1];
     return {

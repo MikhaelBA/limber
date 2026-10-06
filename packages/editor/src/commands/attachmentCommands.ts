@@ -175,6 +175,129 @@ export class AddAttachmentCommand implements Command {
   }
 }
 
+/**
+ * Creates an untextured POLYGON attachment (bounding box or clipping) from a
+ * rect and assigns it to the slot. Vertices are editable with the Mesh tool;
+ * `endSlotId` only matters for clipping (null = clip through the last slot).
+ */
+export class AddPolygonAttachmentCommand implements Command {
+  readonly attachmentId: string;
+  private _label = 'Add Bounding Box';
+  private readonly attachment: AttachmentData;
+  private named = false;
+  private beforeSlotValue: string | null | undefined;
+
+  constructor(
+    private engine: EditorEngine,
+    readonly slotId: string,
+    params: { x: number; y: number; width: number; height: number },
+    private kind: 'boundingBox' | 'clipping',
+    private target: AttachmentTarget = 'default',
+    endSlotId: string | null = null,
+  ) {
+    this.attachmentId = uuid();
+    const hw = params.width / 2;
+    const hh = params.height / 2;
+    this.attachment = {
+      id: this.attachmentId,
+      name: kind, // Uniquified at first do().
+      type: kind,
+      textureId: '',
+      // TL, TR, BR, BL — same corner order as regions (y-down).
+      meshVertices: [params.x - hw, params.y - hh, params.x + hw, params.y - hh, params.x + hw, params.y + hh, params.x - hw, params.y + hh],
+      meshHull: [0, 1, 2, 3],
+      ...(kind === 'clipping' ? { endSlotId } : {}),
+    };
+  }
+
+  get label(): string {
+    return this._label;
+  }
+
+  do(): void {
+    const data = this.engine.skeleton.data;
+    const slot = data.slots.find((s) => s.id === this.slotId);
+    if (!slot) throw new Error(`AddPolygonAttachmentCommand: slot "${this.slotId}" not found.`);
+    if (!this.named) {
+      const names = new Set(data.attachments.map((a) => a.name));
+      const base = this.kind === 'clipping' ? 'clipping' : 'boundingBox';
+      let unique = base;
+      let i = 2;
+      while (names.has(unique)) unique = base + i++;
+      this.attachment.name = unique;
+      this._label = `Add ${base} ${unique}`;
+      this.named = true;
+    }
+    if (this.beforeSlotValue === undefined) {
+      this.beforeSlotValue =
+        this.target === 'default'
+          ? slot.defaultAttachmentId
+          : data.skins.find((s) => s.name === data.activeSkin)?.attachments[this.slotId];
+    }
+    data.attachments.push(this.attachment);
+    this.assign(this.attachment.id);
+    this.engine.skeleton.rebuild();
+  }
+
+  undo(): void {
+    const data = this.engine.skeleton.data;
+    data.attachments = data.attachments.filter((a) => a.id !== this.attachmentId);
+    const slot = data.slots.find((s) => s.id === this.slotId);
+    if (!slot) return;
+    if (this.target === 'default') slot.defaultAttachmentId = this.beforeSlotValue ?? null;
+    else {
+      const skin = data.skins.find((s) => s.name === data.activeSkin);
+      if (!skin) return;
+      if (this.beforeSlotValue === undefined || this.beforeSlotValue === null) delete skin.attachments[this.slotId];
+      else skin.attachments[this.slotId] = this.beforeSlotValue;
+    }
+    this.engine.skeleton.rebuild();
+  }
+
+  private assign(id: string): void {
+    const data = this.engine.skeleton.data;
+    const slot = data.slots.find((s) => s.id === this.slotId)!;
+    if (this.target === 'default') slot.defaultAttachmentId = id;
+    else {
+      const skin = data.skins.find((s) => s.name === data.activeSkin);
+      if (!skin) throw new Error(`AddPolygonAttachmentCommand: active skin "${data.activeSkin}" not found.`);
+      skin.attachments[this.slotId] = id;
+    }
+  }
+}
+
+/** Sets where a clipping attachment stops clipping (null = last slot). */
+export class SetClipEndSlotCommand implements Command {
+  readonly label = 'Set Clip End';
+  private readonly before: string | null;
+
+  constructor(
+    private engine: EditorEngine,
+    private attachmentId: string,
+    private endSlotId: string | null,
+  ) {
+    const a = engine.skeleton.data.attachments.find((x) => x.id === attachmentId);
+    if (!a || a.type !== 'clipping') {
+      throw new Error(`SetClipEndSlotCommand: clipping attachment "${attachmentId}" not found.`);
+    }
+    this.before = a.endSlotId ?? null;
+  }
+
+  do(): void {
+    this.apply(this.endSlotId);
+  }
+
+  undo(): void {
+    this.apply(this.before);
+  }
+
+  private apply(id: string | null): void {
+    const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
+    if (!a || a.type !== 'clipping') return;
+    a.endSlotId = id;
+  }
+}
+
 /** Everything referencing an attachment must be captured for a clean undo. */
 interface RemoveAttachmentSnapshots {
   attachment: AttachmentData;

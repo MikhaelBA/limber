@@ -102,6 +102,8 @@ function Shell() {
         st.setTool('mesh');
       } else if (e.key === 'w' || e.key === 'W') {
         st.setTool('weights');
+      } else if (e.key === 'g' || e.key === 'G') {
+        st.toggleGhosting();
       }
     };
     window.addEventListener('keydown', onKey);
