@@ -159,8 +159,15 @@ describe('demo project generator', () => {
     upsertKeyframe(engine.currentAnimation!, forearm.boneId, 'rotation', 0, 0.35);
     upsertKeyframe(engine.currentAnimation!, forearm.boneId, 'rotation', 0.6, -0.2);
     upsertKeyframe(engine.currentAnimation!, forearm.boneId, 'rotation', 1.2, 0.35);
+    // The IK TARGET carries the motion (rotation keys on an IK-pinned chain are
+    // overwritten by the solver — animating the target is what makes it wave).
     new SetKeyframeCommand(engine, target.id, 'x', 0, 170).do();
     new SetKeyframeCommand(engine, target.id, 'y', 0, 130).do();
+    new SetKeyframeCommand(engine, target.id, 'x', 0.6, 250).do();
+    new SetKeyframeCommand(engine, target.id, 'y', 0.6, 40).do();
+    new SetKeyframeCommand(engine, target.id, 'x', 1.2, 170).do();
+    new SetKeyframeCommand(engine, target.id, 'y', 1.2, 130).do();
+    engine.scrub(0.6); // Events at t=0 never fire (no crossing) — key mid-animation.
     new KeyEventCommand(engine, 'swoosh').do();
     engine.tick(0);
 

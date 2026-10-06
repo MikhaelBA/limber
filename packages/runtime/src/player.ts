@@ -1,42 +1,87 @@
 import type { EventFrame, ExportedDocument } from '@limber/core';
-import { Skeleton, solveFK } from '@limber/core';
+import {
+  AnimationState,
+  Skeleton,
+  resetPose,
+  solveFK,
+  solveIK,
+  updateSkinning,
+} from '@limber/core';
 
 export interface RuntimePlayerOptions {
-  /** Default loop setting for animations started without an explicit loop flag (Phase 3). */
+  /** Default loop setting for animations started without an explicit loop flag. */
   loopDefault?: boolean;
 }
 
 export interface AnimationStartOptions {
   loop?: boolean;
-  /** Crossfade length in seconds (Phase 3). */
+  /** Crossfade length in seconds. */
   fadeDuration?: number;
 }
 
-const notImplemented = (phase: string): Error =>
-  new Error(`@limber/runtime: not implemented yet — lands in ${phase} (see DESIGN.md §6).`);
+export interface QueuedAnimationOptions extends AnimationStartOptions {
+  /** Seconds to wait after the current animation before the queued one starts. */
+  delay?: number;
+}
+
+export interface WireframeRenderOptions {
+  /** Bone stick stroke color/width. */
+  boneColor?: string;
+  boneWidth?: number;
+  /** Attachment outline stroke. */
+  attachmentColor?: string;
+  attachmentWidth?: number;
+}
 
 /**
- * Phase 1 stub of the runtime API surface (DESIGN.md §6). The API is defined
- * NOW so the editor's export format and the core mixer stay compatible with it.
+ * Lightweight player for exported Limber documents (DESIGN.md §6) — the whole
+ * pipeline (reset → mixer apply → FK → IK → skinning) in one `update()` call.
+ * DOM-free and renderer-free: engines read world transforms / deformed
+ * vertices; a Canvas2D wireframe helper is included for previews.
  *
- * What already works: constructing from a deserialized document and reading
- * world transforms (setup pose, FK-solved). Everything animation-related throws
- * until the Phase 3 mixer lands.
+ * ```ts
+ * const player = new RuntimePlayer(doc);
+ * player.setAnimation('walk');
+ * player.onEvent((e) => sound.play(e.eventName));
+ * function frame(dt) { player.update(dt); draw(player.getDeformedVertices(attId)); }
+ * ```
  */
 export class RuntimePlayer {
   private readonly skeleton: Skeleton;
+  private readonly mixer = new AnimationState();
+  private readonly listeners = new Set<(e: EventFrame) => void>();
+  private readonly loopDefault: boolean;
+  /** Events crossed during the last update() — also dispatched to onEvent(). */
+  readonly events: EventFrame[] = [];
+  readonly animations: readonly ExportedDocument['animations'];
 
-  constructor(doc: ExportedDocument, _atlas?: unknown) {
+  constructor(
+    doc: ExportedDocument | { skeleton: ExportedDocument['skeleton']; animations: ExportedDocument['animations'] },
+    opts: RuntimePlayerOptions = {},
+  ) {
     this.skeleton = new Skeleton(doc.skeleton);
+    this.animations = doc.animations;
+    this.loopDefault = opts.loopDefault ?? true;
     this.update(0);
   }
 
-  /**
-   * Integrate. Call once per frame with your engine's delta (seconds).
-   * Currently refreshes world transforms only; drives the AnimationState in Phase 3.
-   */
-  update(_deltaSeconds: number): void {
-    solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+  /** Integrates the clock and the whole posing pipeline. Call once per frame. */
+  update(deltaSeconds: number): void {
+    const dt = Math.min(Math.max(deltaSeconds, 0), 0.1); // Tab-stall guard.
+    this.mixer.update(dt);
+    const data = this.skeleton.data;
+    resetPose(data, this.skeleton.pose);
+    const fired = this.mixer.apply(this.skeleton);
+    this.events.length = 0;
+    for (const e of fired) {
+      this.events.push(e);
+      for (const cb of this.listeners) cb(e);
+    }
+    solveFK(data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    if (data.ikConstraints.length > 0) {
+      solveIK(data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    }
+    updateSkinning(this.skeleton);
   }
 
   /**
@@ -47,23 +92,120 @@ export class RuntimePlayer {
     return this.skeleton.pose.worldMatrices;
   }
 
-  getDeformedVertices(_attachmentId: string): Float32Array {
-    throw notImplemented('Phase 5');
+  /**
+   * WORLD-space, deform-applied, skinned vertices for one attachment — the
+   * render-ready data (regions, meshes, bounding boxes, clipping polygons
+   * alike). Read-only view; rewritten by update().
+   */
+  getDeformedVertices(attachmentId: string): Float32Array {
+    const state = this.skeleton.pose.attachments.get(attachmentId);
+    if (!state) throw new Error(`@limber/runtime: unknown attachment "${attachmentId}".`);
+    return state.verts;
   }
 
-  render(_container: unknown): void {
-    throw notImplemented('Phase 8');
+  /** The attachment a slot currently shows (after skins/timelines), or null. */
+  getSlotAttachmentId(slotIndex: number): string | null {
+    return this.skeleton.pose.slots[slotIndex]?.attachmentId ?? null;
   }
 
-  setAnimation(_name: string, _opts?: AnimationStartOptions): never {
-    throw notImplemented('Phase 3');
+  /** Packed 0xRRGGBBAA slot color after timelines. */
+  getSlotColor(slotIndex: number): number {
+    return this.skeleton.pose.slots[slotIndex]?.color ?? 0xffffffff;
   }
 
-  addAnimation(_name: string, _opts?: AnimationStartOptions & { delay?: number }): never {
-    throw notImplemented('Phase 3');
+  /** Slot indices in draw order (front of the array = drawn first). */
+  getDrawOrder(): readonly number[] {
+    return this.skeleton.pose.slotOrder;
   }
 
-  onEvent(_cb: (e: EventFrame) => void): () => void {
-    throw notImplemented('Phase 8');
+  /** Switches the active skin — affects slots on the next update(). */
+  setSkin(name: string): void {
+    this.skeleton.data.activeSkin = name;
+  }
+
+  /** Seconds into the current animation (after looping/fades). */
+  get time(): number {
+    return this.mixer.time;
+  }
+
+  /** Duration of the current animation in seconds. */
+  get duration(): number {
+    return this.mixer.duration;
+  }
+
+  setAnimation(name: string, opts: AnimationStartOptions = {}): void {
+    this.mixer.setAnimation(this.requireAnimation(name), {
+      loop: opts.loop ?? this.loopDefault,
+      fadeDuration: opts.fadeDuration ?? 0,
+    });
+  }
+
+  addAnimation(name: string, opts: QueuedAnimationOptions = {}): void {
+    this.mixer.addAnimation(this.requireAnimation(name), {
+      loop: opts.loop ?? this.loopDefault,
+      fadeDuration: opts.fadeDuration ?? 0,
+      delay: opts.delay ?? 0,
+    });
+  }
+
+  /** Subscribes to animation events; returns the unsubscribe function. */
+  onEvent(cb: (e: EventFrame) => void): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  private requireAnimation(name: string) {
+    const anim = this.animations.find((a) => a.name === name);
+    if (!anim) {
+      throw new Error(
+        `@limber/runtime: no animation "${name}" (${this.animations.map((a) => a.name).join(', ') || 'none'}).`,
+      );
+    }
+    return anim;
+  }
+}
+
+/**
+ * Canvas2D wireframe preview: bone sticks + attachment outlines in the
+ * player's world space (y-down — canvas-friendly). Renderer-agnostic games
+ * read the vertex data instead; this exists for quick visualization.
+ */
+export function renderWireframe(
+  ctx: CanvasRenderingContext2D,
+  player: RuntimePlayer,
+  opts: WireframeRenderOptions = {},
+): void {
+  const bones = opts.boneColor ?? '#6aa9ff';
+  const boneW = opts.boneWidth ?? 2;
+  const atts = opts.attachmentColor ?? 'rgba(53, 208, 165, 0.9)';
+  const attW = opts.attachmentWidth ?? 1.5;
+  const wm = player.getWorldTransforms();
+
+  // Attachment outlines straight from the skinning cache.
+  ctx.strokeStyle = atts;
+  ctx.lineWidth = attW;
+  for (const slotIndex of player.getDrawOrder()) {
+    const attId = player.getSlotAttachmentId(slotIndex);
+    if (!attId) continue;
+    const verts = player.getDeformedVertices(attId);
+    if (verts.length < 4) continue;
+    ctx.beginPath();
+    ctx.moveTo(verts[0]!, verts[1]!);
+    for (let k = 1; k < verts.length / 2; k++) ctx.lineTo(verts[k * 2]!, verts[k * 2 + 1]!);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // Bone sticks: origin → +x-axis (fixed visual length).
+  ctx.strokeStyle = bones;
+  ctx.lineWidth = boneW;
+  for (let i = 0; i < wm.length / 6; i++) {
+    const o = i * 6;
+    const ox = wm[o + 4]!;
+    const oy = wm[o + 5]!;
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    ctx.lineTo(ox + wm[o]! * 30, oy + wm[o + 1]! * 30);
+    ctx.stroke();
   }
 }

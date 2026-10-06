@@ -12,5 +12,8 @@
   },
   "dependencies": {
     "@limber/core": "*"
+  },
+  "scripts": {
+    "build:demo": "esbuild demo/entry.ts --bundle --format=iife --outfile=../editor/public/examples/runtime-demo.js --minify"
   }
 }

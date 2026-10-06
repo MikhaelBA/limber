@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Limber Runtime Player — demo</title>
+  <style>
+    body { margin: 0; background: #1e2227; color: #cfd8e3; font: 14px system-ui, sans-serif; }
+    header { position: fixed; top: 0; left: 0; right: 0; padding: 10px 14px; background: rgba(24,28,32,.9);
+             border-bottom: 1px solid #2c3238; display: flex; gap: 16px; align-items: baseline; }
+    header b { color: #4fc3f7; }
+    #time { font-variant-numeric: tabular-nums; color: #8fa3b8; }
+    #log { color: #ffd166; margin-left: auto; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 6px 14px; color: #67788a; font-size: 12px;
+             background: rgba(24,28,32,.9); border-top: 1px solid #2c3238; }
+  </style>
+</head>
+<body>
+  <header>
+    <span><b>Limber Runtime Player</b> — @limber/runtime playing demo.limber.json</span>
+    <span id="time">0.00s</span>
+    <span id="log"></span>
+  </header>
+  <canvas id="stage" width="1280" height="720"></canvas>
+  <footer>Bone sticks + attachment outlines come straight from the player's world-space skinning cache (getWorldTransforms / getDeformedVertices) — no editor code involved.</footer>
+  <script src="runtime-demo.js"></script>
+</body>
+</html>

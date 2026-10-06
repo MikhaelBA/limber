@@ -1,13 +1,15 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after the Spine-parity interaction rework).
+> Last updated: 2026-10-06 (after: official spine-core compat gate + full @limber/runtime player).
 
 ## Current status
 
 | Area | State |
 |---|---|
 | Spine-parity tools & interactions (translate/rotate/scale/shear, empty-space drag, snap, copy/paste) | ✅ done |
+| Official spine-core runtime compatibility gate (numeric world-transform equality) | ✅ done |
+| @limber/runtime full player (mixer/queue/events/IK/skinning + wireframe demo page) | ✅ done |
 | Phase 1 — Core engine (data model, FK, serialization) | ✅ done |
 | Phase 2 — Rigging editor (viewport, hierarchy, undo/redo) | ✅ done |
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
@@ -31,7 +33,7 @@ ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD/ghos
 A–E landed 2026-10-06; F chunks 1–2 (atlas, ghosting, bbox, clipping) done.
 Remaining F: path/physics constraints, audio, PSD import.
 
-Verification baseline: **176 unit tests green**, typecheck green (incl. the CI
+Verification baseline: **185 unit tests green**, typecheck green (incl. the CI
 `tsc -p packages/editor`), editor production build green, Playwright smoke green
 **headless AND headed** (`HEADLESS=0`), including drop-image → sprite-follows-bone,
 composite undo/redo, region→grid-mesh convert, **region→hull-mesh by clicking
@@ -40,6 +42,33 @@ keyframe**, **empty-space rotate drag swings the selected bone**, **IK add →
 drag target → chain follows (angle asserted against the live target)**,
 **IndexedDB autosave written after the debounce window**, **event keying via
 the timeline UI**, and **G-toggled ghosting (6 outlines on, 0 off)**.
+
+## Official spine-core compat + runtime player — what landed (2026-10-06)
+
+- **Compatibility gate** (`editor/tests/spineRuntimeCompat.test.ts`): loads our
+  export in the OFFICIAL @esotericsoftware/spine-core (devDependency, pinned
+  4.2.120 — 4.3 dropped the top-level "ik" section; test-only, the Spine
+  runtime license does not ship with our code) and asserts NUMERIC equality
+  with our engine at setup pose AND mid-animation, attachment resolution via
+  our generated atlas, and the demo rig. Found & fixed 4 exporter bugs:
+  (1) 4.2 keys are OFFSETS FROM SETUP for rotate/translate/shear (scale is
+  absolute), (2) the rotate field is "value" not "angle" — 4.1's angle was
+  silently ignored (every rotate key collapsed to 0), (3) unkeyed merged axes
+  must hold setup, (4) format version bumped to 4.2.120.
+- **@limber/runtime is no longer a stub**: `RuntimePlayer` runs the whole
+  pipeline in update() (mixer incl. crossfade + queue + delay, IK, skinning),
+  exposes world transforms, **getDeformedVertices** (world-space skinned verts
+  — the old TODO), slot attachment/color, draw order, skins, time/duration,
+  and event dispatch (per-frame buffer + onEvent subscriptions).
+  `renderWireframe` draws bone sticks + attachment hulls on Canvas2D for
+  previews. 6 new tests drive the shipped demo project end-to-end.
+- **Demo project fixed**: the IK target now carries the wave motion (rotation
+  keys on an IK-pinned chain are overwritten by the solver) and the event sits
+  at t=0.6 (events at t=0 never cross). REGEN_DEMO=1 regenerates the file.
+- **Live player demo page**: /examples/runtime-demo.html (served from the
+  editor's public dir) plays demo.limber.json — rAF-frozen-webview watchdog
+  included. Bundle: `npm run build:demo -w @limber/runtime` (esbuild IIFE,
+  committed artifact).
 
 ## Spine-parity interaction rework — what landed (2026-10-06)
 
@@ -305,7 +334,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 176 unit tests (vitest)
+npm test           # 185 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle

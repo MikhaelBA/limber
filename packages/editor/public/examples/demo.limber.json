@@ -3,7 +3,7 @@
   "skeleton": {
     "bones": [
       {
-        "id": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
+        "id": "757b7055-39ff-44c0-ae61-215cc3b3ff89",
         "name": "root",
         "parentId": null,
         "length": 80,
@@ -18,9 +18,9 @@
         }
       },
       {
-        "id": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
+        "id": "744ab22d-5765-4e84-8fed-85ffcbf630f8",
         "name": "bone",
-        "parentId": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
+        "parentId": "757b7055-39ff-44c0-ae61-215cc3b3ff89",
         "length": 90,
         "setupPose": {
           "x": 100,
@@ -33,9 +33,9 @@
         }
       },
       {
-        "id": "eb57f3dc-797a-4d52-99e3-706129f28fc2",
+        "id": "58e0575a-e187-4dac-bf31-91e5b715e6a1",
         "name": "bone2",
-        "parentId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
+        "parentId": "744ab22d-5765-4e84-8fed-85ffcbf630f8",
         "length": 80,
         "setupPose": {
           "x": 90,
@@ -48,9 +48,9 @@
         }
       },
       {
-        "id": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
+        "id": "c939278c-7036-466c-ac91-ae5633d80de2",
         "name": "bone2-ik",
-        "parentId": "d69ae3c1-9a59-411a-8b8b-6f05554ed77b",
+        "parentId": "757b7055-39ff-44c0-ae61-215cc3b3ff89",
         "length": 8,
         "setupPose": {
           "x": 170,
@@ -65,16 +65,16 @@
     ],
     "slots": [
       {
-        "id": "4d528bcf-d6e2-4d81-a327-806980f87562",
+        "id": "9fa73f72-c11e-4b0d-ab7f-f7138f08cd71",
         "name": "slot",
-        "boneId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
-        "defaultAttachmentId": "48e784ac-69d2-4bc7-b98c-7c38e421f932",
+        "boneId": "744ab22d-5765-4e84-8fed-85ffcbf630f8",
+        "defaultAttachmentId": "e054d82c-bcce-4d19-a485-a6d960debeab",
         "color": 4294967295
       }
     ],
     "attachments": [
       {
-        "id": "6df338b1-e45d-4ded-94d9-6dcde7dce3cb",
+        "id": "cda1b97b-edd9-4413-9509-0cb5beb98907",
         "name": "demo-limb",
         "type": "region",
         "textureId": "demo-tex",
@@ -100,7 +100,7 @@
         ]
       },
       {
-        "id": "48e784ac-69d2-4bc7-b98c-7c38e421f932",
+        "id": "e054d82c-bcce-4d19-a485-a6d960debeab",
         "name": "demo-limb2",
         "type": "mesh",
         "textureId": "demo-tex",
@@ -384,12 +384,12 @@
     ],
     "ikConstraints": [
       {
-        "id": "9f565020-d417-46b4-aef8-47a4a9905f6f",
+        "id": "f63bbc19-7587-4e2a-ae85-d4e2ddc640bc",
         "bones": [
-          "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
-          "eb57f3dc-797a-4d52-99e3-706129f28fc2"
+          "744ab22d-5765-4e84-8fed-85ffcbf630f8",
+          "58e0575a-e187-4dac-bf31-91e5b715e6a1"
         ],
-        "targetId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
+        "targetId": "c939278c-7036-466c-ac91-ae5633d80de2",
         "poleVectorId": null,
         "bendDirection": 1,
         "mix": 1,
@@ -408,7 +408,7 @@
       "timelines": [
         {
           "kind": "boneProperty",
-          "boneId": "62d8c1c6-4af5-40cd-a8aa-e3e2052ead0d",
+          "boneId": "744ab22d-5765-4e84-8fed-85ffcbf630f8",
           "property": "rotation",
           "keyframes": [
             {
@@ -436,7 +436,7 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "eb57f3dc-797a-4d52-99e3-706129f28fc2",
+          "boneId": "58e0575a-e187-4dac-bf31-91e5b715e6a1",
           "property": "rotation",
           "keyframes": [
             {
@@ -464,11 +464,25 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
+          "boneId": "c939278c-7036-466c-ac91-ae5633d80de2",
           "property": "x",
           "keyframes": [
             {
               "time": 0,
+              "value": 170,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 0.6,
+              "value": 250,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 1.2,
               "value": 170,
               "curve": {
                 "type": "linear"
@@ -478,11 +492,25 @@
         },
         {
           "kind": "boneProperty",
-          "boneId": "6c258f6b-bd3c-4662-a09a-02de54018fc9",
+          "boneId": "c939278c-7036-466c-ac91-ae5633d80de2",
           "property": "y",
           "keyframes": [
             {
               "time": 0,
+              "value": 130,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 0.6,
+              "value": 40,
+              "curve": {
+                "type": "linear"
+              }
+            },
+            {
+              "time": 1.2,
               "value": 130,
               "curve": {
                 "type": "linear"
@@ -494,7 +522,7 @@
           "kind": "event",
           "keyframes": [
             {
-              "time": 0,
+              "time": 0.6,
               "eventName": "swoosh",
               "curve": {
                 "type": "stepped"
