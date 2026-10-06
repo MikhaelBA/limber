@@ -4,9 +4,12 @@ import { runMigrations, type Migration } from './migrations';
 
 /**
  * migrations[i] upgrades a document from version i+1 to i+2.
- * Version 1 is the first format — the chain is empty until v2 exists.
+ * v1→v2 is additive only (optional AttachmentData.meshHull): pre-v2 meshes are
+ * exactly the "every vertex is a hull vertex" case, so nothing to rewrite.
  */
-const CURRENT_MIGRATIONS: readonly Migration[] = [];
+const CURRENT_MIGRATIONS: readonly Migration[] = [
+  (doc) => doc, // v1 → v2: meshHull optional; absent means all-hull.
+];
 
 export function serializeDocument(doc: EditorDocument): string {
   const exported: ExportedDocument = { version: FORMAT_VERSION, ...doc };

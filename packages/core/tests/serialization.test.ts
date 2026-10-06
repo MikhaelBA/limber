@@ -84,6 +84,14 @@ describe('serializeDocument / deserializeDocument', () => {
     expect(() => deserializeDocument(JSON.stringify(future))).toThrow(/newer than the supported version/);
   });
 
+  it('loads a v1 document under format v2 (meshHull is additive)', () => {
+    const legacy = JSON.parse(serializeDocument(makeDocument()));
+    legacy.version = 1;
+    const restored = deserializeDocument(JSON.stringify(legacy));
+    // The migration chain stamps v1 → v2 without touching the payload.
+    expect(restored).toEqual(makeDocument());
+  });
+
   it('rejects documents without a version field', () => {
     const json = serializeDocument(makeDocument());
     const noVersion = JSON.parse(json);

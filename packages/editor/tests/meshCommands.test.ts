@@ -3,16 +3,26 @@ import { updateSkinning } from '@limber/core';
 import { EditorEngine } from '../src/engine/EditorEngine';
 import {
   AddMeshCommand,
-  PaintWeightsCommand,
-  SetMeshVerticesCommand,
+  AddMeshVertexCommand,
   buildGridMesh,
+  buildHullMesh,
+  CreateHullMeshCommand,
+  dedupeHull,
+  meshAdjacency,
+  PaintWeightsCommand,
+  pointInMeshHull,
+  RemoveMeshVertexCommand,
+  SetMeshVerticesCommand,
   setVertexWeight,
+  triangulateMesh,
+  uvAtPoint,
   vertexWeightOf,
   weightEntryAt,
 } from '../src/commands/meshCommands';
+import { AutoKeyDeformCommand, DeleteDeformKeyframeCommand, upsertDeformKeyframe } from '../src/commands/animationCommands';
 import { AddSlotCommand } from '../src/commands/slotCommands';
 import { AddBoneCommand } from '../src/commands/boneCommands';
-import { AddTextureCommand } from '../src/commands/attachmentCommands';
+import { AddAttachmentCommand, AddTextureCommand } from '../src/commands/attachmentCommands';
 
 const TEX = 'tex-1';
 
@@ -23,6 +33,18 @@ function setupSlot() {
   slotCmd.do();
   new AddTextureCommand(engine, TEX, 'spot.png').do();
   return { engine, rootId, slotId: slotCmd.slotId };
+}
+
+/** Slot + grid mesh + an active animation (for deform auto-key tests). */
+function setupAnimatedMesh() {
+  const { engine, slotId } = setupSlot();
+  const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+  add.do();
+  engine.document.animations.push({ name: 'a1', duration: 1, loop: true, timelines: [] });
+  engine.setAnimation('a1');
+  engine.mode = 'animate'; // tick() only applies timelines in animate mode.
+  engine.tick(0);
+  return { engine, slotId, meshId: add.attachmentId };
 }
 
 describe('buildGridMesh', () => {
@@ -159,5 +181,242 @@ describe('PaintWeightsCommand', () => {
     expect(engine.skeleton.data.attachments[0]!.weights).toBeUndefined();
     cmd.do();
     expect(engine.skeleton.data.attachments[0]!.weights).toBeDefined();
+  });
+
+  it('set mode raises weights to the dab amount (never lowers)', () => {
+    const { engine, slotId } = setupSlot();
+    const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    add.do();
+    const cmd = new PaintWeightsCommand(engine, add.attachmentId);
+    cmd.open();
+    cmd.update(0, 1, 0, 0.5, 'set');
+    cmd.update(0, 1, 0, 0.3, 'set'); // weaker dab — must not lower 0.5.
+    cmd.commit();
+    expect(vertexWeightOf(engine.skeleton.data.attachments[0]!.weights, 0, 1)).toBeCloseTo(0.5, 6);
+  });
+
+  it('smooth mode relaxes toward the neighbor average', () => {
+    const { engine, slotId } = setupSlot();
+    const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    add.do();
+    const mesh = engine.skeleton.data.attachments[0]!;
+    const adjacency = meshAdjacency(mesh.meshTriangles!);
+    // 3x3 lattice: center vertex 4 touches corners 0/8 and edge midpoints 1/3/5/7.
+    expect(adjacency[4]!.slice().sort((a, b) => a - b)).toEqual([0, 1, 3, 5, 7, 8]);
+
+    const cmd = new PaintWeightsCommand(engine, add.attachmentId);
+    cmd.open(adjacency);
+    cmd.update(1, 1, 0, 1, 'set'); // one neighbor fully on bone B, others stay 0.
+    cmd.update(4, 1, 0, 1, 'smooth'); // full relax → avg = 1/6.
+    cmd.commit();
+    expect(vertexWeightOf(mesh.weights, 4, 1)).toBeCloseTo(1 / 6, 6);
+  });
+});
+
+describe('triangulateMesh (cdt2d)', () => {
+  it('uses interior Steiner points: square hull + center → 4 triangles', () => {
+    const verts = [0, 0, 10, 0, 10, 10, 0, 10, 5, 5];
+    const tris = triangulateMesh(verts, [0, 1, 2, 3]);
+    expect(tris).toHaveLength(12); // 2n-2-h = 10-2-4 = 4 triangles × 3 indices.
+    const used = new Set(tris);
+    for (let i = 0; i < 5; i++) expect(used.has(i)).toBe(true); // center included.
+  });
+
+  it('falls back to all-vertices-as-ring when hull is absent', () => {
+    const tris = triangulateMesh([0, 0, 10, 0, 5, 8]);
+    expect(tris).toHaveLength(3); // one triangle.
+  });
+
+  it('returns [] on degenerate input', () => {
+    expect(triangulateMesh([0, 0, 5, 5], [0, 1])).toEqual([]);
+  });
+});
+
+describe('hull helpers', () => {
+  it('buildGridMesh perimeter walks the lattice ring (8 of 9 vertices)', () => {
+    const g = buildGridMesh({ textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    expect(g.hull).toEqual([0, 1, 2, 5, 8, 7, 6, 3]); // top →, right ↓, bottom ←, left ↑.
+    expect(new Set(g.hull).size).toBe(8);
+  });
+
+  it('buildHullMesh maps UVs over the region quad and triangulates', () => {
+    const h = buildHullMesh([-10, -5, 10, -5, 10, 5, -10, 5], { x: 0, y: 0, width: 20, height: 10 });
+    expect(h.uvs).toEqual([0, 0, 1, 0, 1, 1, 0, 1]);
+    expect(h.triangles).toHaveLength(6); // quad = 2 triangles.
+    expect(h.hull).toEqual([0, 1, 2, 3]);
+  });
+
+  it('dedupeHull drops consecutive and wrap-around duplicates', () => {
+    expect(dedupeHull([0, 0, 10, 0, 10.001, 0, 10, 10])).toEqual([0, 0, 10, 0, 10, 10]);
+    expect(dedupeHull([0, 0, 10, 0, 0.001, 0.001])).toEqual([0, 0, 10, 0]);
+  });
+
+  it('uvAtPoint interpolates UVs barycentrically inside the containing triangle', () => {
+    const mesh = {
+      meshVertices: [0, 0, 10, 0, 10, 10, 0, 10],
+      meshTriangles: [0, 1, 2, 0, 2, 3],
+      meshUVs: [0, 0, 1, 0, 1, 1, 0, 1],
+    };
+    expect(uvAtPoint(mesh, 5, 0)).toEqual({ u: 0.5, v: 0 }); // on the top edge midpoint.
+    expect(uvAtPoint(mesh, -5, 0)).toEqual({ u: 0, v: 0 }); // outside → fallback.
+  });
+
+  it('pointInMeshHull tests containment against the hull ring', () => {
+    const mesh = { meshVertices: [0, 0, 10, 0, 10, 10, 0, 10], meshHull: [0, 1, 2, 3] };
+    expect(pointInMeshHull(mesh, 5, 5)).toBe(true);
+    expect(pointInMeshHull(mesh, 15, 5)).toBe(false);
+  });
+});
+
+describe('CreateHullMeshCommand', () => {
+  it('converts the shown region into a hull mesh; undo restores the region', () => {
+    const { engine, slotId } = setupSlot();
+    const region = new AddAttachmentCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10 });
+    region.do();
+    engine.tick(0);
+
+    const hull = [-10, -5, 10, -5, 10, 5, -10, 5];
+    const cmd = new CreateHullMeshCommand(engine, slotId, hull);
+    cmd.do();
+    const slot = engine.skeleton.data.slots[0]!;
+    expect(slot.defaultAttachmentId).toBe(cmd.attachmentId);
+    const mesh = engine.skeleton.data.attachments.find((a) => a.id === cmd.attachmentId)!;
+    expect(mesh.type).toBe('mesh');
+    expect(mesh.meshVertices).toHaveLength(8);
+    expect(mesh.meshHull).toEqual([0, 1, 2, 3]);
+    expect(mesh.meshTriangles).toHaveLength(6);
+
+    engine.tick(0); // Skinning runs on the new mesh.
+    const state = engine.skeleton.pose.attachments.get(cmd.attachmentId)!;
+    expect([...state.verts]).toEqual(hull); // Root bone identity → world == local.
+
+    cmd.undo();
+    expect(engine.skeleton.data.attachments.find((a) => a.id === cmd.attachmentId)).toBeUndefined();
+    expect(slot.defaultAttachmentId).toBe(region.attachmentId);
+    cmd.do();
+    expect(slot.defaultAttachmentId).toBe(cmd.attachmentId);
+  });
+
+  it('rejects when the slot does not show a region', () => {
+    const { engine, slotId } = setupSlot();
+    expect(() => new CreateHullMeshCommand(engine, slotId, [0, 0, 10, 0, 10, 10])).toThrow(/region/);
+  });
+});
+
+describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
+  it('adds an interior vertex: UV barycentric, re-triangulated, deform keys stripped+restored', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(0));
+    const beforeTris = engine.skeleton.data.attachments[0]!.meshTriangles!.length;
+
+    const cmd = new AddMeshVertexCommand(engine, meshId, 2, 0); // just right of center
+    cmd.do();
+    const mesh = engine.skeleton.data.attachments[0]!;
+    expect(mesh.meshVertices!.length / 2).toBe(10);
+    expect(mesh.meshUVs![18]).toBeCloseTo(0.6, 9); // (2+10)/20.
+    expect(mesh.meshUVs![19]).toBeCloseTo(0.5, 9);
+    expect(mesh.meshHull).toHaveLength(8); // ring unchanged — new vertex is interior.
+    expect(mesh.meshTriangles!.length).toBeGreaterThan(beforeTris);
+    // Deform keys were invalidated by the vertex-count change → stripped.
+    expect(engine.currentAnimation!.timelines.find((tl) => tl.kind === 'deform')).toBeUndefined();
+
+    cmd.undo();
+    const restored = engine.skeleton.data.attachments[0]!;
+    expect(restored.meshVertices!.length / 2).toBe(9);
+    expect(restored.meshUVs).toHaveLength(18);
+    const tl = engine.currentAnimation!.timelines[0]!;
+    expect(tl.kind).toBe('deform');
+    expect(tl.keyframes).toHaveLength(1);
+    cmd.do();
+    expect(engine.currentAnimation!.timelines.find((tl) => tl.kind === 'deform')).toBeUndefined();
+  });
+
+  it('removes a hull vertex: hull remapped, weights entry dropped, never below 3', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    const boneB = new AddBoneCommand(engine, null, { x: 100, y: 0 });
+    boneB.do(); // bone index 1 — the paint target.
+    const paint = new PaintWeightsCommand(engine, meshId);
+    paint.open();
+    paint.update(0, 1, 0, 0.5); // vertex 0 is a HULL vertex with a 5-number entry.
+    paint.commit();
+
+    const cmd = new RemoveMeshVertexCommand(engine, meshId, 0);
+    cmd.do();
+    const mesh = engine.skeleton.data.attachments[0]!;
+    expect(mesh.meshVertices!.length / 2).toBe(8);
+    expect(mesh.meshHull).toEqual([0, 1, 4, 7, 6, 5, 2]); // old [1,2,5,8,7,6,3] shifted down.
+    // v0's [2, b0, w, b1, w] entry (5 numbers) gone; the rest shift up.
+    expect(mesh.weights!.slice(0, 3)).toEqual([0, 0, 0]); // old v1's rigid entry.
+    expect(mesh.meshTriangles!.length).toBeGreaterThan(0);
+
+    cmd.undo();
+    expect(engine.skeleton.data.attachments[0]!.meshVertices!.length / 2).toBe(9);
+    expect(vertexWeightOf(engine.skeleton.data.attachments[0]!.weights, 0, 1)).toBeCloseTo(0.5, 6);
+
+    // Refuse to go below one triangle: delete down to 3, then no-ops.
+    let guard = new RemoveMeshVertexCommand(engine, meshId, 0);
+    for (let i = 0; i < 10; i++) guard.do();
+    expect(engine.skeleton.data.attachments[0]!.meshVertices!.length / 2).toBe(3);
+  });
+});
+
+describe('AutoKeyDeformCommand', () => {
+  it('keys offsets vs the setup mesh at the playhead; undo removes the timeline', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    const cmd = new AutoKeyDeformCommand(engine, meshId);
+    cmd.open();
+    cmd.update(4, 5, 3); // center vertex (setup 0,0) → offsets (5,3).
+    cmd.commit();
+    expect(cmd.changed).toBe(true);
+
+    const tl = engine.currentAnimation!.timelines[0]!;
+    expect(tl.kind).toBe('deform');
+    expect(tl.keyframes).toHaveLength(1);
+    expect(tl.keyframes[0]!.offsets![8]).toBe(5);
+    expect(tl.keyframes[0]!.offsets![9]).toBe(3);
+    expect(tl.keyframes[0]!.offsets).toHaveLength(18);
+
+    engine.tick(0); // Pipeline applies the deform and skins it.
+    const verts = [...engine.skeleton.pose.attachments.get(meshId)!.verts];
+    expect(verts[8]).toBeCloseTo(5, 6); // root bone identity: world == bone-local.
+    expect(verts[9]).toBeCloseTo(3, 6);
+
+    cmd.undo(); // Timeline did not exist before → removed entirely.
+    expect(engine.currentAnimation!.timelines).toHaveLength(0);
+    cmd.do();
+    expect(engine.currentAnimation!.timelines).toHaveLength(1);
+  });
+
+  it('replaces (not stacks) the keyframe at the same time and restores the prior one on undo', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(1));
+    engine.tick(0); // Apply so the pose carries the all-ones offsets at open().
+
+    const cmd = new AutoKeyDeformCommand(engine, meshId);
+    cmd.open(); // base = the interpolated pose at t=0 (all ones).
+    cmd.update(4, 6, 6); // setup (0,0) → offsets (6,6), everything else stays 1.
+    cmd.commit();
+    const tl = engine.currentAnimation!.timelines[0]! as Extract<
+      (typeof engine.currentAnimation)['timelines'][number],
+      { kind: 'deform' }
+    >;
+    expect(tl.keyframes).toHaveLength(1);
+    expect(tl.keyframes[0]!.offsets![0]).toBe(1); // untouched vertex keeps the base.
+    expect(tl.keyframes[0]!.offsets![8]).toBe(6);
+
+    cmd.undo();
+    expect(tl.keyframes[0]!.offsets!.every((v) => v === 1)).toBe(true);
+  });
+
+  it('DeleteDeformKeyframeCommand removes a single key', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, null);
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0.5, null);
+    const cmd = new DeleteDeformKeyframeCommand(engine, meshId, 0.5);
+    cmd.do();
+    const tl = engine.currentAnimation!.timelines[0] as { keyframes: { time: number }[] };
+    expect(tl.keyframes.map((k) => k.time)).toEqual([0]);
+    cmd.undo();
+    expect(tl.keyframes.map((k) => k.time)).toEqual([0, 0.5]);
   });
 });

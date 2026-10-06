@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
+  DeleteDeformKeyframeCommand,
   DeleteDrawOrderKeyframeCommand,
   DeleteKeyframeCommand,
   DeleteSlotColorKeyframeCommand,
@@ -55,6 +56,8 @@ function Shell() {
             st.execute(new DeleteKeyframeCommand(engine, kf.boneId, kf.property, kf.time));
           } else if (kf.kind === 'slotColor') {
             st.execute(new DeleteSlotColorKeyframeCommand(engine, kf.slotId, kf.time));
+          } else if (kf.kind === 'deform') {
+            st.execute(new DeleteDeformKeyframeCommand(engine, kf.attachmentId, kf.time));
           } else {
             st.execute(new DeleteDrawOrderKeyframeCommand(engine, kf.time));
           }

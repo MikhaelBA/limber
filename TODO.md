@@ -1,7 +1,7 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-05 (after Phase 4: attachments, draw order & skins).
+> Last updated: 2026-10-06 (after Phase 5 chunk 2: hull meshes, deform keying, brush UX).
 
 ## Current status
 
@@ -11,16 +11,58 @@
 | Phase 2 — Rigging editor (viewport, hierarchy, undo/redo) | ✅ done |
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
 | Phase 4 — Attachments, draw order & skins | ✅ done |
-| Phase 5 — Meshes, weights & deform (chunk 1: skinning core, grid meshes, tools) | ✅ done — chunks below |
+| Phase 5 — Meshes, weights & deform | ✅ done (chunks 1+2; runtime accessor pending) |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
 | Rename to Limber | ✅ done (folder is now `Documents/GitHub/Limber`) |
 
-Verification baseline: **118 unit tests green**, typecheck green, editor production
+Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
+**A** mesh completion (this chunk) → **B** IK UI → **C** Spine-runtime JSON export +
+IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
+ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD.
+
+Verification baseline: **137 unit tests green**, typecheck green, editor production
 build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
-drop-image → sprite-follows-bone, composite undo/redo, and region→grid-mesh convert
-(9 vertices render through the skinning cache).
+drop-image → sprite-follows-bone, composite undo/redo, region→grid-mesh convert,
+**region→hull-mesh by clicking 4 points + closing on the first**, and
+**animate-mode mesh-vertex drag → deform keyframe**.
+
+## Phase 5 chunk 2 — what landed (2026-10-06)
+
+- **Polygon hull meshes**: with the Mesh tool over a slot showing a REGION, clicks
+  place hull vertices (bone-local); clicking the first vertex again or Enter closes
+  → `CreateHullMeshCommand` converts the region to a mesh (region kept, unassigned;
+  undo restores). Esc cancels mid-draw (capture-phase key handler swallows the
+  global tool-switch shortcut). In-progress hull previews as a polyline + rubber
+  band to the cursor.
+- **Triangulation = cdt2d** (dep in @limber/editor, typed via
+  `src/types/cdt2d.d.ts`): constrained Delaunay over hull ring AND interior
+  Steiner points — earcut can't do Steiner points. `triangulateMesh(vertices,
+  hull)` is the single entry point; degenerate input → `[]` (cdt2d never throws).
+  `AttachmentData.meshHull` (format **v2**, additive migration — v1 docs load as
+  all-hull) stores boundary indices in walk order; absent = every vertex is hull.
+  Grid meshes now store their perimeter ring too.
+- **Interior vertex editing**: double-click inside the hull adds a Steiner vertex
+  (UV by barycentric lookup in the containing triangle; point-in-hull ray-cast
+  guard), Alt+click deletes a vertex (min 3 kept; hull indices remapped; the
+  vertex's weight entry dropped). Vertex-count changes invalidate deform offsets
+  → deform timelines are stripped and restored ATOMICALLY with the topology edit
+  (incl. redo).
+- **Deform keying (§5.6 pattern)**: in Animate mode, Mesh-tool vertex drags run
+  `AutoKeyDeformCommand` — each pointermove re-keys the attachment's FULL offsets
+  array at the playhead (base captured at grab = interpolated pose). Dopesheet
+  gained a per-slot "◈ deform" row (emerald diamonds, click-select, Del deletes)
+  for the mesh the slot currently shows.
+- **Weight brush**: radius + strength + mode (add/set/smooth) in the toolbar
+  (weights tool); dabs hit every vertex inside the radius with smoothstep falloff;
+  smooth relaxes toward the dedup'd neighbor average (`meshAdjacency` from
+  triangles); brush circle follows the cursor.
+- **Core fixes found on the way**: weight entries with `count: 0` (the paint
+  baseline, "rigid to slot bone") are now VALID (`validateAttachmentWeights`,
+  `remapAttachmentWeights` accept 0) and the weighted skinning walk falls back
+  RIGID to the slot bone for them (previously: validation threw on rebuild after
+  painting, and the walker collapsed such vertices to the origin).
 
 ## Phase 5 chunk 1 — what landed (2026-10-06)
 
@@ -49,14 +91,12 @@ drop-image → sprite-follows-bone, composite undo/redo, and region→grid-mesh 
 
 ### Phase 5 remaining (next chunks)
 
-1. Arbitrary polygon meshes — add/remove vertices + **earcut** triangulation
-   (grid indices are hand-generated today; earcut dep goes in @limber/editor).
-2. Deform keying UI (a "Key Deform" path writing DeformKeyframes; core apply
-   is ready) + dopesheet row.
-3. Weight brush UX (radius/strength controls, smooth vs set mode).
+1. ~~Arbitrary polygon meshes~~ ✅ chunk 2 (cdt2d, hull + Steiner vertices).
+2. ~~Deform keying UI + dopesheet row~~ ✅ chunk 2.
+3. ~~Weight brush UX~~ ✅ chunk 2.
 4. Runtime package consumer: `getDeformedVertices` off the new cache.
-
-Then: Phase 6 (IK) → 7 (persistence/export) → 8 (atlas/events/runtime polish).
+5. Nice-to-haves: Trace (auto-hull from image alpha), linked meshes,
+   deform keyframe dragging in the dopesheet.
 
 ## Phase 4 — what landed
 
@@ -111,7 +151,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 101 unit tests (vitest)
+npm test           # 137 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle

@@ -45,10 +45,18 @@ export function computeAttachmentVertices(
   }
 
   let p = 0;
+  const so = slotBoneIndex * 6;
   for (let k = 0; k < verts.length; k += 2) {
     const x = local[k]! + deform[k]!;
     const y = local[k + 1]! + deform[k + 1]!;
     const count = w[p++]! | 0;
+    if (count === 0) {
+      // "No influences" entry — rigid-bound to the slot's CURRENT bone (the
+      // weight-paint baseline). Falls back per-vertex, not per-attachment.
+      verts[k] = wm[so]! * x + wm[so + 2]! * y + wm[so + 4]!;
+      verts[k + 1] = wm[so + 1]! * x + wm[so + 3]! * y + wm[so + 5]!;
+      continue;
+    }
     let wx = 0;
     let wy = 0;
     for (let e = 0; e < count; e++) {

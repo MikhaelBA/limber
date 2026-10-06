@@ -243,6 +243,56 @@ log('grid mesh vertices rendering:', meshVerts);
 if (meshVerts !== 9) fail(`expected 9 grid-mesh vertices after convert, got ${meshVerts}`);
 await shot('10-gridmesh.png');
 
+// 12. Phase 5 chunk 2 — hull mesh: undo the grid mesh (slot shows the region
+//     again), Mesh tool, click 4 hull points, close on the first point.
+await page.keyboard.press('Control+z'); // undo AddMeshCommand
+await page.waitForTimeout(300);
+const regionVerts = await page.evaluate(() => window.__slotMeshVerts0 ?? -1);
+if (regionVerts !== 4) fail(`expected the region quad back after undo, got ${regionVerts}`);
+else log('grid mesh undone — region restored');
+await page.locator('span', { hasText: /^slot@root$/ }).first().click();
+await page.waitForTimeout(200);
+await page.keyboard.press('m'); // Mesh tool
+await page.waitForTimeout(200);
+const toScreen = async (wx, wy) => page.evaluate(([x, y]) => window.__worldToScreen(x, y), [wx, wy]);
+const tlw = await page.evaluate(() => window.__slotMesh0 ?? null); // world TL of the 64×32 region
+if (!Array.isArray(tlw)) fail(`lost the region position: ${JSON.stringify(tlw)}`);
+const corners = [
+  [tlw[0], tlw[1]],
+  [tlw[0] + 64, tlw[1]],
+  [tlw[0] + 64, tlw[1] + 32],
+  [tlw[0], tlw[1] + 32],
+];
+for (const [wx, wy] of corners) {
+  const [sx, sy] = await toScreen(wx, wy);
+  await page.mouse.click(sx, sy);
+  await page.waitForTimeout(120);
+}
+const [fx, fy] = await toScreen(tlw[0], tlw[1]);
+await page.mouse.click(fx + 3, fy + 3); // click near the first point → close the hull
+await page.waitForTimeout(500);
+const hullVerts = await page.evaluate(() => window.__slotMeshVerts0 ?? -1);
+log('hull mesh vertices rendering:', hullVerts);
+if (hullVerts !== 4) fail(`expected a 4-vertex hull mesh, got ${hullVerts}`);
+else log('hull mesh drawn and closed on the first vertex');
+await shot('11-hullmesh.png');
+
+// 13. Deform auto-key: Animate mode, drag a hull vertex — one deform keyframe
+//     must appear at the playhead and the mesh must follow through skinning.
+await page.getByRole('button', { name: /Animate/ }).click();
+await page.waitForTimeout(400);
+const [bxs, bys] = await toScreen(corners[2][0], corners[2][1]); // BR vertex
+await page.mouse.move(bxs, bys);
+await page.mouse.down();
+await page.mouse.move(bxs + 30, bys - 20, { steps: 5 });
+await page.mouse.up();
+await page.waitForTimeout(500);
+const deformKeys = await page.evaluate(() => window.__deformKeyframes ?? -1);
+log('deform keyframes after animate-mode drag:', deformKeys);
+if (deformKeys < 1) fail(`expected >=1 deform keyframe after the drag, got ${deformKeys}`);
+else log('deform auto-key verified');
+await shot('12-deform-keyed.png');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { BonePropertyName } from '../commands/animationCommands';
+import type { BrushMode } from '../commands/meshCommands';
 import { history, type Command } from '../history/history';
 
 export type Tool = 'select' | 'create_bone' | 'mesh' | 'weights';
@@ -9,7 +10,8 @@ export type { BonePropertyName };
 export type KeyframeSelection =
   | { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
   | { kind: 'slotColor'; slotId: string; time: number }
-  | { kind: 'drawOrder'; time: number };
+  | { kind: 'drawOrder'; time: number }
+  | { kind: 'deform'; attachmentId: string; time: number };
 
 /**
  * UI STATE ONLY (DESIGN.md §5.2). Document/pose data lives in EditorEngine;
@@ -25,6 +27,10 @@ interface UIState {
   activeTool: Tool;
   mode: 'setup' | 'animate';
   isPlaying: boolean;
+  /** Weight brush (weights tool): world-space radius, 0..1 strength, behavior. */
+  brushRadius: number;
+  brushStrength: number;
+  brushMode: BrushMode;
   dataRevision: number;
   canUndo: boolean;
   canRedo: boolean;
@@ -40,6 +46,7 @@ interface UIState {
   setTool: (tool: Tool) => void;
   setMode: (mode: 'setup' | 'animate') => void;
   setPlaying: (playing: boolean) => void;
+  setBrush: (patch: { radius?: number; strength?: number; mode?: BrushMode }) => void;
   setKeyframeSelection: (kf: KeyframeSelection | null) => void;
   setStatus: (msg: string) => void;
   /** Bump dataRevision so panels re-read engine data (e.g. after scrub/pause). */
@@ -58,6 +65,9 @@ export const useEditorStore = create<UIState>((set, get) => ({
   activeTool: 'select',
   mode: 'setup',
   isPlaying: false,
+  brushRadius: 60,
+  brushStrength: 0.4,
+  brushMode: 'add',
   dataRevision: 0,
   canUndo: false,
   canRedo: false,
@@ -99,6 +109,12 @@ export const useEditorStore = create<UIState>((set, get) => ({
   setTool: (tool) => set({ activeTool: tool }),
   setMode: (mode) => set({ mode }),
   setPlaying: (isPlaying) => set({ isPlaying }),
+  setBrush: (patch) =>
+    set((s) => ({
+      brushRadius: patch.radius !== undefined ? Math.max(2, patch.radius) : s.brushRadius,
+      brushStrength: patch.strength !== undefined ? Math.min(1, Math.max(0.02, patch.strength)) : s.brushStrength,
+      brushMode: patch.mode ?? s.brushMode,
+    })),
   setKeyframeSelection: (kf) => set({ selectedKeyframe: kf }),
 
   touch: () => set((s) => ({ dataRevision: s.dataRevision + 1 })),

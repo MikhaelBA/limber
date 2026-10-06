@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@limber/core": "*",
+    "cdt2d": "^1.0.0",
     "pixi.js": "^8.6.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -68,6 +68,24 @@ describe('computeAttachmentVertices', () => {
     computeAttachmentVertices(att, 0, skeleton.pose.worldMatrices, state);
     expect(state.verts[0]).toBeCloseTo(75, 6);
   });
+
+  it('zero-influence entries fall back rigid to the SLOT bone (paint baseline)', () => {
+    // v0 has a [0] entry (no influences); v1 is 50/50 a/b. Bone a sits at the
+    // origin, b at x=100 — the [0] vertex must follow a, NOT collapse to (0,0)
+    // when the slot bone is translated.
+    const att = regionAttachment({ weights: [0, 2, 0, 0.5, 1, 0.5] });
+    const data = makeData([att]);
+    const skeleton = new Skeleton(data);
+    skeleton.pose.bones[0]!.local.x = 40;
+    solveFK(data, skeleton.boneIndexMap, skeleton.pose);
+    const state = skeleton.pose.attachments.get('att')!;
+    computeAttachmentVertices(att, 0, skeleton.pose.worldMatrices, state);
+    // v0 (0,0): rigid on a → (40, 0). v1 (10,0): 0.5*(50,0) + 0.5*(110,0) = (80, 0).
+    expect(state.verts[0]).toBeCloseTo(40, 6);
+    expect(state.verts[1]).toBeCloseTo(0, 6);
+    expect(state.verts[2]).toBeCloseTo(80, 6);
+    expect(state.verts[3]).toBeCloseTo(0, 6);
+  });
 });
 
 describe('updateSkinning (pipeline step)', () => {

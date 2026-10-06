@@ -1,4 +1,13 @@
-import type { Animation, ColorKeyframe, DrawOrderKeyframe, NumberKeyframe, SlotColorTimeline, DrawOrderTimeline } from '@limber/core';
+import type {
+  Animation,
+  ColorKeyframe,
+  DeformKeyframe,
+  DeformTimeline,
+  DrawOrderKeyframe,
+  DrawOrderTimeline,
+  NumberKeyframe,
+  SlotColorTimeline,
+} from '@limber/core';
 import { defaultCurve } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
@@ -597,5 +606,178 @@ export class DeleteDrawOrderKeyframeCommand implements Command {
 
   undo(): void {
     restoreDrawOrder(requireAnimation(this.engine), this.before);
+  }
+}
+
+// ------------------- deform keyframes (Phase 5) -------------------
+
+function findDeformTimeline(anim: Animation, attachmentId: string): DeformTimeline | undefined {
+  return anim.timelines.find((tl): tl is DeformTimeline => tl.kind === 'deform' && tl.attachmentId === attachmentId);
+}
+
+export interface DeformSnapshot {
+  existed: boolean;
+  timelineIndex: number;
+  keyframes: DeformKeyframe[] | null;
+}
+
+function cloneDeformKeyframes(kfs: DeformKeyframe[]): DeformKeyframe[] {
+  return kfs.map((k) => ({ ...k, curve: { ...k.curve }, offsets: k.offsets ? [...k.offsets] : null }));
+}
+
+function snapshotDeform(anim: Animation, attachmentId: string): DeformSnapshot {
+  const tl = findDeformTimeline(anim, attachmentId);
+  return tl
+    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: cloneDeformKeyframes(tl.keyframes) }
+    : { existed: false, timelineIndex: -1, keyframes: null };
+}
+
+function restoreDeform(anim: Animation, attachmentId: string, snap: DeformSnapshot): void {
+  const tl = findDeformTimeline(anim, attachmentId);
+  if (snap.existed) {
+    const kfs = cloneDeformKeyframes(snap.keyframes!);
+    if (tl) tl.keyframes = kfs;
+    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'deform', attachmentId, keyframes: kfs });
+  } else if (tl) {
+    anim.timelines.splice(anim.timelines.indexOf(tl), 1);
+  }
+}
+
+/** Inserts/replaces a deform key at exactly `time` (sorted, linear curve). */
+export function upsertDeformKeyframe(
+  anim: Animation,
+  attachmentId: string,
+  time: number,
+  offsets: number[] | null,
+): void {
+  let tl = findDeformTimeline(anim, attachmentId);
+  if (!tl) {
+    tl = { kind: 'deform', attachmentId, keyframes: [] };
+    anim.timelines.push(tl);
+  }
+  const kfs = tl.keyframes;
+  const at = kfs.findIndex((kf) => Math.abs(kf.time - time) < 1e-6);
+  if (at >= 0) {
+    kfs[at]!.offsets = offsets;
+    return;
+  }
+  const kf: DeformKeyframe = { time, offsets, curve: defaultCurve() };
+  const insert = kfs.findIndex((k) => k.time > time);
+  if (insert === -1) kfs.push(kf);
+  else kfs.splice(insert, 0, kf);
+}
+
+/**
+ * Continuous mesh-vertex drag in ANIMATE mode (§5.6): each pointermove re-keys
+ * the attachment's FULL deform offsets at the playhead. The base offsets are
+ * captured at grab time (the interpolated pose), so only the dragged vertex
+ * moves relative to the grab — exactly like AutoKeyMoveBoneCommand for bones.
+ */
+export class AutoKeyDeformCommand implements Command {
+  readonly label = 'Auto-Key Deform';
+  private before: DeformSnapshot | null = null;
+  private after: DeformSnapshot | null = null;
+  /** Interpolated offsets at grab time — the drag's starting point. */
+  private base: number[] | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private attachmentId: string,
+  ) {}
+
+  open(): void {
+    const anim = requireAnimation(this.engine);
+    this.before = snapshotDeform(anim, this.attachmentId);
+    const state = this.engine.skeleton.pose.attachments.get(this.attachmentId);
+    this.base = state ? [...state.deform] : null;
+  }
+
+  /** Writes bone-LOCAL vertex positions; offsets are vs the setup mesh. */
+  update(vertexIndex: number, localX: number, localY: number): void {
+    const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
+    if (!a || a.type !== 'mesh' || !a.meshVertices || !this.base) return;
+    const i = vertexIndex * 2;
+    if (i + 1 >= this.base.length) return;
+    const offsets = [...this.base];
+    offsets[i] = localX - a.meshVertices[i]!;
+    offsets[i + 1] = localY - a.meshVertices[i + 1]!;
+    const anim = requireAnimation(this.engine);
+    upsertDeformKeyframe(anim, this.attachmentId, this.engine.currentTime, offsets);
+    refreshDuration(anim);
+  }
+
+  commit(): void {
+    this.after = snapshotDeform(requireAnimation(this.engine), this.attachmentId);
+  }
+
+  get changed(): boolean {
+    return (
+      this.after !== null &&
+      this.before !== null &&
+      JSON.stringify(this.before.keyframes) !== JSON.stringify(this.after.keyframes)
+    );
+  }
+
+  do(): void {
+    if (this.after) restoreDeform(requireAnimation(this.engine), this.attachmentId, this.after);
+  }
+
+  undo(): void {
+    if (this.before) restoreDeform(requireAnimation(this.engine), this.attachmentId, this.before);
+  }
+}
+
+export class DeleteDeformKeyframeCommand implements Command {
+  readonly label = 'Delete Deform Key';
+  private readonly before: DeformSnapshot;
+
+  constructor(
+    private engine: EditorEngine,
+    private attachmentId: string,
+    private time: number,
+  ) {
+    this.before = snapshotDeform(requireAnimation(engine), attachmentId);
+  }
+
+  do(): void {
+    const tl = findDeformTimeline(requireAnimation(this.engine), this.attachmentId);
+    if (!tl) return;
+    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - this.time) < 1e-6);
+    if (at >= 0) tl.keyframes.splice(at, 1);
+  }
+
+  undo(): void {
+    restoreDeform(requireAnimation(this.engine), this.attachmentId, this.before);
+  }
+}
+
+/**
+ * Captured deform timelines across ALL animations for one attachment — used by
+ * mesh topology edits (add/remove vertex). A vertex-count change desyncs every
+ * offsets array (per-vertex interleaved), so those keys are invalid: strip and
+ * restore atomically with the topology change.
+ */
+export interface DeformTimelineCapture {
+  animation: Animation;
+  attachmentId: string;
+  snapshot: DeformSnapshot;
+}
+
+/** Removes (and captures) every deform timeline targeting `attachmentId`. */
+export function stripDeformTimelines(engine: EditorEngine, attachmentId: string): DeformTimelineCapture[] {
+  const captures: DeformTimelineCapture[] = [];
+  for (const anim of engine.document.animations) {
+    const snap = snapshotDeform(anim, attachmentId);
+    if (!snap.existed) continue;
+    const tl = findDeformTimeline(anim, attachmentId);
+    if (tl) anim.timelines.splice(anim.timelines.indexOf(tl), 1);
+    captures.push({ animation: anim, attachmentId, snapshot: snap });
+  }
+  return captures;
+}
+
+export function restoreDeformTimelines(captures: DeformTimelineCapture[]): void {
+  for (const { animation, attachmentId, snapshot } of captures) {
+    restoreDeform(animation, attachmentId, snapshot);
   }
 }

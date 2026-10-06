@@ -186,7 +186,7 @@ export class Skeleton {
       let p = 0;
       while (p < w.length) {
         const count = w[p++]!;
-        if (!Number.isInteger(count) || count < 1) {
+        if (!Number.isInteger(count) || count < 0) {
           throw new Error(`Attachment "${attachment.name}" has malformed weights.`);
         }
         out.push(count);
@@ -217,7 +217,7 @@ function validateAttachmentWeights(attachment: AttachmentData, boneCount: number
   let p = 0;
   while (p < w.length) {
     const count = w[p++]!;
-    if (!Number.isInteger(count) || count < 1) {
+    if (!Number.isInteger(count) || count < 0) {
       throw new Error(`Attachment "${attachment.name}" has malformed weights.`);
     }
     for (let k = 0; k < count; k++) {

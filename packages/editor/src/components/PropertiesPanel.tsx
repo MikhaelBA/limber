@@ -294,8 +294,8 @@ export function PropertiesPanel() {
           )}
           {shownAtt && shownAtt.type === 'mesh' && shownAtt.meshVertices && (
             <p className="text-[10px] text-neutral-500">
-              grid mesh — {shownAtt.meshVertices.length / 2} vertices · {(shownAtt.meshTriangles?.length ?? 0) / 3} tris ·
-              use ◈ Mesh / ⚖ Weights tools to edit
+              mesh — {shownAtt.meshVertices.length / 2} vertices · {(shownAtt.meshTriangles?.length ?? 0) / 3} tris ·
+              ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
             </p>
           )}
           <div className="my-1 h-px bg-neutral-800" />

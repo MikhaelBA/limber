@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Application, Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
 import type { AttachmentData } from '@limber/core';
-import { AutoKeyMoveBoneCommand } from '../commands/animationCommands';
+import { AutoKeyDeformCommand, AutoKeyMoveBoneCommand } from '../commands/animationCommands';
 import { AddBoneCommand, MoveBoneCommand } from '../commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../commands/attachmentCommands';
 import { AddSlotCommand } from '../commands/slotCommands';
-import { PaintWeightsCommand, SetMeshVerticesCommand, vertexWeightOf } from '../commands/meshCommands';
+import {
+  AddMeshVertexCommand,
+  CreateHullMeshCommand,
+  meshAdjacency,
+  PaintWeightsCommand,
+  pointInMeshHull,
+  RemoveMeshVertexCommand,
+  SetMeshVerticesCommand,
+  vertexWeightOf,
+} from '../commands/meshCommands';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { CompositeCommand, type Command } from '../history/history';
 import { useEngine } from '../hooks/useEngine';
@@ -444,10 +453,16 @@ function wireViewport(
   world.addChild(handlesG); // Above bones — handles are the active edit layer.
 
   type MeshAttachment = AttachmentData & { type: 'mesh' };
+  type RegionAttachment = AttachmentData & { type: 'region' };
   interface EditableMesh {
     slotIndex: number;
     attachment: MeshAttachment;
     boneIndex: number; // The slot's bone — local space of meshVertices.
+  }
+  interface EditableRegion {
+    slotIndex: number;
+    attachment: RegionAttachment;
+    boneIndex: number;
   }
 
   const editableMesh = (): EditableMesh | null => {
@@ -468,31 +483,137 @@ function wireViewport(
     };
   };
 
+  /** Mesh tool over a REGION — the slot enters hull-drawing mode instead. */
+  const editableRegion = (): EditableRegion | null => {
+    const st = useEditorStore.getState();
+    if (st.activeTool !== 'mesh') return null;
+    if (!st.selectedSlotId) return null;
+    const skeleton = engine.skeleton;
+    const slotIndex = skeleton.slotIndexMap.get(st.selectedSlotId);
+    if (slotIndex === undefined) return null;
+    const attId = skeleton.pose.slots[slotIndex]!.attachmentId;
+    if (!attId) return null;
+    const attachment = skeleton.attachmentById.get(attId);
+    if (!attachment || attachment.type !== 'region' || !attachment.vertices) return null;
+    return {
+      slotIndex,
+      attachment: attachment as RegionAttachment,
+      boneIndex: skeleton.boneIndexMap.get(skeleton.data.slots[slotIndex]!.boneId)!,
+    };
+  };
+
+  // ---- Hull drawing (mesh tool over a region attachment) ----
+  // Bone-local points of the hull being drawn; slotId/boneIndex captured at the
+  // first click so switching selection mid-draw can't corrupt the conversion.
+  let hullPts: number[] | null = null;
+  let hullSlotId: string | null = null;
+  let hullBoneIndex = -1;
+  /** Latest pointer position in world space (brush circle / hull rubber band). */
+  let mouseWorld: { x: number; y: number } | null = null;
+
+  const closeHull = (): void => {
+    const pts = hullPts;
+    const slotId = hullSlotId;
+    hullPts = null;
+    hullSlotId = null;
+    hullBoneIndex = -1;
+    if (!pts || !slotId) return;
+    const st = useEditorStore.getState();
+    const usingSkin = engine.skeleton.data.activeSkin !== '';
+    try {
+      st.execute(new CreateHullMeshCommand(engine, slotId, pts, usingSkin ? 'skin' : 'default'));
+      st.setStatus('Hull mesh created — drag vertices, double-click inside to add one, Alt+click to delete.');
+    } catch (err) {
+      st.setStatus((err as Error).message);
+    }
+  };
+
+  /**
+   * Capture-phase so Esc/Enter during a hull draw don't ALSO trigger the global
+   * shortcuts (tool switching): stopPropagation from window-capture blocks the
+   * later bubble-phase listener on window.
+   */
+  const onHullKey = (e: KeyboardEvent): void => {
+    if (!hullPts) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'Escape') {
+      hullPts = null;
+      hullSlotId = null;
+      hullBoneIndex = -1;
+      useEditorStore.getState().setStatus('Hull drawing cancelled.');
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      closeHull();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  };
+  window.addEventListener('keydown', onHullKey, true);
+
   const drawHandles = () => {
     handlesG.clear();
     const st = useEditorStore.getState();
     const ed = editableMesh();
-    if (!ed) return;
-    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
-    if (!state) return;
-    const r = 4.5 / camera.scale;
-    // Weights tool colors vertices by influence toward the selected bone.
-    const targetIndex =
-      st.activeTool === 'weights' && st.selectedBoneId
-        ? engine.skeleton.boneIndexMap.get(st.selectedBoneId)
-        : undefined;
-    const count = ed.attachment.meshVertices!.length / 2;
-    for (let k = 0; k < count; k++) {
-      let color = 0x9cc7ff;
-      if (targetIndex !== undefined) {
-        const t = vertexWeightOf(ed.attachment.weights, k, targetIndex);
-        const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
-        color =
-          t <= 0
-            ? 0x4a5a70
-            : (mix(0x9c, 0xff) << 16) | (mix(0xc7, 0x50) << 8) | mix(0xff, 0x40);
+    if (ed) {
+      const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+      if (state) {
+        const r = 4.5 / camera.scale;
+        // Weights tool colors vertices by influence toward the selected bone.
+        const targetIndex =
+          st.activeTool === 'weights' && st.selectedBoneId
+            ? engine.skeleton.boneIndexMap.get(st.selectedBoneId)
+            : undefined;
+        const count = ed.attachment.meshVertices!.length / 2;
+        for (let k = 0; k < count; k++) {
+          let color = 0x9cc7ff;
+          if (targetIndex !== undefined) {
+            const t = vertexWeightOf(ed.attachment.weights, k, targetIndex);
+            const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
+            color =
+              t <= 0
+                ? 0x4a5a70
+                : (mix(0x9c, 0xff) << 16) | (mix(0xc7, 0x50) << 8) | mix(0xff, 0x40);
+          }
+          handlesG.circle(state.verts[k * 2]!, state.verts[k * 2 + 1]!, r).fill({ color });
+        }
       }
-      handlesG.circle(state.verts[k * 2]!, state.verts[k * 2 + 1]!, r).fill({ color });
+    }
+
+    // Hull-in-progress: placed points + rubber band to the cursor.
+    if (hullPts && hullBoneIndex >= 0 && mouseWorld) {
+      const wm = engine.skeleton.pose.worldMatrices;
+      const o = hullBoneIndex * 6;
+      const toWorld = (i: number): { x: number; y: number } => ({
+        x: wm[o]! * hullPts![i]! + wm[o + 2]! * hullPts![i + 1]! + wm[o + 4]!,
+        y: wm[o + 1]! * hullPts![i]! + wm[o + 3]! * hullPts![i + 1]! + wm[o + 5]!,
+      });
+      const n = hullPts.length / 2;
+      const s = camera.scale;
+      handlesG.setStrokeStyle({ width: 1.5 / s, color: 0x35d0a5 });
+      const first = toWorld(0);
+      handlesG.moveTo(first.x, first.y);
+      for (let i = 1; i < n; i++) {
+        const p = toWorld(i * 2);
+        handlesG.lineTo(p.x, p.y);
+      }
+      handlesG.lineTo(mouseWorld.x, mouseWorld.y).stroke();
+      for (let i = 0; i < n; i++) {
+        const p = toWorld(i * 2);
+        handlesG.circle(p.x, p.y, 4 / s).fill({ color: i === 0 ? 0xffa028 : 0x35d0a5 });
+      }
+      if (n >= 3) {
+        // Closable: ring the first vertex as the "click here to finish" affordance.
+        handlesG.setStrokeStyle({ width: 2 / s, color: 0xffa028, alpha: 0.9 });
+        handlesG.circle(first.x, first.y, 9 / s).stroke();
+      }
+    }
+
+    // Weight brush radius follows the cursor.
+    if (st.activeTool === 'weights' && mouseWorld) {
+      handlesG.setStrokeStyle({ width: 1.25 / camera.scale, color: 0xffffff, alpha: 0.35 });
+      handlesG.circle(mouseWorld.x, mouseWorld.y, st.brushRadius).stroke();
     }
   };
 
@@ -533,16 +654,30 @@ function wireViewport(
   let autoKeyCmd: AutoKeyMoveBoneCommand | null = null;
   let dragBoneId: string | null = null;
   let meshDragCmd: SetMeshVerticesCommand | null = null;
+  let deformDragCmd: AutoKeyDeformCommand | null = null;
   let paintCmd: PaintWeightsCommand | null = null;
   let dragVertex = -1;
 
-  const paintAt = (vertexIndex: number): void => {
+  /** One brush dab: every vertex inside brushRadius, smoothstep-falloff scaled. */
+  const paintStrokeAt = (wx: number, wy: number): void => {
     const st = useEditorStore.getState();
     const ed = editableMesh();
     if (!ed || !paintCmd || !st.selectedBoneId) return;
     const boneIndex = engine.skeleton.boneIndexMap.get(st.selectedBoneId);
     if (boneIndex === undefined) return;
-    paintCmd.update(vertexIndex, boneIndex, ed.boneIndex, 0.35);
+    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+    if (!state) return;
+    const r = st.brushRadius;
+    const r2 = r * r;
+    for (let k = 0; k < state.verts.length / 2; k++) {
+      const dx = state.verts[k * 2]! - wx;
+      const dy = state.verts[k * 2 + 1]! - wy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= r2) continue;
+      const t = 1 - Math.sqrt(d2) / r; // 1 at center → 0 at the rim.
+      const falloff = t * t * (3 - 2 * t); // smoothstep
+      paintCmd.update(k, boneIndex, ed.boneIndex, falloff * st.brushStrength, st.brushMode);
+    }
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -557,30 +692,71 @@ function wireViewport(
     if (e.button !== 0) return;
     const st = useEditorStore.getState();
     const wp = screenToWorld(e);
+    mouseWorld = wp;
 
-    // Mesh/weights tools edit the selected slot's mesh — no bone picking.
-    if (st.activeTool === 'mesh' || st.activeTool === 'weights') {
+    // Mesh tool: over a region → hull drawing; over a mesh → vertex editing.
+    if (st.activeTool === 'mesh') {
+      const reg = editableRegion();
+      if (reg) {
+        inverseTransformPoint(engine.skeleton.pose.worldMatrices, reg.boneIndex, wp.x, wp.y, scratchPoint);
+        if (!hullPts) {
+          hullPts = [scratchPoint.x, scratchPoint.y];
+          hullSlotId = st.selectedSlotId;
+          hullBoneIndex = reg.boneIndex;
+          st.setStatus('Placing hull vertices — click the first vertex (or Enter) to finish, Esc to cancel.');
+        } else {
+          const n = hullPts.length / 2;
+          const o = hullBoneIndex * 6;
+          const wm = engine.skeleton.pose.worldMatrices;
+          const fx = wm[o]! * hullPts[0]! + wm[o + 2]! * hullPts[1]! + wm[o + 4]!;
+          const fy = wm[o + 1]! * hullPts[0]! + wm[o + 3]! * hullPts[1]! + wm[o + 5]!;
+          if (n >= 3 && Math.hypot(wp.x - fx, wp.y - fy) < 12 / camera.scale) closeHull();
+          else hullPts.push(scratchPoint.x, scratchPoint.y);
+        }
+        return;
+      }
+      const ed = editableMesh();
+      if (!ed) {
+        st.setStatus('Select a slot showing a region (draw a hull) or a mesh (edit vertices) — or Properties → Grid mesh.');
+        return;
+      }
+      const v = pickVertex(wp.x, wp.y);
+      if (e.altKey) {
+        // Alt+click deletes a vertex (hull or interior; never below 3 total).
+        if (v >= 0) st.execute(new RemoveMeshVertexCommand(engine, ed.attachment.id, v));
+        return;
+      }
+      if (v < 0) return;
+      if (st.mode === 'animate' && engine.currentAnimation) {
+        // Animate mode: the drag writes a DEFORM key at the playhead (§5.6).
+        deformDragCmd = new AutoKeyDeformCommand(engine, ed.attachment.id);
+        deformDragCmd.open();
+        dragVertex = v;
+        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
+        deformDragCmd.update(v, scratchPoint.x, scratchPoint.y);
+      } else {
+        meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
+        meshDragCmd.open();
+        dragVertex = v;
+      }
+      canvas.style.cursor = 'crosshair';
+      return;
+    }
+
+    // Weights tool: radius brush over the selected slot's mesh.
+    if (st.activeTool === 'weights') {
       const ed = editableMesh();
       if (!ed) {
         st.setStatus('Select a slot showing a mesh attachment (or create one: Properties → Grid mesh).');
         return;
       }
-      const v = pickVertex(wp.x, wp.y);
-      if (v < 0) return;
-      if (st.activeTool === 'mesh') {
-        meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
-        meshDragCmd.open();
-        dragVertex = v;
-      } else {
-        if (!st.selectedBoneId) {
-          st.setStatus('Pick the bone to paint toward (click it in the hierarchy).');
-          return;
-        }
-        paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);
-        paintCmd.open();
-        dragVertex = v;
-        paintAt(v); // Immediate dab on press.
+      if (!st.selectedBoneId) {
+        st.setStatus('Pick the bone to paint toward (click it in the hierarchy).');
+        return;
       }
+      paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);
+      paintCmd.open(meshAdjacency(ed.attachment.meshTriangles ?? []));
+      paintStrokeAt(wp.x, wp.y); // Immediate dab on press.
       canvas.style.cursor = 'crosshair';
       return;
     }
@@ -624,6 +800,7 @@ function wireViewport(
       return;
     }
     const wp = screenToWorld(e);
+    mouseWorld = wp;
     if (meshDragCmd && dragVertex >= 0) {
       // Drag writes BONE-LOCAL positions — the skinning step lifts them to
       // world space next tick, so the handle follows the cursor exactly.
@@ -634,12 +811,16 @@ function wireViewport(
       }
       return;
     }
-    if (paintCmd) {
-      const v = pickVertex(wp.x, wp.y);
-      if (v >= 0) {
-        dragVertex = v;
-        paintAt(v);
+    if (deformDragCmd && dragVertex >= 0) {
+      const ed = editableMesh();
+      if (ed) {
+        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
+        deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
       }
+      return;
+    }
+    if (paintCmd) {
+      paintStrokeAt(wp.x, wp.y);
       return;
     }
     if ((moveCmd || autoKeyCmd) && dragBoneId) {
@@ -656,7 +837,9 @@ function wireViewport(
     }
     const st = useEditorStore.getState();
     if (st.activeTool === 'mesh' || st.activeTool === 'weights') {
-      canvas.style.cursor = pickVertex(wp.x, wp.y) >= 0 ? 'crosshair' : 'default';
+      const overVertex = pickVertex(wp.x, wp.y) >= 0;
+      const overRegion = st.activeTool === 'mesh' && editableRegion() !== null;
+      canvas.style.cursor = overVertex || overRegion || hullPts ? 'crosshair' : 'default';
       return;
     }
     const hit = pickBone(wp.x, wp.y);
@@ -674,6 +857,12 @@ function wireViewport(
       meshDragCmd.commit();
       if (meshDragCmd.changed) st.execute(meshDragCmd); // One history entry per drag.
       meshDragCmd = null;
+      dragVertex = -1;
+    }
+    if (deformDragCmd) {
+      deformDragCmd.commit();
+      if (deformDragCmd.changed) st.execute(deformDragCmd);
+      deformDragCmd = null;
       dragVertex = -1;
     }
     if (paintCmd) {
@@ -712,9 +901,23 @@ function wireViewport(
 
   const onContextMenu = (e: Event) => e.preventDefault();
 
+  /** Double-click inside the hull → interior (Steiner) vertex + re-triangulate. */
+  const onDoubleClick = (e: MouseEvent): void => {
+    const st = useEditorStore.getState();
+    if (st.activeTool !== 'mesh') return;
+    const ed = editableMesh();
+    if (!ed) return;
+    const wp = screenToWorld(e);
+    if (pickVertex(wp.x, wp.y) >= 0) return; // On a vertex — that's a drag, not an add.
+    inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
+    if (!pointInMeshHull(ed.attachment, scratchPoint.x, scratchPoint.y)) return;
+    st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y));
+  };
+
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointermove', onPointerMove);
   canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('dblclick', onDoubleClick);
   canvas.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('contextmenu', onContextMenu);
   resizeToWrapper();
@@ -741,5 +944,16 @@ function wireViewport(
     const first = slotsContainer.children[0] as Mesh | undefined;
     w.__slotMesh0 = first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
     w.__slotMeshVerts0 = first && first.visible ? first.geometry.positions.length / 2 : 0;
+    // Total deform keyframes across all animations (deform auto-key smoke).
+    let deformKeys = 0;
+    for (const anim of engine.document.animations) {
+      for (const tl of anim.timelines) if (tl.kind === 'deform') deformKeys += tl.keyframes.length;
+    }
+    w.__deformKeyframes = deformKeys;
+    // Camera transform for the smoke suite (clicking world-space points).
+    w.__worldToScreen = (x: number, y: number): [number, number] => [
+      x * camera.scale + camera.x,
+      y * camera.scale + camera.y,
+    ];
   });
 }

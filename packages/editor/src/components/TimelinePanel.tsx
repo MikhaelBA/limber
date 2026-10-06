@@ -172,6 +172,17 @@ export function TimelinePanel() {
     (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'slotColor' }> => tl.kind === 'slotColor' && tl.slotId === slotId)?.keyframes ?? [];
   const drawOrderKeyframes =
     (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'drawOrder' }> => tl.kind === 'drawOrder')?.keyframes ?? [];
+  /** The MESH attachment a slot currently shows (deform row source), if any. */
+  const shownMeshAttachmentId = (slotId: string): string | null => {
+    const slotIndex = engine.skeleton.slotIndexMap.get(slotId);
+    if (slotIndex === undefined) return null;
+    const attId = engine.skeleton.pose.slots[slotIndex]!.attachmentId;
+    if (!attId) return null;
+    const attachment = engine.skeleton.attachmentById.get(attId);
+    return attachment?.type === 'mesh' ? attId : null;
+  };
+  const deformKeyframesOf = (attachmentId: string) =>
+    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'deform' }> => tl.kind === 'deform' && tl.attachmentId === attachmentId)?.keyframes ?? [];
   const depthById = new Map<string, number>();
   for (const bone of bones) {
     depthById.set(bone.id, bone.parentId === null ? 0 : (depthById.get(bone.parentId) ?? 0) + 1);
@@ -329,15 +340,21 @@ export function TimelinePanel() {
             </div>
           )}
           {slots.map((slot) => (
-            <div
-              key={slot.id}
-              onClick={() => selectSlot(slot.id)}
-              style={{ height: PROP_ROW_H, paddingLeft: 6 }}
-              className={`flex cursor-default items-center gap-1 text-[11px] ${
-                slot.id === selectedSlotId ? 'bg-sky-600/25 text-sky-100' : 'text-neutral-500 hover:bg-neutral-800'
-              }`}
-            >
-              ▣ {slot.name}
+            <div key={slot.id}>
+              <div
+                onClick={() => selectSlot(slot.id)}
+                style={{ height: PROP_ROW_H, paddingLeft: 6 }}
+                className={`flex cursor-default items-center gap-1 text-[11px] ${
+                  slot.id === selectedSlotId ? 'bg-sky-600/25 text-sky-100' : 'text-neutral-500 hover:bg-neutral-800'
+                }`}
+              >
+                ▣ {slot.name}
+              </div>
+              {slot.id === selectedSlotId && shownMeshAttachmentId(slot.id) && (
+                <div style={{ height: PROP_ROW_H, paddingLeft: 20 }} className="flex items-center text-[11px] text-emerald-300/70">
+                  ◈ deform
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -473,36 +490,63 @@ export function TimelinePanel() {
             )}
 
             {/* Slot color keyframes — one row per slot (§3.3 SlotColorTimeline). */}
-            {slots.map((slot) => (
-              <div
-                key={slot.id}
-                style={{ height: PROP_ROW_H }}
-                className="relative border-b border-neutral-800/30 bg-neutral-900/40"
-              >
-                {slotColorKeyframes(slot.id).map((kf) => {
-                  const isSelKf =
-                    selectedKeyframe?.kind === 'slotColor' &&
-                    selectedKeyframe.slotId === slot.id &&
-                    Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
-                  const rgb = ((kf.value >>> 8) & 0xffffff).toString(16).padStart(6, '0');
-                  return (
-                    <div
-                      key={kf.time}
-                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
-                        isSelKf ? 'bg-sky-400' : 'bg-fuchsia-500 hover:bg-fuchsia-400'
-                      }`}
-                      style={{ left: kf.time * PPS - 4 }}
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        setKeyframeSelection({ kind: 'slotColor', slotId: slot.id, time: kf.time });
-                        selectSlot(slot.id);
-                      }}
-                      title={`color @ ${fmtTime(kf.time)} = #${rgb} a=${Math.round(((kf.value & 0xff) / 255) * 100)}%`}
-                    />
-                  );
-                })}
-              </div>
-            ))}
+            {slots.map((slot) => {
+              const meshAttId = shownMeshAttachmentId(slot.id);
+              return (
+                <div key={slot.id}>
+                  <div style={{ height: PROP_ROW_H }} className="relative border-b border-neutral-800/30 bg-neutral-900/40">
+                    {slotColorKeyframes(slot.id).map((kf) => {
+                      const isSelKf =
+                        selectedKeyframe?.kind === 'slotColor' &&
+                        selectedKeyframe.slotId === slot.id &&
+                        Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
+                      const rgb = ((kf.value >>> 8) & 0xffffff).toString(16).padStart(6, '0');
+                      return (
+                        <div
+                          key={kf.time}
+                          className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
+                            isSelKf ? 'bg-sky-400' : 'bg-fuchsia-500 hover:bg-fuchsia-400'
+                          }`}
+                          style={{ left: kf.time * PPS - 4 }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            setKeyframeSelection({ kind: 'slotColor', slotId: slot.id, time: kf.time });
+                            selectSlot(slot.id);
+                          }}
+                          title={`color @ ${fmtTime(kf.time)} = #${rgb} a=${Math.round(((kf.value & 0xff) / 255) * 100)}%`}
+                        />
+                      );
+                    })}
+                  </div>
+                  {/* Deform keyframes for the mesh this slot shows (selected slot only). */}
+                  {slot.id === selectedSlotId && meshAttId && (
+                    <div style={{ height: PROP_ROW_H }} className="relative border-b border-neutral-800/30 bg-neutral-900/40">
+                      {deformKeyframesOf(meshAttId).map((kf) => {
+                        const isSelKf =
+                          selectedKeyframe?.kind === 'deform' &&
+                          selectedKeyframe.attachmentId === meshAttId &&
+                          Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
+                        return (
+                          <div
+                            key={kf.time}
+                            className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 ${
+                              isSelKf ? 'bg-sky-400' : 'bg-emerald-500 hover:bg-emerald-400'
+                            }`}
+                            style={{ left: kf.time * PPS - 4 }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation();
+                              setKeyframeSelection({ kind: 'deform', attachmentId: meshAttId, time: kf.time });
+                              selectSlot(slot.id);
+                            }}
+                            title={`deform @ ${fmtTime(kf.time)}${kf.offsets ? ` (${kf.offsets.length / 2} vertices)` : ' (setup)'} — drag mesh vertices in Animate mode to key`}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Playhead — transient, never re-renders React */}
             <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-full">

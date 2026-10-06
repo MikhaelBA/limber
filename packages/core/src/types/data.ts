@@ -4,7 +4,7 @@
  */
 
 /** Version of the exported document format (DESIGN.md §3.4, §8.3). */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
 
 export interface Transform {
   x: number;
@@ -73,9 +73,15 @@ export interface AttachmentData {
   // --- Mesh ---
   /** Flat local-space positions. */
   meshVertices?: number[];
-  /** Earcut output — indices into meshVertices. */
+  /** Triangulation output — indices into meshVertices. */
   meshTriangles?: number[];
   meshUVs?: number[];
+  /**
+   * Indices of the boundary vertices in walk order (format v2). Everything
+   * else is an interior (Steiner) vertex. Absent ⇒ ALL vertices are boundary
+   * vertices in index order — the triangulator fallback for pre-v2 documents.
+   */
+  meshHull?: number[];
 
   /**
    * Skinning weights — interleaved PER VERTEX (mesh) / per corner (region):

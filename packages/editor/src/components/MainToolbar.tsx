@@ -1,11 +1,12 @@
 import { AddAnimationCommand } from '../commands/animationCommands';
+import type { BrushMode } from '../commands/meshCommands';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore, type Tool } from '../store/editorStore';
 
 const TOOLS: { id: Tool; label: string; hint: string }[] = [
   { id: 'select', label: '▶ Select', hint: 'Select / drag bones (V)' },
   { id: 'create_bone', label: '＋ Bone', hint: 'Click viewport to create a bone (B)' },
-  { id: 'mesh', label: '◈ Mesh', hint: 'Drag mesh vertices of the selected slot (M)' },
+  { id: 'mesh', label: '◈ Mesh', hint: 'Mesh tool (M): region shown → draw a hull; mesh shown → drag vertices, dbl-click adds, Alt+click deletes' },
   { id: 'weights', label: '⚖ Weights', hint: 'Paint vertex weights toward the selected bone (W)' },
 ];
 
@@ -22,6 +23,10 @@ export function MainToolbar() {
   const execute = useEditorStore((s) => s.execute);
   const setStatus = useEditorStore((s) => s.setStatus);
   const setPlaying = useEditorStore((s) => s.setPlaying);
+  const brushRadius = useEditorStore((s) => s.brushRadius);
+  const brushStrength = useEditorStore((s) => s.brushStrength);
+  const brushMode = useEditorStore((s) => s.brushMode);
+  const setBrush = useEditorStore((s) => s.setBrush);
 
   const switchMode = (next: 'setup' | 'animate') => {
     if (next === 'animate' && engine.document.animations.length === 0) {
@@ -73,6 +78,45 @@ export function MainToolbar() {
       </button>
 
       <div className="mx-2 h-4 w-px bg-neutral-700" />
+
+      {activeTool === 'weights' && (
+        <>
+          <label className="flex items-center gap-1 text-xs text-neutral-400" title="Brush radius (world units)">
+            R
+            <input
+              type="number"
+              min={2}
+              step={5}
+              value={brushRadius}
+              onChange={(e) => setBrush({ radius: parseFloat(e.target.value) || 2 })}
+              className="w-14 rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-neutral-400" title="Brush strength (per dab)">
+            S
+            <input
+              type="number"
+              min={0.02}
+              max={1}
+              step={0.05}
+              value={brushStrength}
+              onChange={(e) => setBrush({ strength: parseFloat(e.target.value) || 0.02 })}
+              className="w-12 rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+            />
+          </label>
+          <select
+            value={brushMode}
+            onChange={(e) => setBrush({ mode: e.target.value as BrushMode })}
+            title="Brush behavior"
+            className="rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+          >
+            <option value="add">add</option>
+            <option value="set">set</option>
+            <option value="smooth">smooth</option>
+          </select>
+          <div className="mx-1 h-4 w-px bg-neutral-700" />
+        </>
+      )}
 
       <div className="flex overflow-hidden rounded ring-1 ring-neutral-700" title="Workflow mode">
         <button
