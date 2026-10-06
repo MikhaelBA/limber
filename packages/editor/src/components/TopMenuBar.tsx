@@ -1,5 +1,6 @@
-import { useRef } from 'react';
-import { deserializeDocument, serializeDocument } from '@limber/core';
+import { useEffect, useRef, useState } from 'react';
+import { deserializeDocument, exportSpineJson, serializeDocument } from '@limber/core';
+import { clearAutosave, readAutosave } from '../persistence/autosave';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
@@ -7,10 +8,27 @@ import { useEditorStore } from '../store/editorStore';
 export function TopMenuBar() {
   const engine = useEngine();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasAutosave, setHasAutosave] = useState(false);
+
+  // Startup hint: a previous session may have left a crash-safe autosave.
+  useEffect(() => {
+    readAutosave()
+      .then((rec) => {
+        if (rec) {
+          setHasAutosave(true);
+          useEditorStore
+            .getState()
+            .setStatus(`Autosave from ${new Date(rec.savedAt).toLocaleTimeString()} found — File → Restore autosave`);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const onNew = () => {
     engine.newDocument();
     textureRegistry.clear(); // Object URLs + GPU textures belong to the old doc (§8.2).
+    clearAutosave().catch(() => {});
+    setHasAutosave(false);
     useEditorStore.getState().documentReplaced();
     useEditorStore.getState().setStatus('New project created');
   };
@@ -31,16 +49,52 @@ export function TopMenuBar() {
     }
   };
 
-  const onSave = () => {
-    const json = serializeDocument(engine.document);
-    const blob = new Blob([json], { type: 'application/json' });
+  const download = (blob: Blob, name: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'project.limber.json';
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const onSave = () => {
+    download(new Blob([serializeDocument(engine.document)], { type: 'application/json' }), 'project.limber.json');
     useEditorStore.getState().setStatus('Project saved (JSON download)');
+  };
+
+  const onExportSpine = () => {
+    const st = useEditorStore.getState();
+    try {
+      const json = exportSpineJson(engine.document);
+      download(new Blob([json], { type: 'application/json' }), 'skeleton.json');
+      st.setStatus('Spine skeleton JSON exported (4.1 format — pair with your texture atlas)');
+    } catch (err) {
+      st.setStatus(`Spine export failed: ${(err as Error).message}`);
+    }
+  };
+
+  const onRestoreAutosave = async () => {
+    const st = useEditorStore.getState();
+    const rec = await readAutosave().catch(() => null);
+    if (!rec) {
+      st.setStatus('No autosave found');
+      setHasAutosave(false);
+      return;
+    }
+    try {
+      const doc = deserializeDocument(rec.json);
+      textureRegistry.clear();
+      engine.loadDocument(doc);
+      // Re-register every texture under its ORIGINAL id so attachments resolve.
+      await Promise.all(
+        rec.textures.map((t) => textureRegistry.loadBlob(t.textureId, t.name, t.blob).catch(() => null)),
+      );
+      st.documentReplaced();
+      st.setStatus(`Autosave restored — ${rec.textures.length} texture(s) included`);
+    } catch (err) {
+      st.setStatus(`Autosave restore failed: ${(err as Error).message}`);
+    }
   };
 
   return (
@@ -54,6 +108,21 @@ export function TopMenuBar() {
       </button>
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onSave}>
         Save
+      </button>
+      <button
+        className="rounded px-2 py-0.5 text-sm text-emerald-200 hover:bg-neutral-800"
+        title="Export the skeleton as Spine-runtime JSON (4.1)"
+        onClick={onExportSpine}
+      >
+        Export Spine JSON
+      </button>
+      <button
+        className="rounded px-2 py-0.5 text-sm text-amber-200 hover:bg-neutral-800 disabled:opacity-35"
+        disabled={!hasAutosave}
+        title="Restore the crash-safe autosave (document + textures)"
+        onClick={onRestoreAutosave}
+      >
+        Restore autosave
       </button>
       <input
         ref={fileInputRef}

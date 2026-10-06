@@ -15,7 +15,9 @@ import { StatusBar } from './components/StatusBar';
 import { TimelinePanel } from './components/TimelinePanel';
 import { TopMenuBar } from './components/TopMenuBar';
 import { ViewportCanvas } from './components/ViewportCanvas';
+import { textureRegistry } from './engine/TextureRegistry';
 import { EngineProvider, useEngine } from './hooks/useEngine';
+import { scheduleAutosave } from './persistence/autosave';
 import { useEditorStore } from './store/editorStore';
 
 function Shell() {
@@ -30,6 +32,15 @@ function Shell() {
     if (selectedBoneId && !engine.skeleton.boneIndexMap.has(selectedBoneId)) clearSelection();
     else if (selectedSlotId && !engine.skeleton.slotIndexMap.has(selectedSlotId)) clearSelection();
   }, [dataRevision, selectedBoneId, selectedSlotId, engine, clearSelection]);
+
+  // Crash-safe autosave (§7): debounce writes on document changes. Selection
+  // churn bumps dataRevision too — harmless, the write is idempotent.
+  useEffect(() => {
+    return useEditorStore.subscribe((state, prev) => {
+      if (state.dataRevision === prev.dataRevision) return;
+      scheduleAutosave(() => ({ doc: engine.document, textures: () => textureRegistry.blobEntries() }));
+    });
+  }, [engine]);
 
   // Global shortcuts — skipped while typing in inputs.
   useEffect(() => {

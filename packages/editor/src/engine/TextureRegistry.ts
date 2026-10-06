@@ -21,6 +21,8 @@ export interface LoadedTexture {
 export class TextureRegistry {
   private textures = new Map<string, Texture>();
   private urls = new Map<string, string>();
+  /** Source pixels per textureId — the autosave round-trips these blobs. */
+  private blobs = new Map<string, { name: string; blob: Blob }>();
   /** Bumped on every mutation — the viewport reconciles meshes on change. */
   version = 0;
 
@@ -35,33 +37,45 @@ export class TextureRegistry {
   /** 1×1 white — used when a textureId has manifest metadata but no pixels. */
   readonly placeholder = Texture.WHITE;
 
+  /** Source pixels for the autosave (empty for textures not restored yet). */
+  blobEntries(): { textureId: string; name: string; blob: Blob }[] {
+    return [...this.blobs.entries()].map(([textureId, { name, blob }]) => ({ textureId, name, blob }));
+  }
+
   /**
    * Loads an image File into the registry. Rejects on decode failure (and
    * revokes the object URL — leaking GPU textures/URLs eventually kills the
    * tab, DESIGN.md §8.2).
    */
   async loadFile(file: File): Promise<LoadedTexture> {
-    const url = URL.createObjectURL(file);
+    const textureId = uuid();
+    const loaded = await this.loadBlob(textureId, file.name, file);
+    return loaded;
+  }
+
+  /** Restores a texture under an EXISTING id (autosave round-trip). */
+  async loadBlob(textureId: string, name: string, blob: Blob): Promise<LoadedTexture> {
+    const url = URL.createObjectURL(blob);
     const img = new Image();
     img.decoding = 'async';
     try {
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
-        img.onerror = () => reject(new Error(`Could not decode image "${file.name}".`));
+        img.onerror = () => reject(new Error(`Could not decode image "${name}".`));
         img.src = url;
       });
     } catch (err) {
       URL.revokeObjectURL(url);
       throw err;
     }
-    const textureId = uuid();
     // skipCache=true: this registry owns the texture's lifecycle, not the
     // global pixi asset Cache (which would fight destroy() in clear()).
     const texture = Texture.from(img, true);
     this.textures.set(textureId, texture);
     this.urls.set(textureId, url);
+    this.blobs.set(textureId, { name, blob });
     this.version++;
-    return { textureId, name: file.name, width: img.naturalWidth, height: img.naturalHeight };
+    return { textureId, name, width: img.naturalWidth, height: img.naturalHeight };
   }
 
   /** Frees everything (document replaced) — destroys GPU state, revokes URLs. */
@@ -70,6 +84,7 @@ export class TextureRegistry {
     for (const url of this.urls.values()) URL.revokeObjectURL(url);
     this.textures.clear();
     this.urls.clear();
+    this.blobs.clear();
     this.version++;
   }
 }

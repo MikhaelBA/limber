@@ -327,6 +327,30 @@ if (!(Math.abs(rootAngle - expectedAngle) < 0.01)) {
 } else log('IK target drag verified — chain follows');
 await shot('13-ik-follow.png');
 
+// 15. Autosave — after the debounce window, IndexedDB must hold the document
+//     (with its bones) as a crash-safe record.
+await page.waitForTimeout(2200);
+const autosaved = await page.evaluate(
+  () =>
+    new Promise((res) => {
+      const rq = indexedDB.open('limber-autosave');
+      rq.onsuccess = () => {
+        const db = rq.result;
+        try {
+          const get = db.transaction('kv').objectStore('kv').get('current');
+          get.onsuccess = () =>
+            res(!!get.result && typeof get.result.json === 'string' && get.result.json.includes('"bones"'));
+          get.onerror = () => res(null);
+        } catch {
+          res(null);
+        }
+      };
+      rq.onerror = () => res(null);
+    }),
+);
+if (autosaved !== true) fail('autosave record not found in IndexedDB');
+else log('autosave verified in IndexedDB');
+
 if (consoleErrors.length) fail(`console errors: ${JSON.stringify(consoleErrors.slice(0, 5))}`);
 else log('no console errors');
 

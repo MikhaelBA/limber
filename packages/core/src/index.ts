@@ -11,6 +11,7 @@ export * from './skeleton/pose';
 export * from './skeleton/Skeleton';
 export * from './skeleton/FKSolver';
 export * from './skeleton/IKSolver';
+export { exportSpineJson } from './serialization/spineExport';
 export * from './skeleton/skinning';
 
 // Animation
