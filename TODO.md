@@ -1,7 +1,7 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after Phase 5 chunk 2: hull meshes, deform keying, brush UX).
+> Last updated: 2026-10-06 (after Phase 7 chunk 1: Spine JSON export + autosave).
 
 ## Current status
 
@@ -13,6 +13,7 @@
 | Phase 4 — Attachments, draw order & skins | ✅ done |
 | Phase 5 — Meshes, weights & deform | ✅ done (chunks 1+2; runtime accessor pending) |
 | Phase 6 — IK (solver + editor UI) | ✅ done |
+| Phase 7 — Export & persistence: Spine JSON export + IndexedDB autosave | ✅ chunk 1 done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
@@ -23,12 +24,36 @@ Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
 IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
 ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD.
 
-Verification baseline: **146 unit tests green**, typecheck green, editor production
+Verification baseline: **157 unit tests green**, typecheck green, editor production
 build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
 drop-image → sprite-follows-bone, composite undo/redo, region→grid-mesh convert,
 **region→hull-mesh by clicking 4 points + closing on the first**,
-**animate-mode mesh-vertex drag → deform keyframe**, and
-**IK add → drag target → chain follows (angle asserted against the live target)**.
+**animate-mode mesh-vertex drag → deform keyframe**,
+**IK add → drag target → chain follows (angle asserted against the live target)**, and
+**IndexedDB autosave written after the debounce window**.
+
+## Phase 7 chunk 1 (export & persistence) — what landed (2026-10-06)
+
+- **Spine-runtime JSON export** (`core/serialization/spineExport.ts` + "Export
+  Spine JSON" in the top menu): 4.1-format skeleton. Conversions: ids→names,
+  y-flip conjugation (y/rotation/shearX/shearY negate; degrees out), colors →
+  "rrggbbaa" strings, meshes REORDERED hull-first (Spine `hull` is a count of
+  the leading ring) with remapped triangles/uvs/weights, weighted meshes in
+  the interleaved [count, bone, x, y, weight, …] form with per-influence
+  bone-local coords (Mᵢ⁻¹·M_slot·v at setup), per-property timelines merged
+  into packed translate/scale/shear tracks at the union of key times, bezier
+  curves with value-space flips, draw-order as sequential slot-offset diffs,
+  deform under `default.<slot>.<attachment>` with y-flipped offsets, event
+  definitions collected from keyframes. Known approximations (documented in
+  the file): shared pair curves use the y-flip only; held-value merging when
+  a pair's key times mismatch; IK constraint names are generated (ik1, ik2…).
+  Pair with a texture atlas at runtime (Phase 8 packs one).
+- **IndexedDB autosave** (`editor/src/persistence/autosave.ts`): debounced
+  1.5s writes of serializeDocument + the texture SOURCE BLOBS (registry keeps
+  them per textureId; `loadBlob` restores under the ORIGINAL id so
+  attachments resolve). "Restore autosave" in the top menu (enabled when a
+  record exists; startup status hint); New clears the record. Restore is
+  pixel-complete — no re-dropping images.
 
 ## Phase 6 (IK) — what landed (2026-10-06)
 
