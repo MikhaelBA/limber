@@ -163,8 +163,22 @@ export function TopMenuBar() {
       await Promise.all(
         rec.textures.map((t) => textureRegistry.loadBlob(t.textureId, t.name, t.blob).catch(() => null)),
       );
+      // Textures missing from the record may still live in the manifest as
+      // data URLs (self-contained files injected into the autosave slot).
+      let fromEmbed = 0;
+      const blobIds = new Set(rec.textures.map((t) => t.textureId));
+      for (const [textureId, meta] of Object.entries(doc.assetManifest)) {
+        if (!meta.dataUrl || blobIds.has(textureId)) continue;
+        try {
+          const blob = await (await fetch(meta.dataUrl)).blob();
+          await textureRegistry.loadBlob(textureId, meta.name, blob);
+          fromEmbed++;
+        } catch {
+          /* placeholder shows for broken embeds */
+        }
+      }
       st.documentReplaced();
-      st.setStatus(`Autosave restored — ${rec.textures.length} texture(s) included`);
+      st.setStatus(`Autosave restored — ${rec.textures.length + fromEmbed} texture(s) included`);
     } catch (err) {
       st.setStatus(`Autosave restore failed: ${(err as Error).message}`);
     }
