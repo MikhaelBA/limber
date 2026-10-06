@@ -3,7 +3,12 @@ import type { BonePropertyName } from '../commands/animationCommands';
 import type { BrushMode } from '../commands/meshCommands';
 import { history, type Command } from '../history/history';
 
-export type Tool = 'select' | 'create_bone' | 'mesh' | 'weights';
+/**
+ * Transform tools mirror Spine's (spine-tools): translate V, rotate C, scale X,
+ * shear Z (+ create B, mesh M, weights W). There is no dedicated "select"
+ * tool — clicking items selects them and every transform tool drags.
+ */
+export type Tool = 'translate' | 'rotate' | 'scale' | 'shear' | 'create_bone' | 'mesh' | 'weights';
 export type { BonePropertyName };
 
 /** A keyframe currently selected in the dopesheet (deleted via Del). */
@@ -26,6 +31,7 @@ interface UIState {
   hoveredBoneId: string | null;
   selectedKeyframe: KeyframeSelection | null;
   activeTool: Tool;
+  previousTool: Tool | null;
   mode: 'setup' | 'animate';
   isPlaying: boolean;
   /** Weight brush (weights tool): world-space radius, 0..1 strength, behavior. */
@@ -47,6 +53,8 @@ interface UIState {
   clearSelection: () => void;
   setHover: (boneId: string | null) => void;
   setTool: (tool: Tool) => void;
+  /** Spine: right click toggles between the current and last used tool. */
+  toggleLastTool: () => void;
   setMode: (mode: 'setup' | 'animate') => void;
   setPlaying: (playing: boolean) => void;
   setBrush: (patch: { radius?: number; strength?: number; mode?: BrushMode }) => void;
@@ -66,7 +74,8 @@ export const useEditorStore = create<UIState>((set, get) => ({
   selectedSlotId: null,
   hoveredBoneId: null,
   selectedKeyframe: null,
-  activeTool: 'select',
+  activeTool: 'translate',
+  previousTool: null,
   mode: 'setup',
   isPlaying: false,
   brushRadius: 60,
@@ -111,7 +120,13 @@ export const useEditorStore = create<UIState>((set, get) => ({
   selectSlot: (slotId) => set({ selectedSlotId: slotId, selectedBoneId: null, selectedKeyframe: null }),
   clearSelection: () => set({ selectedBoneId: null, selectedSlotId: null }),
   setHover: (boneId) => set({ hoveredBoneId: boneId }),
-  setTool: (tool) => set({ activeTool: tool }),
+  setTool: (tool) => set((s) => ({ activeTool: tool, previousTool: s.activeTool })),
+  toggleLastTool: () =>
+    set((s) => {
+      if (!s.previousTool || s.previousTool === s.activeTool) return s;
+      const activeTool = s.previousTool;
+      return { activeTool, previousTool: s.activeTool };
+    }),
   setMode: (mode) => set({ mode }),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setBrush: (patch) =>

@@ -3,6 +3,8 @@ import { EditorEngine } from '../src/engine/EditorEngine';
 import { HistoryManager, type Command } from '../src/history/history';
 import {
   AddBoneCommand,
+  DragBoneLengthCommand,
+  DragBoneTransformCommand,
   MoveBoneCommand,
   RemoveBoneCommand,
   ReparentBoneCommand,
@@ -10,6 +12,7 @@ import {
   isAncestor,
   wouldCreateCycle,
 } from '../src/commands/boneCommands';
+import { AddAnimationCommand, AutoKeyBonePropCommand } from '../src/commands/animationCommands';
 
 function setup(engine: EditorEngine, id: string, parentId: string | null, pose: Partial<{x:number;y:number;rotation:number}>) {
   const data = engine.skeleton.data;
@@ -214,3 +217,70 @@ function worldOf(engine: EditorEngine, boneId: string): { tx: number; ty: number
   const idx = engine.skeleton.boneIndexMap.get(boneId)!;
   return { tx: worlds[idx * 6 + 4]!, ty: worlds[idx * 6 + 5]! };
 }
+
+describe('Spine-parity drag commands', () => {
+  it('DragBoneTransformCommand: continuous setup rotation with one undo step', () => {
+    const engine = new EditorEngine();
+    const rootId = engine.skeleton.data.bones[0]!.id;
+    const cmd = new DragBoneTransformCommand(engine, rootId, ['rotation']);
+    cmd.open();
+    expect(cmd.changed).toBe(false);
+    cmd.set('rotation', 1.25);
+    cmd.commit();
+    expect(cmd.changed).toBe(true);
+    expect(engine.skeleton.data.bones[0]!.setupPose.rotation).toBe(1.25);
+    cmd.undo();
+    expect(engine.skeleton.data.bones[0]!.setupPose.rotation).toBe(0);
+    cmd.do();
+    expect(engine.skeleton.data.bones[0]!.setupPose.rotation).toBe(1.25);
+  });
+
+  it('DragBoneLengthCommand: clamps to >=1 and undoes', () => {
+    const engine = new EditorEngine();
+    const rootId = engine.skeleton.data.bones[0]!.id;
+    const cmd = new DragBoneLengthCommand(engine, rootId);
+    cmd.open();
+    cmd.set(-50);
+    cmd.commit();
+    expect(engine.skeleton.data.bones[0]!.length).toBe(1);
+    cmd.undo();
+    expect(engine.skeleton.data.bones[0]!.length).toBe(80);
+  });
+
+  it('AutoKeyBonePropCommand: keys the property at the playhead, undo removes', () => {
+    const engine = new EditorEngine();
+    const add = new AddAnimationCommand(engine);
+    add.do();
+    engine.setAnimation(add.name);
+    engine.mode = 'animate';
+    const rootId = engine.skeleton.data.bones[0]!.id;
+    engine.scrub(0.3);
+    const cmd = new AutoKeyBonePropCommand(engine, rootId, 'rotation');
+    cmd.open();
+    cmd.set(0.75);
+    cmd.commit();
+    expect(cmd.changed).toBe(true);
+    const tl = engine.currentAnimation!.timelines[0] as { property: string; keyframes: { time: number; value: number }[] };
+    expect(tl.property).toBe('rotation');
+    expect(tl.keyframes[0]).toMatchObject({ time: 0.3, value: 0.75 });
+    cmd.undo();
+    expect(engine.currentAnimation!.timelines).toHaveLength(0);
+    cmd.do();
+    expect(engine.currentAnimation!.timelines).toHaveLength(1);
+  });
+
+  it('AddBoneCommand: drag opts set rotation and length; plain click keeps defaults', () => {
+    const engine = new EditorEngine();
+    const rootId = engine.skeleton.data.bones[0]!.id;
+    const dragged = new AddBoneCommand(engine, rootId, { x: 10, y: 0 }, { rotation: 1.2, length: 77 });
+    dragged.do();
+    const b = engine.skeleton.data.bones.find((x) => x.id === dragged.boneId)!;
+    expect(b.setupPose.rotation).toBe(1.2);
+    expect(b.length).toBe(77);
+    const clicked = new AddBoneCommand(engine, rootId, { x: 0, y: 0 });
+    clicked.do();
+    const b2 = engine.skeleton.data.bones.find((x) => x.id === clicked.boneId)!;
+    expect(b2.length).toBe(50);
+    expect(b2.setupPose.rotation).toBe(0);
+  });
+});

@@ -9,8 +9,17 @@ import {
   solveIK,
   updateSkinning,
 } from '@limber/core';
-import { AutoKeyDeformCommand, AutoKeyMoveBoneCommand } from '../commands/animationCommands';
-import { AddBoneCommand, MoveBoneCommand } from '../commands/boneCommands';
+import {
+  AutoKeyBonePropCommand,
+  AutoKeyDeformCommand,
+  AutoKeyMoveBoneCommand,
+} from '../commands/animationCommands';
+import {
+  AddBoneCommand,
+  DragBoneLengthCommand,
+  DragBoneTransformCommand,
+  MoveBoneCommand,
+} from '../commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../commands/attachmentCommands';
 import { AddSlotCommand } from '../commands/slotCommands';
 import {
@@ -818,6 +827,15 @@ function wireViewport(
     return out;
   };
 
+  /** World point through the INVERSE of a raw 6-float affine [a,b,c,d,tx,ty]. */
+  const inverseOf = (m: ArrayLike<number>, wx: number, wy: number, out: { x: number; y: number }): void => {
+    const det = m[0]! * m[3]! - m[1]! * m[2]!;
+    const dx = wx - m[4]!;
+    const dy = wy - m[5]!;
+    out.x = (m[3]! * dx - m[2]! * dy) / det;
+    out.y = (m[0]! * dy - m[1]! * dx) / det;
+  };
+
   // ---- Pointer interaction ----
   let panning = false;
   let lastPX = 0;
@@ -829,6 +847,51 @@ function wireViewport(
   let deformDragCmd: AutoKeyDeformCommand | null = null;
   let paintCmd: PaintWeightsCommand | null = null;
   let dragVertex = -1;
+
+  // Transform-tool drags (spine-tools semantics).
+  type DragKind = 'translate' | 'rotate' | 'scale' | 'shear' | 'length' | 'create' | null;
+  let dragKind: DragKind = null;
+  let setupDragCmd: DragBoneTransformCommand | null = null;
+  let lengthDragCmd: DragBoneLengthCommand | null = null;
+  let propKeyCmd: AutoKeyBonePropCommand | null = null; // animate: rotation / shearX / scaleX
+  let propKeyCmd2: AutoKeyBonePropCommand | null = null; // animate: scaleY (scale tool)
+  let grabAngle = 0;
+  let startRotation = 0;
+  let startSx = 1;
+  let startSy = 1;
+  let startShear = 0;
+  let grabDist = 1;
+  /** The dragged bone's world matrix at shear-grab (a stable reference frame). */
+  const grabWorld = new Float64Array(6);
+  const grabLocalPt = { x: 0, y: 0 };
+  /** Empty-space grabs: a plain click DESELECTS, a drag adjusts (Spine). */
+  let emptyGrab = false;
+  let downWp = { x: 0, y: 0 };
+  let createDrag: { parentId: string | null; lx: number; ly: number } | null = null;
+  let createWx = 0;
+  let createWy = 0;
+
+  const isTransformTool = (t: string): boolean =>
+    t === 'translate' || t === 'rotate' || t === 'scale' || t === 'shear';
+
+  /** The bone's CURRENT local value — the animated pose in Animate mode, setup otherwise. */
+  const currentLocalOf = (boneId: string, prop: 'rotation' | 'scaleX' | 'scaleY' | 'shearX'): number => {
+    const idx = engine.skeleton.boneIndexMap.get(boneId)!;
+    if (useEditorStore.getState().mode === 'animate') return engine.skeleton.pose.bones[idx]!.local[prop];
+    return engine.skeleton.data.bones[idx]!.setupPose[prop];
+  };
+
+  const worldOriginOf = (idx: number): { x: number; y: number } => {
+    const o = idx * 6;
+    return { x: engine.skeleton.pose.worldMatrices[o + 4]!, y: engine.skeleton.pose.worldMatrices[o + 5]! };
+  };
+
+  const parentWorldAngleOf = (boneId: string): number => {
+    const parentId = engine.skeleton.data.bones.find((b) => b.id === boneId)?.parentId ?? null;
+    if (parentId === null) return 0;
+    const p = engine.skeleton.boneIndexMap.get(parentId)! * 6;
+    return Math.atan2(engine.skeleton.pose.worldMatrices[p + 1]!, engine.skeleton.pose.worldMatrices[p]!);
+  };
 
   /** One brush dab: every vertex inside brushRadius, smoothstep-falloff scaled. */
   const paintStrokeAt = (wx: number, wy: number): void => {
@@ -934,26 +997,107 @@ function wireViewport(
     }
 
     if (st.activeTool === 'create_bone') {
+      // Spine create tool: press sets the origin; release drops the bone. A
+      // plain click = default bone; a drag sets rotation + length.
       const hitId = pickBone(wp.x, wp.y); // Child of the hit bone, else a new root.
       const local = parentLocalOf(hitId, wp.x, wp.y);
-      const cmd = new AddBoneCommand(engine, hitId, local);
-      st.execute(cmd);
-      st.select(cmd.boneId);
+      createDrag = { parentId: hitId, lx: local.x, ly: local.y };
+      createWx = wp.x;
+      createWy = wp.y;
+      dragKind = 'create';
       return;
     }
 
+    // ---- Transform tools (translate/rotate/scale/shear) ----
+    downWp = wp;
+    emptyGrab = false;
+
+    // Tip grab (setup only): dragging the SELECTED bone's tip changes length.
+    if (st.mode === 'setup' && st.selectedBoneId) {
+      const idx = engine.skeleton.boneIndexMap.get(st.selectedBoneId);
+      if (idx !== undefined) {
+        const o = idx * 6;
+        const wm = engine.skeleton.pose.worldMatrices;
+        const len = engine.skeleton.data.bones[idx]!.length;
+        const tipX = wm[o]! * len + wm[o + 4]!;
+        const tipY = wm[o + 1]! * len + wm[o + 5]!;
+        if (Math.hypot(wp.x - tipX, wp.y - tipY) < 10 / camera.scale) {
+          lengthDragCmd = new DragBoneLengthCommand(engine, st.selectedBoneId);
+          lengthDragCmd.open();
+          dragBoneId = st.selectedBoneId;
+          dragKind = 'length';
+          canvas.style.cursor = 'ew-resize';
+          return;
+        }
+      }
+    }
+
     const hitId = pickBone(wp.x, wp.y);
-    if (hitId) {
-      st.select(hitId);
-      dragBoneId = hitId;
-      // Animate mode: drags write keyframes at the playhead (auto-key §5.6).
-      // Setup mode: drags edit the rig's setup pose.
-      if (st.mode === 'animate' && engine.currentAnimation) {
-        autoKeyCmd = new AutoKeyMoveBoneCommand(engine, hitId);
-        autoKeyCmd.open();
+    // Spine: dragging in EMPTY SPACE adjusts the selected item; clicking empty
+    // space deselects (resolved at pointerup by movement).
+    const targetId = hitId ?? (isTransformTool(st.activeTool) ? st.selectedBoneId : null);
+    if (targetId) {
+      if (hitId) st.select(hitId);
+      emptyGrab = hitId === null;
+      dragBoneId = targetId;
+      const idx = engine.skeleton.boneIndexMap.get(targetId)!;
+      const o = idx * 6;
+      const origin = worldOriginOf(idx);
+      const animate = st.mode === 'animate' && engine.currentAnimation;
+      const tool = st.activeTool;
+
+      if (tool === 'translate') {
+        dragKind = 'translate';
+        // Animate mode: drags write keyframes at the playhead (auto-key §5.6).
+        // Setup mode: drags edit the rig's setup pose.
+        if (animate) {
+          autoKeyCmd = new AutoKeyMoveBoneCommand(engine, targetId);
+          autoKeyCmd.open();
+        } else {
+          moveCmd = new MoveBoneCommand(engine, targetId);
+          moveCmd.open();
+        }
+      } else if (tool === 'rotate') {
+        dragKind = 'rotate';
+        grabAngle = Math.atan2(wp.y - origin.y, wp.x - origin.x);
+        startRotation = currentLocalOf(targetId, 'rotation');
+        if (animate) {
+          propKeyCmd = new AutoKeyBonePropCommand(engine, targetId, 'rotation');
+          propKeyCmd.open();
+        } else {
+          setupDragCmd = new DragBoneTransformCommand(engine, targetId, ['rotation']);
+          setupDragCmd.open();
+        }
+      } else if (tool === 'scale') {
+        dragKind = 'scale';
+        grabDist = Math.max(1e-3, Math.hypot(wp.x - origin.x, wp.y - origin.y));
+        startSx = currentLocalOf(targetId, 'scaleX');
+        startSy = currentLocalOf(targetId, 'scaleY');
+        if (animate) {
+          propKeyCmd = new AutoKeyBonePropCommand(engine, targetId, 'scaleX');
+          propKeyCmd.open();
+          propKeyCmd2 = new AutoKeyBonePropCommand(engine, targetId, 'scaleY');
+          propKeyCmd2.open();
+        } else {
+          setupDragCmd = new DragBoneTransformCommand(engine, targetId, ['scaleX', 'scaleY']);
+          setupDragCmd.open();
+        }
       } else {
-        moveCmd = new MoveBoneCommand(engine, hitId);
-        moveCmd.open();
+        // shear: drag skews along the bone's x-axis (shearX).
+        dragKind = 'shear';
+        const wm = engine.skeleton.pose.worldMatrices;
+        for (let k = 0; k < 6; k++) grabWorld[k] = wm[o + k]!;
+        inverseOf(grabWorld, wp.x, wp.y, scratchPoint);
+        grabLocalPt.x = scratchPoint.x;
+        grabLocalPt.y = scratchPoint.y;
+        startShear = currentLocalOf(targetId, 'shearX');
+        if (animate) {
+          propKeyCmd = new AutoKeyBonePropCommand(engine, targetId, 'shearX');
+          propKeyCmd.open();
+        } else {
+          setupDragCmd = new DragBoneTransformCommand(engine, targetId, ['shearX']);
+          setupDragCmd.open();
+        }
       }
       canvas.style.cursor = 'grabbing';
     } else {
@@ -995,6 +1139,54 @@ function wireViewport(
       paintStrokeAt(wp.x, wp.y);
       return;
     }
+    if (dragKind === 'length' && lengthDragCmd && dragBoneId) {
+      const idx = engine.skeleton.boneIndexMap.get(dragBoneId)!;
+      const o = idx * 6;
+      const wm = engine.skeleton.pose.worldMatrices;
+      // Project the cursor onto the bone's world x-axis.
+      const len = (wp.x - wm[o + 4]!) * wm[o]! + (wp.y - wm[o + 5]!) * wm[o + 1]!;
+      lengthDragCmd.set(len);
+      return;
+    }
+    if (dragKind === 'rotate' && dragBoneId) {
+      const origin = worldOriginOf(engine.skeleton.boneIndexMap.get(dragBoneId)!);
+      let target = startRotation + (Math.atan2(wp.y - origin.y, wp.x - origin.x) - grabAngle);
+      if (e.shiftKey) {
+        // Spine: shift constrains rotation to 15° increments (world space).
+        const parentAngle = parentWorldAngleOf(dragBoneId);
+        const snapped = Math.round((parentAngle + target) / (Math.PI / 12)) * (Math.PI / 12);
+        target = snapped - parentAngle;
+      }
+      if (setupDragCmd) setupDragCmd.set('rotation', target);
+      else propKeyCmd?.set(target);
+      return;
+    }
+    if (dragKind === 'scale' && dragBoneId) {
+      const origin = worldOriginOf(engine.skeleton.boneIndexMap.get(dragBoneId)!);
+      const r = Math.hypot(wp.x - origin.x, wp.y - origin.y) / grabDist;
+      if (setupDragCmd) {
+        setupDragCmd.set('scaleX', startSx * r);
+        setupDragCmd.set('scaleY', startSy * r);
+      } else {
+        propKeyCmd?.set(startSx * r);
+        propKeyCmd2?.set(startSy * r);
+      }
+      return;
+    }
+    if (dragKind === 'shear' && dragBoneId) {
+      inverseOf(grabWorld, wp.x, wp.y, scratchPoint);
+      const len = Math.max(engine.skeleton.data.bones.find((b) => b.id === dragBoneId)!.length, 20);
+      const target = Math.max(
+        -1.4,
+        Math.min(1.4, startShear + (scratchPoint.x - grabLocalPt.x) / len),
+      );
+      if (setupDragCmd) setupDragCmd.set('shearX', target);
+      else propKeyCmd?.set(target);
+      return;
+    }
+    if (dragKind === 'create' && createDrag) {
+      return; // Length/rotation resolve at pointerup.
+    }
     if ((moveCmd || autoKeyCmd) && dragBoneId) {
       const bone = engine.skeleton.data.bones.find((b) => b.id === dragBoneId);
       if (!bone) return;
@@ -1025,6 +1217,7 @@ function wireViewport(
       return;
     }
     const st = useEditorStore.getState();
+    const wpUp = screenToWorld(e);
     if (meshDragCmd) {
       meshDragCmd.commit();
       if (meshDragCmd.changed) st.execute(meshDragCmd); // One history entry per drag.
@@ -1043,17 +1236,79 @@ function wireViewport(
       paintCmd = null;
       dragVertex = -1;
     }
-    if (moveCmd) {
-      moveCmd.commit();
-      if (moveCmd.changed) st.execute(moveCmd); // One history entry per drag.
-      moveCmd = null;
+    if (dragKind === 'create' && createDrag) {
+      const dx = wpUp.x - createWx;
+      const dy = wpUp.y - createWy;
+      const dragged = Math.hypot(dx, dy) > 6 / camera.scale;
+      let cmd: AddBoneCommand;
+      if (dragged) {
+        // Local rotation = drag angle minus the parent's world angle.
+        let parentAngle = 0;
+        if (createDrag.parentId !== null) {
+          const p = engine.skeleton.boneIndexMap.get(createDrag.parentId)! * 6;
+          const wm = engine.skeleton.pose.worldMatrices;
+          parentAngle = Math.atan2(wm[p + 1]!, wm[p]!);
+        }
+        cmd = new AddBoneCommand(engine, createDrag.parentId, { x: createDrag.lx, y: createDrag.ly }, {
+          rotation: Math.atan2(dy, dx) - parentAngle,
+          length: Math.hypot(dx, dy),
+        });
+      } else {
+        cmd = new AddBoneCommand(engine, createDrag.parentId, { x: createDrag.lx, y: createDrag.ly });
+      }
+      st.execute(cmd);
+      st.select(cmd.boneId);
+      createDrag = null;
+      dragKind = null;
     }
-    if (autoKeyCmd) {
-      autoKeyCmd.commit();
-      if (autoKeyCmd.changed) st.execute(autoKeyCmd);
-      autoKeyCmd = null;
+    if (lengthDragCmd) {
+      lengthDragCmd.commit();
+      if (lengthDragCmd.changed) st.execute(lengthDragCmd);
+      lengthDragCmd = null;
+      dragKind = null;
+      dragBoneId = null;
+    }
+    if (setupDragCmd || propKeyCmd) {
+      // Empty-space grab without movement = DESELECT (Spine), not an edit.
+      const moved = Math.hypot(wpUp.x - downWp.x, wpUp.y - downWp.y) > 3 / camera.scale;
+      if (setupDragCmd) {
+        setupDragCmd.commit();
+        if (moved && setupDragCmd.changed) st.execute(setupDragCmd);
+      }
+      if (propKeyCmd) {
+        propKeyCmd.commit();
+        if (moved && propKeyCmd.changed) st.execute(propKeyCmd);
+      }
+      if (propKeyCmd2) {
+        propKeyCmd2.commit();
+        if (moved && propKeyCmd2.changed) st.execute(propKeyCmd2);
+      }
+      if (emptyGrab && !moved) st.clearSelection();
+      setupDragCmd = null;
+      propKeyCmd = null;
+      propKeyCmd2 = null;
+      dragKind = null;
+      dragBoneId = null;
+    }
+    if (moveCmd || autoKeyCmd) {
+      if (emptyGrab) {
+        const moved = Math.hypot(wpUp.x - downWp.x, wpUp.y - downWp.y) > 3 / camera.scale;
+        if (!moved) st.clearSelection();
+      }
+      if (moveCmd) {
+        moveCmd.commit();
+        if (moveCmd.changed) st.execute(moveCmd); // One history entry per drag.
+        moveCmd = null;
+      }
+      if (autoKeyCmd) {
+        autoKeyCmd.commit();
+        if (autoKeyCmd.changed) st.execute(autoKeyCmd);
+        autoKeyCmd = null;
+      }
+      dragKind = null;
     }
     dragBoneId = null;
+    emptyGrab = false;
     canvas.style.cursor = 'default';
   };
 
@@ -1071,19 +1326,34 @@ function wireViewport(
     applyCamera();
   };
 
-  const onContextMenu = (e: Event) => e.preventDefault();
+  const onContextMenu = (e: Event) => {
+    e.preventDefault();
+    // Spine: right click toggles between the current and last used tool. During
+    // hull drawing it cancels the hull instead.
+    if (hullPts) {
+      hullPts = null;
+      hullSlotId = null;
+      hullBoneIndex = -1;
+      useEditorStore.getState().setStatus('Hull drawing cancelled.');
+      return;
+    }
+    useEditorStore.getState().toggleLastTool();
+  };
 
-  /** Double-click inside the hull → interior (Steiner) vertex + re-triangulate. */
+  /** Double-click: mesh tool adds an interior vertex; transform tools deselect. */
   const onDoubleClick = (e: MouseEvent): void => {
     const st = useEditorStore.getState();
-    if (st.activeTool !== 'mesh') return;
-    const ed = editableMesh();
-    if (!ed) return;
-    const wp = screenToWorld(e);
-    if (pickVertex(wp.x, wp.y) >= 0) return; // On a vertex — that's a drag, not an add.
-    inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-    if (!pointInMeshHull(ed.attachment, scratchPoint.x, scratchPoint.y)) return;
-    st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y));
+    if (st.activeTool === 'mesh') {
+      const ed = editableMesh();
+      if (!ed) return;
+      const wp = screenToWorld(e);
+      if (pickVertex(wp.x, wp.y) >= 0) return; // On a vertex — that's a drag, not an add.
+      inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
+      if (!pointInMeshHull(ed.attachment, scratchPoint.x, scratchPoint.y)) return;
+      st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y));
+      return;
+    }
+    if (isTransformTool(st.activeTool)) st.clearSelection(); // Spine: dblclick deselects.
   };
 
   canvas.addEventListener('pointerdown', onPointerDown);

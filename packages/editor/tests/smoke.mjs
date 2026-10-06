@@ -96,8 +96,8 @@ const afterRedo = await boneCount();
 if (afterRedo !== '2') fail(`expected 2 bones after redo, got ${afterRedo}`);
 else log('undo/redo verified');
 
-// 6. Select tool: click a bone — selection indicator + properties panel.
-await page.getByRole('button', { name: /Select/ }).click();
+// 6. Translate tool: click a bone — selection indicator + properties panel.
+await page.getByRole('button', { name: /Translate/ }).click();
 await canvas.click({ position: { x: box.width * 0.55, y: box.height * 0.4 } });
 await page.waitForTimeout(400);
 await shot('03-selected.png');
@@ -293,6 +293,30 @@ if (deformKeys < 1) fail(`expected >=1 deform keyframe after the drag, got ${def
 else log('deform auto-key verified');
 await shot('12-deform-keyed.png');
 
+// 13.5 Spine parity — Rotate tool: dragging in EMPTY SPACE adjusts the
+//      selected bone; a swing around the root must change its world angle.
+await page.getByRole('button', { name: /Setup/ }).click();
+await page.waitForTimeout(300);
+await rootBoneRow.click();
+await page.waitForTimeout(200);
+await page.keyboard.press('c'); // Rotate tool
+await page.waitForTimeout(150);
+const angleBefore = await page.evaluate(() => window.__boneAngle0 ?? NaN);
+const [ex1, ey1] = await toScreen(0, 150); // empty space far from any bone
+const [ex2, ey2] = await toScreen(300, 150);
+await page.mouse.move(ex1, ey1);
+await page.mouse.down();
+await page.mouse.move(ex2, ey2, { steps: 5 });
+await page.mouse.up();
+await page.waitForTimeout(400);
+const angleAfter = await page.evaluate(() => window.__boneAngle0 ?? NaN);
+log('root angle before/after empty-space rotate drag:', angleBefore, '→', angleAfter);
+if (!(Math.abs(angleAfter - angleBefore) > 0.3)) {
+  fail(`empty-space rotate drag should swing the selected bone, got ${angleBefore} → ${angleAfter}`);
+} else log('rotate tool (empty-space drag) verified');
+await page.keyboard.press('v'); // back to Translate for the IK step
+await shot('12b-rotate-tool.png');
+
 // 14. IK — add a constraint on the root bone (1-bone chain + auto target at
 //     the tip), then drag the target: the root must rotate to follow it.
 await page.getByRole('button', { name: /Setup/ }).click();
@@ -304,7 +328,7 @@ await page.waitForTimeout(300);
 const ikRow = page.locator('span', { hasText: /^⚙ root ⇢ root-ik$/ }).first();
 if (!(await ikRow.count())) fail('IK row (root ⇢ root-ik) not visible in the hierarchy');
 else log('IK constraint listed in hierarchy');
-await page.keyboard.press('v'); // Select tool — bones draggable again.
+await page.keyboard.press('v'); // Translate tool — bones draggable again.
 const target0 = await page.evaluate(() => window.__ikTarget0 ?? null); // root moved earlier — read the live position.
 if (!Array.isArray(target0)) fail(`no __ikTarget0 exposed: ${JSON.stringify(target0)}`);
 const [tx0, ty0] = await toScreen(target0[0], target0[1]);

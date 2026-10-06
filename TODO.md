@@ -1,12 +1,13 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after Phase 8 chunk 2: ghosting + bounding boxes + clipping).
+> Last updated: 2026-10-06 (after the Spine-parity interaction rework).
 
 ## Current status
 
 | Area | State |
 |---|---|
+| Spine-parity tools & interactions (translate/rotate/scale/shear, empty-space drag, snap, copy/paste) | ✅ done |
 | Phase 1 — Core engine (data model, FK, serialization) | ✅ done |
 | Phase 2 — Rigging editor (viewport, hierarchy, undo/redo) | ✅ done |
 | Phase 3 — Animation & timeline (mixer, dopesheet, auto-key) | ✅ done |
@@ -30,15 +31,45 @@ ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD/ghos
 A–E landed 2026-10-06; F chunks 1–2 (atlas, ghosting, bbox, clipping) done.
 Remaining F: path/physics constraints, audio, PSD import.
 
-Verification baseline: **172 unit tests green**, typecheck green (incl. the CI
+Verification baseline: **176 unit tests green**, typecheck green (incl. the CI
 `tsc -p packages/editor`), editor production build green, Playwright smoke green
 **headless AND headed** (`HEADLESS=0`), including drop-image → sprite-follows-bone,
 composite undo/redo, region→grid-mesh convert, **region→hull-mesh by clicking
 4 points + closing on the first**, **animate-mode mesh-vertex drag → deform
-keyframe**, **IK add → drag target → chain follows (angle asserted against the
-live target)**, **IndexedDB autosave written after the debounce window**,
-**event keying via the timeline UI**, and **G-toggled ghosting (6 outlines on,
-0 off)**.
+keyframe**, **empty-space rotate drag swings the selected bone**, **IK add →
+drag target → chain follows (angle asserted against the live target)**,
+**IndexedDB autosave written after the debounce window**, **event keying via
+the timeline UI**, and **G-toggled ghosting (6 outlines on, 0 off)**.
+
+## Spine-parity interaction rework — what landed (2026-10-06)
+
+Per the spine-tools documentation, the editor's toolset and drag semantics now
+match Spine:
+
+- **Transform tools** (the old single "Select" tool is gone): Translate **V**,
+  Rotate **C**, Scale **X**, Shear **Z** (+ Create **B**, Mesh **M**, Weights
+  **W**, Ghost **G**). All drag interactions work in Setup (edits) and Animate
+  (auto-keys at the playhead, one undo step per drag).
+- **Rotate**: drag around the bone origin; **Shift snaps to 15°** world-space
+  increments. **Scale**: uniform drag from the origin (animate keys scaleX+Y).
+  **Shear**: drag skews along the bone x-axis (shearX; grab-time world matrix
+  as the stable reference frame).
+- **Dragging in EMPTY SPACE adjusts the selected item** (spine-tools); a plain
+  CLICK in empty space deselects (Escape and double-click deselect too).
+- **Create tool**: press sets the origin; release drops the bone — a plain
+  click = default bone (length 50), a DRAG sets rotation + length from the
+  drag vector (local rotation = drag angle − parent world angle).
+- **Bone length**: in Setup, grab the SELECTED bone's tip and drag.
+- **Right-click toggles** between the current and last used tool (cancels an
+  in-progress hull instead). **Ctrl+C / Ctrl+V** copy/paste the selected
+  bone's local transform (Animate pastes = keys all 7 properties at the
+  playhead via one CompositeCommand).
+- Commands added: `DragBoneTransformCommand`, `DragBoneLengthCommand`,
+  `AutoKeyBonePropCommand`; `AddBoneCommand` gained `{rotation, length}` opts.
+- Deliberate divergence (kept): middle-drag pans (Spine box-selects) — our
+  users' muscle memory + smoke depend on it. Not implemented yet: per-axis
+  scale handles, numeric field drag, selection history (PgUp/PgDn), groups,
+  axes selector, bone compensation, pixels snap, box select.
 
 ## Phase 8 chunk 2 (ghosting + polygons) — what landed (2026-10-06)
 
@@ -274,7 +305,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 172 unit tests (vitest)
+npm test           # 176 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle

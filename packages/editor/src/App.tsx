@@ -1,13 +1,16 @@
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import type { Transform } from '@limber/core';
 import {
   DeleteDeformKeyframeCommand,
   DeleteDrawOrderKeyframeCommand,
   DeleteEventKeyframeCommand,
   DeleteKeyframeCommand,
   DeleteSlotColorKeyframeCommand,
+  SetKeyframeCommand,
 } from './commands/animationCommands';
-import { RemoveBoneCommand } from './commands/boneCommands';
+import { RemoveBoneCommand, SetBonePropsCommand } from './commands/boneCommands';
+import { CompositeCommand } from './history/history';
 import { RemoveSlotCommand } from './commands/slotCommands';
 import { HierarchyPanel } from './components/HierarchyPanel';
 import { MainToolbar } from './components/MainToolbar';
@@ -20,6 +23,10 @@ import { textureRegistry } from './engine/TextureRegistry';
 import { EngineProvider, useEngine } from './hooks/useEngine';
 import { scheduleAutosave } from './persistence/autosave';
 import { useEditorStore } from './store/editorStore';
+
+/** Spine ctrl+C/V: the local transform of the last copied bone. */
+let transformClipboard: Transform | null = null;
+const TRANSFORM_PROPS: (keyof Transform)[] = ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'shearX', 'shearY'];
 
 function Shell() {
   const engine = useEngine();
@@ -58,6 +65,38 @@ function Shell() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         st.redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        // Copy the selected bone's local transform.
+        const bone = st.selectedBoneId ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId) : null;
+        if (bone) {
+          transformClipboard = { ...bone.setupPose };
+          st.setStatus(`Copied ${bone.name}'s transform`);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        // Paste: setup edits the rig; animate keys every property at the playhead.
+        const bone = st.selectedBoneId ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId) : null;
+        if (bone && transformClipboard) {
+          if (st.mode === 'animate' && engine.currentAnimation) {
+            const t = engine.currentTime;
+            st.execute(
+              new CompositeCommand(
+                'Paste Transform (keyed)',
+                TRANSFORM_PROPS.map(
+                  (p) => new SetKeyframeCommand(engine, bone.id, p, t, transformClipboard![p]),
+                ),
+              ),
+            );
+          } else {
+            st.execute(
+              new SetBonePropsCommand(
+                engine,
+                bone.id,
+                { name: bone.name, length: bone.length, setup: { ...bone.setupPose } },
+                { name: bone.name, length: bone.length, setup: { ...transformClipboard } },
+              ),
+            );
+          }
+        }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         // A selected keyframe takes priority (dopesheet workflow); slot
@@ -93,9 +132,16 @@ function Shell() {
           }
         }
       } else if (e.key === 'Escape') {
-        st.setTool('select');
+        // Spine: escape deselects.
+        st.clearSelection();
       } else if (e.key === 'v' || e.key === 'V') {
-        st.setTool('select');
+        st.setTool('translate');
+      } else if (e.key === 'c' || e.key === 'C') {
+        st.setTool('rotate');
+      } else if (e.key === 'x' || e.key === 'X') {
+        st.setTool('scale');
+      } else if (e.key === 'z' || e.key === 'Z') {
+        st.setTool('shear');
       } else if (e.key === 'b' || e.key === 'B') {
         st.setTool('create_bone');
       } else if (e.key === 'm' || e.key === 'M') {

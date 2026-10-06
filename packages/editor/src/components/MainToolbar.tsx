@@ -4,8 +4,11 @@ import { useEngine } from '../hooks/useEngine';
 import { useEditorStore, type Tool } from '../store/editorStore';
 
 const TOOLS: { id: Tool; label: string; hint: string }[] = [
-  { id: 'select', label: '▶ Select', hint: 'Select / drag bones (V)' },
-  { id: 'create_bone', label: '＋ Bone', hint: 'Click viewport to create a bone (B)' },
+  { id: 'translate', label: '✥ Translate', hint: 'Translate: drag a bone (or empty space with one selected) — setup edits, animate keys (V)' },
+  { id: 'rotate', label: '↻ Rotate', hint: 'Rotate: drag around the bone origin; Shift snaps to 15° (C)' },
+  { id: 'scale', label: '⤢ Scale', hint: 'Scale: drag from the bone origin (uniform) (X)' },
+  { id: 'shear', label: '⇱ Shear', hint: 'Shear: drag to skew the bone along its x-axis (Z)' },
+  { id: 'create_bone', label: '＋ Bone', hint: 'Create: click for a default bone, drag to set length and rotation (B)' },
   { id: 'mesh', label: '◈ Mesh', hint: 'Mesh tool (M): region shown → draw a hull; mesh shown → drag vertices, dbl-click adds, Alt+click deletes' },
   { id: 'weights', label: '⚖ Weights', hint: 'Paint vertex weights toward the selected bone (W)' },
 ];

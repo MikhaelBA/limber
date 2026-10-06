@@ -68,18 +68,23 @@ export class AddBoneCommand implements Command {
   private named = false;
   private _label = 'Add Bone';
 
+  /**
+   * Spine create-tool semantics: a plain CLICK drops a default bone (length 50);
+   * a DRAG sets the bone's rotation and length from the drag vector.
+   */
   constructor(
     private engine: EditorEngine,
     parentId: string | null,
     local: { x: number; y: number },
+    opts: { rotation?: number; length?: number } = {},
   ) {
     this.boneId = uuid();
     this.bone = {
       id: this.boneId,
       name: 'bone', // Placeholder — the unique name is chosen at first do().
       parentId,
-      length: 50,
-      setupPose: { x: local.x, y: local.y, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
+      length: opts.length ?? 50,
+      setupPose: { x: local.x, y: local.y, rotation: opts.rotation ?? 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
     };
   }
 
@@ -164,6 +169,111 @@ export class MoveBoneCommand implements Command {
   private bone(): BoneData {
     const bone = this.engine.skeleton.data.bones.find((b) => b.id === this.boneId);
     if (!bone) throw new Error(`MoveBoneCommand: bone "${this.boneId}" no longer exists.`);
+    return bone;
+  }
+}
+
+/**
+ * SETUP-mode continuous drag over chosen Transform properties (rotate/scale/
+ * shear tools, spine-tools semantics): open() at pointerdown, set() per move,
+ * commit() at pointerup; ONE undo step per drag.
+ */
+export class DragBoneTransformCommand implements Command {
+  readonly label: string;
+  private before: Partial<Transform> | null = null;
+  private after: Partial<Transform> | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private boneId: string,
+    private props: ('rotation' | 'scaleX' | 'scaleY' | 'shearX' | 'shearY')[],
+  ) {
+    this.label = `Edit Bone (${props.join('/')})`;
+  }
+
+  get changed(): boolean {
+    return this.before !== null && this.after !== null && JSON.stringify(this.before) !== JSON.stringify(this.after);
+  }
+
+  open(): void {
+    this.before = this.pick();
+  }
+
+  set(prop: 'rotation' | 'scaleX' | 'scaleY' | 'shearX' | 'shearY', value: number): void {
+    this.bone().setupPose[prop] = value;
+  }
+
+  commit(): void {
+    this.after = this.pick();
+  }
+
+  do(): void {
+    if (this.after) this.apply(this.after);
+  }
+
+  undo(): void {
+    if (this.before) this.apply(this.before);
+  }
+
+  private pick(): Partial<Transform> {
+    const out: Partial<Transform> = {};
+    for (const p of this.props) out[p] = this.bone().setupPose[p];
+    return out;
+  }
+
+  private apply(snap: Partial<Transform>): void {
+    const setup = this.bone().setupPose;
+    for (const p of this.props) {
+      const v = snap[p];
+      if (v !== undefined) setup[p] = v;
+    }
+  }
+
+  private bone(): BoneData {
+    const bone = this.engine.skeleton.data.bones.find((b) => b.id === this.boneId);
+    if (!bone) throw new Error(`DragBoneTransformCommand: bone "${this.boneId}" no longer exists.`);
+    return bone;
+  }
+}
+
+/** SETUP-mode continuous bone-length drag (grabbing the tip, spine-tools). */
+export class DragBoneLengthCommand implements Command {
+  readonly label = 'Edit Bone Length';
+  private before: number | null = null;
+  private after: number | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private boneId: string,
+  ) {}
+
+  get changed(): boolean {
+    return this.before !== null && this.after !== null && this.before !== this.after;
+  }
+
+  open(): void {
+    this.before = this.bone().length;
+  }
+
+  set(length: number): void {
+    this.bone().length = Math.max(1, length);
+  }
+
+  commit(): void {
+    this.after = this.bone().length;
+  }
+
+  do(): void {
+    if (this.after !== null) this.bone().length = this.after;
+  }
+
+  undo(): void {
+    if (this.before !== null) this.bone().length = this.before;
+  }
+
+  private bone(): BoneData {
+    const bone = this.engine.skeleton.data.bones.find((b) => b.id === this.boneId);
+    if (!bone) throw new Error(`DragBoneLengthCommand: bone "${this.boneId}" no longer exists.`);
     return bone;
   }
 }

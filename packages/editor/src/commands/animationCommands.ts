@@ -259,6 +259,55 @@ export class SetKeyframeCommand implements Command {
 }
 
 /**
+ * Continuous SINGLE-property drag in ANIMATE mode (rotate/scale/shear tools):
+ * each pointermove re-keys the property at the playhead. Same lifecycle and
+ * undo semantics as AutoKeyMoveBoneCommand.
+ */
+export class AutoKeyBonePropCommand implements Command {
+  readonly label: string;
+  private before: TimelineSnapshot | null = null;
+  private after: TimelineSnapshot | null = null;
+
+  constructor(
+    private engine: EditorEngine,
+    private boneId: string,
+    private prop: BonePropertyName,
+  ) {
+    this.label = `Auto-Key ${prop}`;
+  }
+
+  open(): void {
+    this.before = snapshot(requireAnimation(this.engine), this.boneId, this.prop);
+  }
+
+  set(value: number): void {
+    const anim = requireAnimation(this.engine);
+    upsertKeyframe(anim, this.boneId, this.prop, this.engine.currentTime, value);
+    refreshDuration(anim);
+  }
+
+  commit(): void {
+    this.after = snapshot(requireAnimation(this.engine), this.boneId, this.prop);
+  }
+
+  get changed(): boolean {
+    return (
+      this.before !== null &&
+      this.after !== null &&
+      JSON.stringify(this.before.keyframes) !== JSON.stringify(this.after.keyframes)
+    );
+  }
+
+  do(): void {
+    if (this.after) restore(requireAnimation(this.engine), this.boneId, this.prop, this.after);
+  }
+
+  undo(): void {
+    if (this.before) restore(requireAnimation(this.engine), this.boneId, this.prop, this.before);
+  }
+}
+
+/**
  * Continuous drag in ANIMATE mode (DESIGN.md §5.6): each pointermove re-keys
  * x/y at the playhead; commit() captures the after-state. One undo step per
  * drag, reverting pose and keyframes atomically (§5.3).
