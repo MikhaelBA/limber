@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IKConstraintData, SkeletonData } from '../src/types/data';
-import { createPose, resetPose } from '../src/skeleton/pose';
+import { resetPose } from '../src/skeleton/pose';
 import { solveFK } from '../src/skeleton/FKSolver';
 import { solveIK } from '../src/skeleton/IKSolver';
 import { transformPoint } from '../src/skeleton/FKSolver';

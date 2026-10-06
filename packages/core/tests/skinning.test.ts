@@ -156,7 +156,7 @@ describe('DeformTimeline (applyTimeline)', () => {
   });
 
   it('deform offsets feed the skinning output (v + deform, then bone matrix)', () => {
-    const { data, skeleton, att } = deformEngine();
+    const { data, skeleton } = deformEngine();
     const tl: DeformTimeline = {
       kind: 'deform',
       attachmentId: 'att',

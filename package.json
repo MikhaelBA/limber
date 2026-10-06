@@ -15,12 +15,21 @@
     "typecheck": "tsc -p packages/editor",
     "docker:build": "docker build -t limber:latest .",
     "docker:run": "docker run --rm -p 8080:80 limber:latest",
-    "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\""
+    "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\"",
+    "lint": "eslint packages --ext .ts,.tsx && npm run check:boundaries",
+    "check:boundaries": "node tools/check-boundaries.mjs",
+    "format": "prettier --write docs tools fixtures/README.md eslint.config.mjs .prettierrc.json",
+    "format:check": "prettier --check docs tools fixtures/README.md eslint.config.mjs .prettierrc.json",
+    "test:e2e": "node tools/run-browser-tests.mjs",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run build -w @limber/editor"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "eslint": "^10.12.0",
     "playwright": "^1.63.0",
+    "prettier": "^3.9.9",
     "typescript": "^5.6.0",
-    "vitest": "^3.0.0"
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^4.1.11"
   }
 }

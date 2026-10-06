@@ -72,7 +72,6 @@ describe('MoveBoneCommand (continuous)', () => {
 describe('ReparentBoneCommand (world-preserving)', () => {
   it('re-expresses the setup pose so the world transform is unchanged', () => {
     const engine = new EditorEngine();
-    const rootId = engine.skeleton.data.bones[0]!.id;
     const a = new AddBoneCommand(engine, null, { x: 100, y: 0 });
     const b = new AddBoneCommand(engine, null, { x: 0, y: 0 });
     a.do(); b.do();

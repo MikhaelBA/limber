@@ -357,7 +357,7 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
     expect(vertexWeightOf(engine.skeleton.data.attachments[0]!.weights, 0, 1)).toBeCloseTo(0.5, 6);
 
     // Refuse to go below one triangle: delete down to 3, then no-ops.
-    let guard = new RemoveMeshVertexCommand(engine, meshId, 0);
+    const guard = new RemoveMeshVertexCommand(engine, meshId, 0);
     for (let i = 0; i < 10; i++) guard.do();
     expect(engine.skeleton.data.attachments[0]!.meshVertices!.length / 2).toBe(3);
   });

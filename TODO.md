@@ -1,3 +1,5 @@
+> BoneByBone development now follows [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/PROGRESS.md](docs/PROGRESS.md). The Limber phases below are historical.
+
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.

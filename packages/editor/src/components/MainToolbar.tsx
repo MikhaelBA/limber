@@ -24,7 +24,6 @@ export function MainToolbar() {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
   const execute = useEditorStore((s) => s.execute);
-  const setStatus = useEditorStore((s) => s.setStatus);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const brushRadius = useEditorStore((s) => s.brushRadius);
   const brushStrength = useEditorStore((s) => s.brushStrength);

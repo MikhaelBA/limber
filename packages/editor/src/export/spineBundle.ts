@@ -21,7 +21,7 @@ export async function buildSpineBundle(doc: EditorDocument): Promise<SpineBundle
   // Only textures whose pixels we still hold (dropped this session) get packed;
   // the rest keep their manifest-derived paths and pair with a user atlas.
   const entries: { textureId: string; path: string; blob: Blob }[] = [];
-  for (const [textureId, name, blob] of textureRegistry.blobEntries().map((e) => [e.textureId, e.name, e.blob] as const)) {
+  for (const { textureId, blob } of textureRegistry.blobEntries()) {
     if (doc.assetManifest[textureId]) entries.push({ textureId, path: texturePaths.get(textureId)!, blob });
   }
 

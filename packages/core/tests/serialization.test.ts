@@ -7,7 +7,7 @@ import {
   type EditorDocument,
   type Migration,
 } from '@limber/core';
-import { makeBone, makeSkeletonData } from './helpers';
+import { makeBone } from './helpers';
 
 function makeDocument(): EditorDocument {
   return {

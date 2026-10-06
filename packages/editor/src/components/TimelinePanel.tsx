@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Animation, Timeline } from '@limber/core';
+import type { Timeline } from '@limber/core';
 import {
   AddAnimationCommand,
   CURVE_PRESETS,
-  DeleteKeyframeCommand,
   KeyEventCommand,
   KeyBoneTransformCommand,
   KeyDrawOrderCommand,

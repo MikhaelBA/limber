@@ -81,7 +81,6 @@ function buildFixtureDoc(): { doc: EditorDocument; engine: EditorEngine } {
   return { doc: engine.document, engine };
 }
 
-const DEG = Math.PI / 180;
 
 describe('Spine runtime compatibility (official spine-core)', () => {
   it('loads our export and matches world transforms at the SETUP pose', () => {

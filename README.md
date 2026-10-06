@@ -1,4 +1,15 @@
-# Limber
+# BoneByBone
+
+BoneByBone is evolving from Limber while preserving its working skeletal editor.
+The current plan is [docs/ROADMAP.md](docs/ROADMAP.md), with milestone evidence in
+[docs/PROGRESS.md](docs/PROGRESS.md) and the target [product specification](docs/PRODUCT_SPEC.md).
+
+Run `npm run check` for the foundation checks and `npm run test:e2e` for managed browser tests.
+
+## Historical Limber documentation
+
+The status below predates the BoneByBone roadmap. It is retained as implementation history, not current gate status.
+
 
 A browser-based 2D skeletal animation editor (Spine clone). The architecture and phased plan live
 in [DESIGN.md](./DESIGN.md).
