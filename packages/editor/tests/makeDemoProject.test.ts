@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -182,7 +182,12 @@ describe('demo project generator', () => {
     expect(restored.assetManifest['demo-tex']!.dataUrl?.startsWith('data:image/png;base64,')).toBe(true);
     expect(json.length).toBeGreaterThan(2000);
 
-    mkdirSync(dirname(OUT), { recursive: true });
-    writeFileSync(OUT, json, 'utf8');
+    // The rig contains random UUIDs, so rewriting on every test run would
+    // leave the working tree dirty forever. Write when missing; set
+    // REGEN_DEMO=1 to refresh deliberately after changing the generator.
+    if (!existsSync(OUT) || process.env.REGEN_DEMO === '1') {
+      mkdirSync(dirname(OUT), { recursive: true });
+      writeFileSync(OUT, json, 'utf8');
+    }
   });
 });
