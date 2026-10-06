@@ -26,8 +26,9 @@ import { Skeleton } from '../skeleton/Skeleton';
  *   a key at that time holds its last keyed value (fidelity note: linear
  *   in-between sampling can differ when the pair's key times mismatch).
  *
- * Textures: attachment `path` = the manifest texture name (sans extension);
- * pairing with a texture atlas is Phase 8.
+ * Textures: attachment `path` = the manifest texture name (sans extension),
+ * or the override from `uniqueTexturePaths` when exporting a bundle (so the
+ * JSON paths and the packed atlas regions agree exactly).
  */
 
 const SPINE_VERSION = '4.1.23';
@@ -37,7 +38,7 @@ interface Json {
   [k: string]: unknown;
 }
 
-export function exportSpineJson(doc: EditorDocument): string {
+export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>): string {
   // Skeleton also re-validates — a corrupt document throws instead of
   // exporting silently-broken JSON.
   const skeleton = new Skeleton(doc.skeleton);
@@ -110,7 +111,7 @@ export function exportSpineJson(doc: EditorDocument): string {
     const att = data.attachments.find((a) => a.id === slot.defaultAttachmentId);
     if (!att) continue;
     const perSlot = (defaultAttachments[slotName.get(slot.id)!] ??= {}) as Json;
-    perSlot[att.name] = attachmentJson(att, slot.id, data, skeleton, wm, doc);
+    perSlot[att.name] = attachmentJson(att, slot.id, data, skeleton, wm, doc, texturePaths);
   }
   if (Object.keys(defaultAttachments).length > 0) skins.push({ name: 'default', attachments: defaultAttachments });
   for (const skin of data.skins) {
@@ -120,7 +121,7 @@ export function exportSpineJson(doc: EditorDocument): string {
       const att = data.attachments.find((a) => a.id === attId);
       if (!att) continue;
       const perSlot = (perSlotTree[slotName.get(slotId) ?? slotId] ??= {}) as Json;
-      perSlot[att.name] = attachmentJson(att, slotId, data, skeleton, wm, doc);
+      perSlot[att.name] = attachmentJson(att, slotId, data, skeleton, wm, doc, texturePaths);
     }
     skins.push({ name: skin.name, attachments: perSlotTree });
   }
@@ -234,8 +235,11 @@ function attachmentJson(
   skeleton: Skeleton,
   wm: Float32Array,
   doc: EditorDocument,
+  texturePaths?: Map<string, string>,
 ): Json {
-  const path = (doc.assetManifest[att.textureId]?.name ?? att.textureId).replace(/\.[a-z0-9]+$/i, '');
+  const path =
+    texturePaths?.get(att.textureId) ??
+    (doc.assetManifest[att.textureId]?.name ?? att.textureId).replace(/\.[a-z0-9]+$/i, '');
   if (att.type === 'region') {
     const v = att.vertices ?? [0, 0, 1, 0, 1, 1, 0, 1];
     return {

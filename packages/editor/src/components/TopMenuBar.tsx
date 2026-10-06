@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { deserializeDocument, exportSpineJson, serializeDocument } from '@limber/core';
+import { buildSpineBundle } from '../export/spineBundle';
 import { clearAutosave, readAutosave } from '../persistence/autosave';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
@@ -74,6 +75,24 @@ export function TopMenuBar() {
     }
   };
 
+  /** JSON + atlas.png + atlas.txt with shared region names (one mapping). */
+  const onExportBundle = async () => {
+    const st = useEditorStore.getState();
+    try {
+      const bundle = await buildSpineBundle(engine.document);
+      download(new Blob([bundle.json], { type: 'application/json' }), 'skeleton.json');
+      if (bundle.png) {
+        download(bundle.png, 'atlas.png');
+        download(new Blob([bundle.atlas], { type: 'text/plain' }), 'atlas.txt');
+        st.setStatus('Spine bundle exported: skeleton.json + atlas.png + atlas.txt');
+      } else {
+        st.setStatus('Spine JSON exported — no packed textures (drop images first to build an atlas)');
+      }
+    } catch (err) {
+      st.setStatus(`Bundle export failed: ${(err as Error).message}`);
+    }
+  };
+
   const onRestoreAutosave = async () => {
     const st = useEditorStore.getState();
     const rec = await readAutosave().catch(() => null);
@@ -115,6 +134,13 @@ export function TopMenuBar() {
         onClick={onExportSpine}
       >
         Export Spine JSON
+      </button>
+      <button
+        className="rounded px-2 py-0.5 text-sm text-emerald-200 hover:bg-neutral-800"
+        title="Export skeleton.json + atlas.png + atlas.txt (textures packed with shared region names)"
+        onClick={onExportBundle}
+      >
+        Export Spine Bundle
       </button>
       <button
         className="rounded px-2 py-0.5 text-sm text-amber-200 hover:bg-neutral-800 disabled:opacity-35"

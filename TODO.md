@@ -1,7 +1,7 @@
 # Limber — Project Status & Task List
 
 > Handoff document: read this + [DESIGN.md](./DESIGN.md) before continuing work.
-> Last updated: 2026-10-06 (after Phase 7 chunk 2: events UI + QoL batch).
+> Last updated: 2026-10-06 (after Phase 8 chunk 1: texture atlas packing).
 
 ## Current status
 
@@ -16,6 +16,7 @@
 | Phase 7 — Export & persistence: Spine JSON export + IndexedDB autosave | ✅ chunk 1 done |
 | Events UI (keying, dopesheet row, dispatch) | ✅ done |
 | QoL: playback speed, curve presets, slot blend modes | ✅ done |
+| Phase 8 chunk 1 — Texture atlas packing (Spine bundle export) | ✅ done |
 | Docker (multi-stage, nginx, ~75MB) | ✅ done & verified |
 | CI/CD (tests → GHCR image → GitHub Pages) | ✅ done & verified on GitHub |
 | CI/CD → VPS (nginx, rsync over SSH) | ✅ done & verified — http://129.121.148.115/ |
@@ -24,16 +25,35 @@
 Roadmap agreed with the user (2026-10-06, after the Spine-docs gap review):
 **A** mesh completion (this chunk) → **B** IK UI → **C** Spine-runtime JSON export +
 IndexedDB autosave → **D** events UI → **E** QoL (bezier presets, loop/speed,
-ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD.
+ghosting, blend modes) → **F** clipping/bbox/path/physics/audio/atlas/PSD/ghosting.
+A–E landed 2026-10-06; F is in progress (atlas packing = F chunk 1 below).
 
-Verification baseline: **161 unit tests green**, typecheck green, editor production
-build green, Playwright smoke green **headless AND headed** (`HEADLESS=0`), including
-drop-image → sprite-follows-bone, composite undo/redo, region→grid-mesh convert,
-**region→hull-mesh by clicking 4 points + closing on the first**,
-**animate-mode mesh-vertex drag → deform keyframe**,
-**IK add → drag target → chain follows (angle asserted against the live target)**,
-**IndexedDB autosave written after the debounce window**, and
+Verification baseline: **169 unit tests green**, typecheck green (incl. the CI
+`tsc -p packages/editor`), editor production build green, Playwright smoke green
+**headless AND headed** (`HEADLESS=0`), including drop-image → sprite-follows-bone,
+composite undo/redo, region→grid-mesh convert, **region→hull-mesh by clicking
+4 points + closing on the first**, **animate-mode mesh-vertex drag → deform
+keyframe**, **IK add → drag target → chain follows (angle asserted against the
+live target)**, **IndexedDB autosave written after the debounce window**, and
 **event keying via the timeline UI**.
+
+## Phase 8 chunk 1 (atlas packing) — what landed (2026-10-06)
+
+- **Core** (`core/serialization/atlasPack.ts`): shelf packer (tallest-first,
+  padding gutter, power-of-two rounding, 8192 cap with clear errors, no
+  rotation by design — mesh UVs are authored unrotated), `uniqueTexturePaths`
+  (extension-stripped, collision-suffixed region names shared by JSON + atlas),
+  and `buildAtlasText` (Spine 4.1 `.atlas` format: leading blank line,
+  size/filter/pma header, `bounds:` regions). All pure — 8 golden tests.
+- **`exportSpineJson(doc, texturePaths?)`**: optional region-name override so
+  the bundle's JSON paths and atlas regions agree exactly.
+- **Editor** (`editor/src/export/spineBundle.ts`): composites the packed
+  atlas on a 2D canvas from the registry's texture blobs (`createImageBitmap`
+  → drawImage → PNG); TopMenuBar "Export Spine Bundle" downloads
+  `skeleton.json + atlas.png + atlas.txt`. No packed textures → JSON-only
+  with a status note.
+- Remaining Phase 8: clipping/bbox/path attachments, ghosting, audio, PSD
+  import, runtime `getDeformedVertices`.
 
 ## Phase 7 chunk 2 (events + QoL) — what landed (2026-10-06)
 
@@ -225,7 +245,7 @@ migrations) → 8 (atlas/events/runtime polish).
 ```bash
 npm install
 npm run dev        # editor dev server → http://localhost:5173
-npm test           # 161 unit tests (vitest)
+npm test           # 169 unit tests (vitest)
 npm run typecheck  # editor package
 npm run build      # core+runtime via tsc -b
 npm run build -w @limber/editor   # editor production bundle
