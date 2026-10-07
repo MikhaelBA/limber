@@ -1,4 +1,5 @@
 import { SCENE_PROPERTIES } from './motion';
+import { validateUIInsets, validateUINode, validateUIProject } from './uiValidation';
 import { deserializeDocument } from '../serialization/serialize';
 import { Skeleton } from '../skeleton/Skeleton';
 import { PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, projectFromLegacy, type BoneByBoneProject } from './model';
@@ -137,7 +138,8 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
   if (editor.activeRigId !== null) text(editor.activeRigId, 'Active rig ID');
   const ids = new Set<string>([project.projectId]);
   let activeFound = false;
-  for (const item of artboards) {
+  const components = project.components === undefined ? [] : array(project.components, 'Components');
+  for (const item of [...artboards, ...components]) {
     const artboard = record(item, 'Artboard');
     text(artboard.id, 'Artboard ID');
     text(artboard.name, 'Artboard name');
@@ -145,6 +147,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
     ids.add(artboard.id);
     finite(artboard.width, 'Artboard width', 1);
     finite(artboard.height, 'Artboard height', 1);
+    if (artboard.safeArea !== undefined) validateUIInsets(artboard.safeArea, artboard.width, artboard.height);
     const nodes = array(artboard.nodes, 'Scene nodes');
     const byId = new Map<string, Record<string, unknown>>();
     for (const item of nodes) {
@@ -169,7 +172,8 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           node.tint > 0xffffff)
       )
         fail('INVALID_VISUAL', `Invalid tint for ${node.id}.`, node.id);
-      if (node.type === 'image') {
+      validateUINode(node);
+      if (node.type === 'image' || node.type === 'nineSlice') {
         text(node.textureId, 'Image texture ID');
         if (!Object.hasOwn(manifest, node.textureId))
           fail('BROKEN_REFERENCE', `Image ${node.id} references a missing asset.`, node.id);
@@ -186,7 +190,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           }),
         );
         new Skeleton(doc.skeleton);
-      } else if (node.type !== 'group')
+      } else if (!['group', 'text', 'shape', 'mask', 'instance'].includes(String(node.type)))
         fail('UNKNOWN_NODE', `Unsupported scene node type ${String(node.type)}.`, node.id);
     }
     validateClips(artboard.clips, new Set(byId.keys()), ids);
@@ -201,19 +205,24 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
         if (!node) fail('BROKEN_REFERENCE', `Scene parent ${current} is missing from its artboard.`, id);
         path.add(current);
         const parent = node.parentId as string | null;
-        if (parent !== null && byId.get(parent)?.type !== 'group')
-          fail('INVALID_PARENT', `Node ${current} must have a group parent in the same artboard.`, current);
+        if (parent !== null && !['group', 'mask'].includes(String(byId.get(parent)?.type)))
+          fail(
+            'INVALID_PARENT',
+            `Node ${current} must have a group or mask parent in the same artboard.`,
+            current,
+          );
         current = parent;
       }
       for (const visited of path) done.add(visited);
     }
-    if (artboard.id === editor.activeArtboardId) {
+    if (artboards.includes(item) && artboard.id === editor.activeArtboardId) {
       activeFound = true;
       if (editor.activeRigId !== null && byId.get(editor.activeRigId as string)?.type !== 'rig')
         fail('BROKEN_REFERENCE', 'Active rig is missing from the active artboard.');
     }
   }
   if (!activeFound) fail('BROKEN_REFERENCE', 'Active artboard does not exist.');
+  validateUIProject(project as unknown as BoneByBoneProject);
 }
 
 export function serializeProject(project: BoneByBoneProject): string {
@@ -231,8 +240,9 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
   const candidate = record(raw, 'Project');
   const project =
     candidate.format === undefined ? projectFromLegacy(deserializeDocument(json), legacyName) : candidate;
-  // Schema 1 has no scene clips. Preserve all existing fields and IDs; absent clips means [].
-  if (project.schemaVersion === 1) project.schemaVersion = PROJECT_SCHEMA_VERSION;
+  // Missing clips/layout/components preserve their historical empty/absolute defaults.
+  if (project.schemaVersion === 1 || project.schemaVersion === 2)
+    project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);
   return project;
 }

@@ -3,7 +3,7 @@ import type { Command } from '../history/history';
 
 export type ArtboardEdit =
   | { kind: 'add'; artboard: Artboard }
-  | { kind: 'update'; id: string; patch: Partial<Pick<Artboard, 'name' | 'width' | 'height'>> }
+  | { kind: 'update'; id: string; patch: Partial<Pick<Artboard, 'name' | 'width' | 'height' | 'safeArea'>> }
   | { kind: 'remove'; id: string };
 
 export class EditArtboardCommand implements Command {

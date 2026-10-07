@@ -3,9 +3,10 @@ import type { SkeletonData, Transform } from '../types/data';
 import type { AssetManifest, EditorDocument } from '../types/document';
 import { uuid } from '../utils/uuid';
 import type { SceneClip } from './motion';
+import type { UILayout, UIComponent, UIOverrideValue, UIInsets } from './ui';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 2;
+export const PROJECT_SCHEMA_VERSION = 3;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */
@@ -22,6 +23,7 @@ export interface SceneNodeBase {
   visible: boolean;
   /** Optional RGB multiplier; absent means white for schema-v1 compatibility. */
   tint?: number;
+  layout?: UILayout;
 }
 
 export interface GroupNode extends SceneNodeBase {
@@ -38,9 +40,49 @@ export interface RigNode extends SceneNodeBase {
   skeleton: SkeletonData;
   animations: Animation[];
 }
-export type SceneNode = GroupNode | ImageNode | RigNode;
+export interface NineSliceNode extends Omit<ImageNode, 'type'> {
+  type: 'nineSlice';
+  sourceWidth: number;
+  sourceHeight: number;
+  borders: UIInsets;
+}
+export interface TextNode extends SceneNodeBase {
+  type: 'text';
+  width: number;
+  height: number;
+  text: string;
+  fontFamilies: string[];
+  fontSize: number;
+  lineHeight: number;
+  direction: 'ltr' | 'rtl';
+  align: 'start' | 'center' | 'end';
+  color: number;
+  binding?: string;
+}
+export interface MaskNode extends SceneNodeBase {
+  type: 'mask';
+  width: number;
+  height: number;
+}
+export interface ShapeNode extends SceneNodeBase {
+  type: 'shape';
+  width: number;
+  height: number;
+  color: number;
+  radius: number;
+}
+export interface ComponentInstanceNode extends SceneNodeBase {
+  type: 'instance';
+  componentId: string;
+  width: number;
+  height: number;
+  overrides: Record<string, UIOverrideValue>;
+}
+export type SceneNode =
+  GroupNode | ImageNode | RigNode | NineSliceNode | TextNode | MaskNode | ShapeNode | ComponentInstanceNode;
 
 export interface Artboard {
+  safeArea?: UIInsets;
   /** Schema 2: absent is an empty clip library, preserving schema-1 field shapes on migration. */
   clips?: SceneClip[];
   id: string;
@@ -53,6 +95,7 @@ export interface Artboard {
 
 /** Authoring contract; this is deliberately NOT the shipping runtime format. */
 export interface BoneByBoneProject {
+  components?: UIComponent[];
   format: typeof PROJECT_FORMAT;
   schemaVersion: number;
   projectId: string;

@@ -103,3 +103,13 @@ Added the Scene Animation dock with clip creation/removal/rename, setup/animate 
 A separate SceneMotionSession streams frame callbacks without React change notifications. Playback and draft edits never mutate setup data. New/Open now advance a document epoch so reopening the same project ID resets transient scene state. The two-image browser workflow covers import, transform/opacity keys, curves, events, save/reopen parity, multi-key drag/undo, duplicates/deletion/time-scale and curve-handle undo.
 
 Full lint/boundaries, formatting, TypeScript, 238 unit tests, both builds and all seven browser suites passed locally. The new box-selection regression exposed native browser text dragging stealing key gestures; suppressing native text selection on the dopesheet fixes it. Golden comparison remains 0.000% changed pixels; 100-image CPU render-submit p95 was 0.70ms. Phase 3 awaits CI before its gate is closed.
+
+## 7 October 2026 Phase 3 complete
+
+Commit `7e87a9b`; CI run 37675345618 passed Test & Build, Docker and both deployments. The push initially used the unrelated active GitHub account and returned 403; retrying with the existing repository-owner credential succeeded without changing the active account.
+
+## 7 October 2026 Phase 4A portable UI model
+
+ADR 0007 defines centered box layout, explicit anchors/offsets/pivots, size bounds/aspect fitting, safe areas, browser text shaping and versioned component overrides before renderer implementation. Added source schema 3 with lossless schema-1/2 migration, text/shape/mask/nine-slice/instance data, exact nine-slice strip geometry, deterministic layout and component expansion. Expanded trees enforce dependency/nesting/node budgets and eight nested masks. Definition edits preserve valid overrides and reject destructive exposed-target changes atomically; undo/redo retain revisions and source data.
+
+An immutable reward popup source fixture exercises the model. Numeric tests cover four device sizes, safe-area containment, pivots/aspect constraints, source corner preservation, nested inheritance, overrides, invalid references/types and mask limits. Full lint/boundaries, formatting, TypeScript, 249 unit tests, both builds and all seven browser suites passed. The existing golden remained 0.000% different; 100-image CPU p95 was 0.90ms. This milestone is the portable model and command layer; UI controls, text rasterization, clipping and visual gate evidence remain Phase 4B work.

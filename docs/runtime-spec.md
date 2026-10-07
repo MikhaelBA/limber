@@ -34,3 +34,7 @@ and interruption semantics must receive their own golden fixtures before engine 
 ## Scene Motion Alpha (source schema 2)
 
 Artboards optionally own scene clip libraries; absent means empty. Scene tracks target stable node IDs and numeric transform/opacity properties. Their keys reuse stepped/linear/cubic interpolation. `sampleSceneClip` returns transient transforms/opacity; `SceneClock` defines forward time and ordered loop events. See ADR 0006 for boundary, scrubbing and event semantics. Legacy skeletal clips retain their existing contract inside each rig. The shipping runtime compiler is still pending; source schema 2 is not `.bbb`.
+
+## Portable UI model (source schema 3)
+
+Layout resolves local unscaled boxes before additive transform animation. Nine-slice source borders survive resizing unchanged. Components expand without copying children into authored instances, with typed exposed overrides and explicit migration requirements. ADR 0007 defines these semantics and text adapter limits. Schemas 1 and 2 migrate by advancing the schema identifier only; missing layout/components retain absolute/empty defaults. These source/evaluation contracts do not imply that the legacy RuntimePlayer renders UI or consumes `.bbb`.

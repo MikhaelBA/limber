@@ -13,7 +13,7 @@ import {
 import type { Command } from '../history/history';
 
 export type ScenePropertyPatch = Partial<
-  Pick<SceneNodeBase, 'name' | 'opacity' | 'visible' | 'transform' | 'tint'>
+  Pick<SceneNodeBase, 'name' | 'opacity' | 'visible' | 'transform' | 'tint' | 'layout'>
 >;
 /** Serializable intent, useful for reproducing edit/undo failures. */
 export type SceneEdit =
@@ -60,7 +60,7 @@ export function sceneSubtreeIds(nodes: readonly SceneNode[], selected: readonly 
   return result;
 }
 
-function editedNodes(nodes: SceneNode[], edit: SceneEdit): SceneNode[] {
+function editedNodes(nodes: SceneNode[], edit: SceneEdit, artboard: Artboard): SceneNode[] {
   switch (edit.kind) {
     case 'add':
       return [...nodes, structuredClone(edit.node)];
@@ -71,7 +71,7 @@ function editedNodes(nodes: SceneNode[], edit: SceneEdit): SceneNode[] {
     case 'reparent': {
       requireNode(nodes, edit.nodeId);
       const transform = edit.preserveWorld
-        ? sceneReparentTransform({ id: '', name: '', width: 1, height: 1, nodes }, edit.nodeId, edit.parentId)
+        ? sceneReparentTransform(artboard, edit.nodeId, edit.parentId)
         : undefined;
       return nodes.map((n) =>
         n.id === edit.nodeId ? { ...n, parentId: edit.parentId, transform: transform ?? n.transform } : n,
@@ -182,7 +182,7 @@ export class EditSceneCommand implements Command {
   do(): void {
     const artboard = this.artboard();
     if (!this.after) {
-      const after = editedNodes(artboard.nodes, this.edit);
+      const after = editedNodes(artboard.nodes, this.edit, artboard);
       this.beforeClips = artboard.clips;
       this.afterClips = artboard.clips;
       if (this.edit.kind === 'remove') {

@@ -1,0 +1,302 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 3,
+  "projectId": "reward-project",
+  "name": "Reward popup",
+  "artboards": [
+    {
+      "id": "reward-board",
+      "name": "Reward",
+      "width": 390,
+      "height": 844,
+      "safeArea": {
+        "left": 0,
+        "right": 0,
+        "top": 47,
+        "bottom": 34
+      },
+      "nodes": [
+        {
+          "id": "reward-popup",
+          "name": "reward-popup",
+          "type": "group",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "layout": {
+            "x": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 16,
+              "offsetMax": 16,
+              "size": 320,
+              "pivot": 0.5,
+              "max": 480
+            },
+            "y": {
+              "anchorMin": 0.5,
+              "anchorMax": 0.5,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 240,
+              "pivot": 0.5
+            },
+            "safeArea": true
+          }
+        },
+        {
+          "id": "reward-panel",
+          "name": "reward-panel",
+          "type": "nineSlice",
+          "parentId": "reward-popup",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "textureId": "panel-texture",
+          "width": 320,
+          "height": 240,
+          "sourceWidth": 64,
+          "sourceHeight": 64,
+          "borders": {
+            "left": 8,
+            "right": 8,
+            "top": 8,
+            "bottom": 8
+          },
+          "layout": {
+            "x": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 320,
+              "pivot": 0.5
+            },
+            "y": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 240,
+              "pivot": 0.5
+            }
+          }
+        },
+        {
+          "id": "reward-title",
+          "name": "reward-title",
+          "type": "text",
+          "parentId": "reward-popup",
+          "transform": {
+            "x": 0,
+            "y": -55,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "width": 280,
+          "height": 50,
+          "text": "پاداش شما: ۱۲۳",
+          "fontFamilies": [
+            "Noto Sans Arabic",
+            "sans-serif"
+          ],
+          "fontSize": 24,
+          "lineHeight": 34,
+          "direction": "rtl",
+          "align": "center",
+          "color": 16777215,
+          "layout": {
+            "x": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 20,
+              "offsetMax": 20,
+              "size": 280,
+              "pivot": 0.5
+            },
+            "y": {
+              "anchorMin": 0.5,
+              "anchorMax": 0.5,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 50,
+              "pivot": 0.5
+            }
+          }
+        },
+        {
+          "id": "claim-button",
+          "name": "claim-button",
+          "type": "instance",
+          "parentId": "reward-popup",
+          "transform": {
+            "x": 0,
+            "y": 60,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "componentId": "primary-button",
+          "width": 200,
+          "height": 56,
+          "overrides": {
+            "label": "دریافت"
+          },
+          "layout": {
+            "x": {
+              "anchorMin": 0.5,
+              "anchorMax": 0.5,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 200,
+              "pivot": 0.5
+            },
+            "y": {
+              "anchorMin": 0.5,
+              "anchorMax": 0.5,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 56,
+              "pivot": 0.5
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "primary-button",
+      "name": "Primary button",
+      "revision": 1,
+      "width": 200,
+      "height": 56,
+      "nodes": [
+        {
+          "id": "button-background",
+          "name": "button-background",
+          "type": "shape",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "width": 200,
+          "height": 56,
+          "color": 10974444,
+          "radius": 10,
+          "layout": {
+            "x": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 200,
+              "pivot": 0.5
+            },
+            "y": {
+              "anchorMin": 0,
+              "anchorMax": 1,
+              "offsetMin": 0,
+              "offsetMax": 0,
+              "size": 56,
+              "pivot": 0.5
+            }
+          }
+        },
+        {
+          "id": "button-label",
+          "name": "button-label",
+          "type": "text",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "width": 200,
+          "height": 40,
+          "text": "Claim",
+          "fontFamilies": [
+            "Noto Sans Arabic",
+            "sans-serif"
+          ],
+          "fontSize": 20,
+          "lineHeight": 28,
+          "direction": "rtl",
+          "align": "center",
+          "color": 16777215
+        }
+      ],
+      "exposed": [
+        {
+          "name": "label",
+          "nodeId": "button-label",
+          "property": "text"
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "panel-texture": {
+      "name": "panel.svg",
+      "source": "embedded",
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjZjdjODViIi8+PHJlY3QgeD0iOCIgeT0iOCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiBmaWxsPSIjMjYyYjNhIi8+PC9zdmc+"
+    }
+  },
+  "editor": {
+    "activeArtboardId": "reward-board",
+    "activeRigId": null
+  }
+}

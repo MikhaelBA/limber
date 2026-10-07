@@ -1,4 +1,5 @@
 import type { Artboard, SceneNode, SceneTransform } from './model';
+import { resolveSceneLayout, type UIBox } from './ui';
 
 export type SceneMatrix = [number, number, number, number, number, number];
 export const identitySceneMatrix = (): SceneMatrix => [1, 0, 0, 1, 0, 0];
@@ -97,7 +98,14 @@ export function transformedSceneSelection(
           },
         ];
       const local = multiplySceneMatrices(inverse, multiplySceneMatrices(delta, entry.world));
-      return [id, sceneTransformFromMatrix(local, entry.node.transform.pivotX, entry.node.transform.pivotY)];
+      const transform = sceneTransformFromMatrix(
+        local,
+        entry.node.transform.pivotX,
+        entry.node.transform.pivotY,
+      );
+      transform.x -= entry.box.x;
+      transform.y -= entry.box.y;
+      return [id, transform];
     }),
   );
 }
@@ -115,9 +123,17 @@ export function sceneReparentTransform(
     inverseSceneMatrix(parent?.world ?? identitySceneMatrix()),
     entry.world,
   );
-  return sceneTransformFromMatrix(local, entry.node.transform.pivotX, entry.node.transform.pivotY);
+  const transform = sceneTransformFromMatrix(local, entry.node.transform.pivotX, entry.node.transform.pivotY);
+  const box = resolveSceneLayout({
+    ...artboard,
+    nodes: artboard.nodes.map((node) => (node.id === nodeId ? { ...node, parentId } : node)),
+  }).get(nodeId)!;
+  transform.x -= box.x;
+  transform.y -= box.y;
+  return transform;
 }
 export interface EvaluatedSceneNode {
+  box: UIBox;
   node: SceneNode;
   world: SceneMatrix;
   opacity: number;
@@ -127,6 +143,7 @@ export interface EvaluatedSceneNode {
 }
 /** Iterative depth-first traversal preserves subtree stacking and sibling array order. */
 export function evaluateScene(artboard: Artboard): EvaluatedSceneNode[] {
+  const boxes = resolveSceneLayout(artboard);
   const children = new Map<string | null, SceneNode[]>();
   for (const node of artboard.nodes) {
     const list = children.get(node.parentId) ?? [];
@@ -145,9 +162,14 @@ export function evaluateScene(artboard: Artboard): EvaluatedSceneNode[] {
     const list = children.get(parentId) ?? [];
     for (let i = list.length - 1; i >= 0; i--) {
       const node = list[i]!;
+      const box = boxes.get(node.id)!;
       stack.push({
         node,
-        world: multiplySceneMatrices(world, sceneLocalMatrix(node.transform)),
+        box,
+        world: multiplySceneMatrices(
+          world,
+          sceneLocalMatrix({ ...node.transform, x: node.transform.x + box.x, y: node.transform.y + box.y }),
+        ),
         opacity: opacity * node.opacity,
         visible: visible && node.visible,
         depth,
