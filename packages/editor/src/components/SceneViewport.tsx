@@ -12,10 +12,14 @@ import {
   type SceneTransform,
 } from '@limber/core';
 import { PixiSceneRenderer } from '../rendering/SceneRenderer';
+import { ensureUIFonts, type LocalizationPreview } from '../rendering/UITextAdapter';
+import type { UIComponent } from '@limber/core';
 import { useEditorStore } from '../store/editorStore';
 
 type Tool = 'move' | 'rotate' | 'scale' | 'pivot';
 interface Props {
+  components?: UIComponent[];
+  localization?: LocalizationPreview;
   motion: SceneMotionSession;
   artboard: Artboard;
   revision: number;
@@ -42,7 +46,8 @@ interface Drag {
 export function SceneViewport(props: Props) {
   const host = useRef<HTMLDivElement>(null),
     canvasHost = useRef<HTMLDivElement>(null),
-    metrics = useRef<HTMLOutputElement>(null);
+    metrics = useRef<HTMLOutputElement>(null),
+    overflow = useRef<HTMLOutputElement>(null);
   const [tool, setTool] = useState<Tool>('move');
   const [snap, setSnap] = useState(false);
   const current = useRef({ ...props, tool, snap });
@@ -67,7 +72,8 @@ export function SceneViewport(props: Props) {
         autoDensity: true,
         autoStart: false,
       })
-      .then(() => {
+      .then(async () => {
+        await ensureUIFonts();
         if (disposed) {
           app.destroy(true, { children: true });
           return;
@@ -122,12 +128,22 @@ export function SceneViewport(props: Props) {
         };
         const sync = () => {
           drag = null;
-          renderer.setScene(current.current.artboard);
+          renderer.setScene(
+            current.current.artboard,
+            current.current.components,
+            current.current.localization,
+          );
+          element.dataset.textOverflow = renderer.textOverflow.join(', ');
+          if (overflow.current)
+            overflow.current.textContent = renderer.textOverflow.length
+              ? `Text overflows: ${renderer.textOverflow.join(', ')}`
+              : '';
           current.current.motion.refresh();
           const pose = current.current.motion.pose();
           renderer.preview(pose.transforms, pose.opacity);
-          if (boardId !== current.current.artboard.id) {
-            boardId = current.current.artboard.id;
+          const framing = `${current.current.artboard.id}:${current.current.artboard.width}:${current.current.artboard.height}`;
+          if (boardId !== framing) {
+            boardId = framing;
             frame(false);
           } else draw();
         };
@@ -369,7 +385,7 @@ export function SceneViewport(props: Props) {
   }, []);
   useEffect(() => {
     controls.current?.sync();
-  }, [props.artboard, props.revision]);
+  }, [props.artboard, props.revision, props.components, props.localization]);
   useEffect(() => {
     controls.current?.select();
   }, [props.selected, tool]);
@@ -402,6 +418,11 @@ export function SceneViewport(props: Props) {
         ref={metrics}
         className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-900/90 px-2 text-xs text-neutral-300"
         aria-label="Scene render timing"
+      />
+      <output
+        ref={overflow}
+        aria-label="Text overflow"
+        className="pointer-events-none absolute bottom-8 left-2 rounded bg-neutral-900/90 px-2 text-xs text-amber-300"
       />
       <span className="pointer-events-none absolute bottom-2 right-2 text-xs text-neutral-400">
         Wheel: zoom · Middle/Space drag: pan · F: frame · Shift: snap

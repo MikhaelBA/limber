@@ -1,4 +1,5 @@
-import { Container, Graphics, Matrix, Mesh, MeshGeometry, Sprite } from 'pixi.js';
+import { Container, Graphics, Matrix, Mesh, MeshGeometry, Sprite, Texture } from 'pixi.js';
+import { rasterizeUIText, type LocalizationPreview } from './UITextAdapter';
 import {
   evaluateScene,
   inverseSceneMatrix,
@@ -7,23 +8,34 @@ import {
   solveFK,
   solveIK,
   updateSkinning,
+  expandUIComponents,
+  nineSliceGrid,
+  safeUIBox,
+  type UIComponent,
   type Artboard,
   type SceneTransform,
   type EvaluatedSceneNode,
 } from '@limber/core';
 import { textureRegistry } from '../engine/TextureRegistry';
+const ownedTextures = new WeakMap<Container, Texture>();
 function disposeScene(container: Container): void {
   const queue: Container[] = [container];
   for (let i = 0; i < queue.length; i++) {
     const child = queue[i]!;
     if (child instanceof Mesh) child.geometry.destroy();
+    ownedTextures.get(child)?.destroy(true);
     queue.push(...child.children);
   }
   container.destroy({ children: true });
 }
 
 /** Disposable renderer adapter: no authoring state or command history lives in Pixi. */
-function sceneDisplay(artboard: Artboard): Container {
+function sceneDisplay(
+  artboard: Artboard,
+  displays: Map<string, Container>,
+  overflow: string[],
+  localization: LocalizationPreview,
+): Container {
   const world = new Container();
   world.addChild(
     new Graphics()
@@ -31,20 +43,97 @@ function sceneDisplay(artboard: Artboard): Container {
       .fill(0x20242c)
       .stroke({ color: 0x667085, width: 1 }),
   );
+  if (artboard.safeArea) {
+    const box = safeUIBox(artboard);
+    world.addChild(
+      new Graphics()
+        .rect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height)
+        .stroke({ color: 0x5ed39b, width: 1 }),
+    );
+  }
+  const clipping = new Map<string, Container>();
   for (const entry of evaluateScene(artboard)) {
     const node = entry.node;
     if (!entry.visible) continue;
-    const container = new Container();
+    const container =
+      node.type === 'mask'
+        ? new Graphics()
+            .rect(-entry.box.width / 2, -entry.box.height / 2, entry.box.width, entry.box.height)
+            .fill(0xffffff)
+        : new Container();
     container.setFromMatrix(new Matrix(...entry.world));
     container.alpha = entry.opacity;
     container.tint = entry.tint;
     container.label = node.id;
-    world.addChild(container);
+    const parent = node.parentId ? (clipping.get(node.parentId) ?? world) : world;
+    if (node.type === 'mask') {
+      const wrapper = new Container();
+      parent.addChild(wrapper);
+      wrapper.addChild(container);
+      wrapper.mask = container;
+      clipping.set(node.id, wrapper);
+    } else {
+      parent.addChild(container);
+      clipping.set(node.id, parent);
+    }
+    displays.set(node.id, container);
     if (node.type === 'image') {
       const sprite = new Sprite(textureRegistry.get(node.textureId) ?? textureRegistry.placeholder);
       sprite.anchor.set(0.5);
-      sprite.width = node.width;
-      sprite.height = node.height;
+      sprite.width = entry.box.width;
+      sprite.height = entry.box.height;
+      container.addChild(sprite);
+    } else if (node.type === 'nineSlice') {
+      const grid = nineSliceGrid(
+        node.sourceWidth,
+        node.sourceHeight,
+        entry.box.width,
+        entry.box.height,
+        node.borders,
+      );
+      const positions: number[] = [],
+        uvs: number[] = [],
+        indices: number[] = [];
+      for (let y = 0; y < 4; y++)
+        for (let x = 0; x < 4; x++) {
+          positions.push(grid.x[x]!, grid.y[y]!);
+          uvs.push(grid.sourceX[x]! / node.sourceWidth, grid.sourceY[y]! / node.sourceHeight);
+          if (x < 3 && y < 3) {
+            const index = y * 4 + x;
+            indices.push(index, index + 1, index + 4, index + 1, index + 5, index + 4);
+          }
+        }
+      container.addChild(
+        new Mesh({
+          geometry: new MeshGeometry({
+            positions: new Float32Array(positions),
+            uvs: new Float32Array(uvs),
+            indices: new Uint32Array(indices),
+          }),
+          texture: textureRegistry.get(node.textureId) ?? textureRegistry.placeholder,
+        }),
+      );
+    } else if (node.type === 'shape') {
+      container.addChild(
+        new Graphics()
+          .roundRect(
+            -entry.box.width / 2,
+            -entry.box.height / 2,
+            entry.box.width,
+            entry.box.height,
+            Math.min(node.radius, entry.box.width / 2, entry.box.height / 2),
+          )
+          .fill(node.color),
+      );
+    } else if (node.type === 'text') {
+      const rendered = rasterizeUIText(node, entry.box, localization);
+      if (rendered.overflow) overflow.push(node.name);
+      const texture = Texture.from(rendered.canvas, true),
+        sprite = new Sprite(texture);
+      ownedTextures.set(sprite, texture);
+      sprite.anchor.set(0.5);
+      sprite.width = entry.box.width;
+      sprite.height = entry.box.height;
       container.addChild(sprite);
     } else if (node.type === 'rig') {
       const skeleton = new Skeleton(node.skeleton);
@@ -104,7 +193,7 @@ function sceneDisplay(artboard: Artboard): Container {
         });
         container.addChild(bones);
       }
-    } else {
+    } else if (node.type === 'group' && !node.layout) {
       container.addChild(new Graphics().circle(0, 0, 7).stroke({ color: 0x8b7cff, width: 2 }));
     }
   }
@@ -137,17 +226,26 @@ export class PixiSceneRenderer implements SceneRenderer {
   private displays = new Map<string, Container>();
   private selected: string[] = [];
   private tool = 'move';
+  private components: UIComponent[] = [];
+  private owners = new Map<string, string>();
+  readonly textOverflow: string[] = [];
   rebuilds = 0;
-  setScene(artboard: Artboard): void {
+  setScene(
+    artboard: Artboard,
+    components: UIComponent[] = [],
+    localization: LocalizationPreview = 'expected',
+  ): void {
     this.world.removeChild(this.content);
     disposeScene(this.content);
     this.artboard = artboard;
-    this.content = sceneDisplay(artboard);
+    this.components = components;
+    const expanded = expandUIComponents({ components }, artboard);
+    this.owners = expanded.owners;
+    this.displays = new Map();
+    this.textOverflow.length = 0;
+    this.content = sceneDisplay(expanded.artboard, this.displays, this.textOverflow, localization);
     this.world.addChildAt(this.content, 0);
     if (!this.overlay.parent) this.world.addChild(this.overlay);
-    this.displays = new Map(
-      this.content.children.filter((child) => child.label).map((child) => [child.label, child]),
-    );
     this.rebuilds++;
     this.preview({});
   }
@@ -168,7 +266,8 @@ export class PixiSceneRenderer implements SceneRenderer {
             ),
           }
         : this.artboard;
-    this.entries = evaluateScene(artboard);
+    const expanded = expandUIComponents({ components: this.components }, artboard);
+    this.entries = evaluateScene(expanded.artboard);
     for (const entry of this.entries) {
       const display = this.displays.get(entry.node.id);
       if (!display) continue;
@@ -247,16 +346,31 @@ export class PixiSceneRenderer implements SceneRenderer {
         .fill(0xf7c85b);
   }
   hitTest(x: number, y: number): string | null {
+    const byId = new Map(this.entries.map((entry) => [entry.node.id, entry]));
     for (let i = this.entries.length - 1; i >= 0; i--) {
       const entry = this.entries[i]!;
       if (!entry.visible || entry.opacity <= 0) continue;
       const display = this.displays.get(entry.node.id);
       if (!display) continue;
       try {
+        let parentId = entry.node.parentId,
+          clipped = false;
+        while (parentId) {
+          const parent = byId.get(parentId)!;
+          if (parent.node.type === 'mask') {
+            const local = scenePoint(inverseSceneMatrix(parent.world), x, y);
+            if (Math.abs(local.x) > parent.box.width / 2 || Math.abs(local.y) > parent.box.height / 2) {
+              clipped = true;
+              break;
+            }
+          }
+          parentId = parent.node.parentId;
+        }
+        if (clipped) continue;
         const p = scenePoint(inverseSceneMatrix(entry.world), x, y),
           rect = display.getLocalBounds();
         if (p.x >= rect.x && p.y >= rect.y && p.x <= rect.x + rect.width && p.y <= rect.y + rect.height)
-          return entry.node.id;
+          return this.owners.get(entry.node.id) ?? entry.node.id;
       } catch {
         /* Singular nodes cannot be picked through inverse coordinates. */
       }

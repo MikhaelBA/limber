@@ -2,9 +2,15 @@ import { SceneMotionSession } from '../engine/SceneMotionSession';
 import { EditSceneMotionCommand } from '../commands/sceneMotionCommands';
 import { SceneTimeline } from './SceneTimeline';
 import { SceneTree } from './SceneTree';
+import { UINodeInspector } from './UINodeInspector';
+import { UIComponentLibrary } from './UIComponentLibrary';
+import { EditUICommand } from '../commands/uiCommands';
+import { AddUITemplateCommand, rewardTemplate } from '../commands/uiTemplateCommands';
+import type { LocalizationPreview } from '../rendering/UITextAdapter';
 import { useEffect, useRef, useState } from 'react';
 import {
   sceneTransform,
+  DEVICE_PRESETS,
   uuid,
   type SceneNode,
   type SceneTransform,
@@ -32,6 +38,8 @@ export function SceneWorkspace() {
   boardRef.current = artboard;
   const [motion] = useState(() => new SceneMotionSession(() => boardRef.current));
   const [motionOpen, setMotionOpen] = useState(false);
+  const [uiOpen, setUIOpen] = useState(false);
+  const [localization, setLocalization] = useState<LocalizationPreview>('expected');
   const [, redrawMotion] = useState(0);
   useEffect(() => motion.subscribe(() => redrawMotion((value) => value + 1)), [motion]);
   const [selection, setSelection] = useState<string[]>([]);
@@ -190,6 +198,48 @@ export function SceneWorkspace() {
     if (node && Number.isFinite(value))
       edit({ kind: 'update', nodeId: node.id, patch: { transform: { ...node.transform, [key]: value } } });
   };
+  const addUI = (type: 'text' | 'shape' | 'mask') => {
+    const base = {
+      id: uuid(),
+      name: type === 'text' ? 'Text' : type === 'mask' ? 'Mask' : 'Panel',
+      parentId: null,
+      transform: sceneTransform(),
+      opacity: 1,
+      visible: true,
+      width: 240,
+      height: type === 'text' ? 48 : 120,
+    };
+    const node: SceneNode =
+      type === 'text'
+        ? {
+            ...base,
+            type,
+            text: 'پاداش ۱۲۳',
+            fontFamilies: ['Noto Sans Arabic', 'sans-serif'],
+            fontSize: 24,
+            lineHeight: 34,
+            direction: 'rtl',
+            align: 'center',
+            color: 0xffffff,
+          }
+        : type === 'shape'
+          ? { ...base, type, color: 0x7755cc, radius: 12 }
+          : { ...base, type };
+    if (run(new EditSceneCommand(project, artboard.id, { kind: 'add', node }))) setSelection([node.id]);
+  };
+  const addReward = async () => {
+    try {
+      const template = rewardTemplate();
+      for (const [id, asset] of Object.entries(template.assetManifest)) {
+        const response = await fetch(asset.dataUrl!);
+        await textureRegistry.loadBlob(id, asset.name, await response.blob());
+      }
+      if (engine.project !== project) return;
+      if (run(new AddUITemplateCommand(project, template))) setSelection([]);
+    } catch (error) {
+      state.setStatus((error as Error).message);
+    }
+  };
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Scene workspace">
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-700 p-2">
@@ -202,6 +252,9 @@ export function SceneWorkspace() {
           }}
         >
           Animation
+        </button>
+        <button className={button} aria-pressed={uiOpen} onClick={() => setUIOpen(!uiOpen)}>
+          Game UI
         </button>
         <label className="text-xs">
           Artboard{' '}
@@ -274,6 +327,67 @@ export function SceneWorkspace() {
           Redo
         </button>
       </div>
+      {uiOpen && (
+        <div
+          className="flex flex-wrap items-center gap-2 border-b border-neutral-700 p-2"
+          aria-label="Game UI tools"
+        >
+          <button className={button} onClick={() => addUI('text')}>
+            Add text
+          </button>
+          <button className={button} onClick={() => addUI('shape')}>
+            Add panel
+          </button>
+          <button className={button} onClick={() => addUI('mask')}>
+            Add mask
+          </button>
+          <button className={button} onClick={() => void addReward()}>
+            Add reward template
+          </button>
+          <UIComponentLibrary project={project} artboard={artboard} selection={selected} run={run} />
+          <label className="text-xs">
+            Device
+            <select
+              className="ml-1 rounded bg-neutral-800 p-1"
+              aria-label="Device preset"
+              value={DEVICE_PRESETS.findIndex(
+                (p) => p.width === artboard.width && p.height === artboard.height,
+              )}
+              onChange={(e) => {
+                const preset = DEVICE_PRESETS[Number(e.target.value)];
+                if (preset)
+                  run(
+                    new EditArtboardCommand(project, {
+                      kind: 'update',
+                      id: artboard.id,
+                      patch: { width: preset.width, height: preset.height, safeArea: { ...preset.safeArea } },
+                    }),
+                  );
+              }}
+            >
+              <option value={-1}>Custom</option>
+              {DEVICE_PRESETS.map((preset, i) => (
+                <option key={preset.name} value={i}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs">
+            Text preview
+            <select
+              className="ml-1 rounded bg-neutral-800 p-1"
+              aria-label="Localization preview"
+              value={localization}
+              onChange={(e) => setLocalization(e.target.value as LocalizationPreview)}
+            >
+              {(['expected', 'short', 'long', 'numeric'] as const).map((mode) => (
+                <option key={mode}>{mode}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1">
         <aside
           className="flex w-56 shrink-0 flex-col overflow-hidden border-r border-neutral-700 p-2"
@@ -315,6 +429,8 @@ export function SceneWorkspace() {
           </div>
         </aside>
         <SceneViewport
+          components={project.components}
+          localization={localization}
           motion={motion}
           artboard={artboard}
           revision={state.dataRevision}
@@ -373,6 +489,41 @@ export function SceneWorkspace() {
                 />
               </label>
             ))}
+          {!node && uiOpen && (
+            <div className="my-2 grid grid-cols-2 gap-1">
+              {(['left', 'right', 'top', 'bottom'] as const).map((side) => (
+                <label className="text-xs" key={side}>
+                  Safe {side}
+                  <input
+                    className={input}
+                    aria-label={`Safe area ${side}`}
+                    type="number"
+                    min="0"
+                    key={`${artboard.id}-${side}-${artboard.safeArea?.[side]}`}
+                    defaultValue={artboard.safeArea?.[side] ?? 0}
+                    onBlur={(e) =>
+                      run(
+                        new EditArtboardCommand(project, {
+                          kind: 'update',
+                          id: artboard.id,
+                          patch: {
+                            safeArea: {
+                              left: 0,
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              ...artboard.safeArea,
+                              [side]: e.target.valueAsNumber,
+                            },
+                          },
+                        }),
+                      )
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          )}
           {node && (
             <>
               {node.type === 'rig' && (
@@ -406,7 +557,7 @@ export function SceneWorkspace() {
                 >
                   <option value="">Artboard</option>
                   {artboard.nodes
-                    .filter((n) => n.type === 'group' && n.id !== node.id)
+                    .filter((n) => (n.type === 'group' || n.type === 'mask') && n.id !== node.id)
                     .map((n) => (
                       <option key={n.id} value={n.id}>
                         {n.name}
@@ -480,6 +631,13 @@ export function SceneWorkspace() {
               <p className="my-2 text-xs text-neutral-400">
                 Angles use radians. Parent changes preserve the world pose.
               </p>
+              <UINodeInspector
+                node={artboard.nodes.find((n) => n.id === node.id)!}
+                components={project.components ?? []}
+                onChange={(node) =>
+                  run(new EditUICommand(project, { kind: 'node', artboardId: artboard.id, node }))
+                }
+              />
               <button
                 className={button}
                 onClick={() => edit({ kind: 'reorder', nodeId: node.id, beforeId: null })}

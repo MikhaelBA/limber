@@ -20,4 +20,14 @@ Scrub with the time field or ruler. Use Play/Pause/Stop and Loop to preview. The
 
 Select a numeric key to edit its outgoing curve. Linear, stepped and Bezier are supported. Numeric Bezier controls and draggable handles update the same key used by the value graph and preview; handle drags produce one undo step. Bezier time controls stay within [0,1]; value controls support overshoot. Key named events at the current time and watch them fire during playback. Scrubbing emits no events.
 
-Save uses source schema 2 and includes clips, keys, curves and events. Schema-1 projects and legacy Limber files still load without changing their rig, node or asset content. Rig-internal animation and scene clips remain separate libraries; scene clips move the rig node but do not yet select or blend its skeletal clips.
+Save uses source schema 3 and includes clips, keys, curves, events and UI data. Schema-1/2 projects and legacy Limber files still load without changing their rig, node or asset content. Rig-internal animation and scene clips remain separate libraries; scene clips move the rig node but do not yet select or blend its skeletal clips.
+
+## Game UI
+
+Choose **Game UI** to add text, panels or rectangle masks, or insert the reward popup template as a new artboard. The template preserves the current project and can be undone. **Device preset** changes artboard size and safe-area insets in one undo step; custom insets are available in Artboard properties. The green rectangle is the safe area.
+
+Select a node and enable **Responsive layout**. Equal anchors keep a fixed size; split anchors stretch between parent edges with pixel offsets. Choose an anchor preset or expand Layout X/Y for exact values, size limits and alignment pivot. Aspect ratio is optional. Root nodes can use the safe area; children use their parent's local box. Transform X/Y remain offsets over layout. Imported images can become **9-slice** images; borders use source texture pixels independently of destination width/height.
+
+Text supports explicit line breaks, direction, alignment, font fallback, color and a binding name for future runtime data. Noto Sans Arabic is bundled locally with its license. Long/short/numeric localization previews leave saved text unchanged; overflow is reported and clipped. Automatic wrapping and rich text are not part of this initial text path. A mask clips its descendants; select it as the child's Parent. Up to eight nested masks are supported.
+
+Open **Components** to turn a selected subtree into a shared definition, add instances and edit definition nodes. Text/tint/opacity/visibility can be explicitly exposed; instances edit only those overrides and can reset them to defaults. Definition edits propagate through nested instances while retaining overrides. Removing an exposed property in use is rejected; remove/reset its overrides first. Component extraction rejects descendant animation tracks that would otherwise be lost. Existing scene-root transforms remain animated on the instance.

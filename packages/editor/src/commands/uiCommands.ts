@@ -1,7 +1,21 @@
-import { validateProject, type BoneByBoneProject, type SceneNode, type UIComponent } from '@limber/core';
+import {
+  validateProject,
+  resolveSceneLayout,
+  sceneTransform,
+  type BoneByBoneProject,
+  type SceneNode,
+  type UIComponent,
+} from '@limber/core';
 import type { Command } from '../history/history';
 
 export type UIEdit =
+  | {
+      kind: 'extract';
+      artboardId: string;
+      nodeId: string;
+      componentId: string;
+      idMap: Record<string, string>;
+    }
   | { kind: 'node'; artboardId: string; node: SceneNode }
   | { kind: 'component'; component: UIComponent }
   | { kind: 'removeComponent'; componentId: string };
@@ -24,7 +38,87 @@ export class EditUICommand implements Command {
       const intent = this.intent;
       let artboards = this.project.artboards,
         components = this.project.components;
-      if (intent.kind === 'node') {
+      if (intent.kind === 'extract') {
+        const board = artboards.find((board) => board.id === intent.artboardId);
+        const root = board?.nodes.find((node) => node.id === intent.nodeId);
+        if (!board || !root) throw new Error('Component source no longer exists.');
+        const included = new Set([root.id]);
+        const children = new Map<string, SceneNode[]>();
+        for (const node of board.nodes)
+          if (node.parentId) {
+            const list = children.get(node.parentId) ?? [];
+            list.push(node);
+            children.set(node.parentId, list);
+          }
+        const queue = [root.id];
+        for (let i = 0; i < queue.length; i++)
+          for (const node of children.get(queue[i]!) ?? []) {
+            included.add(node.id);
+            queue.push(node.id);
+          }
+        if (
+          board.clips?.some((clip) =>
+            clip.tracks.some((track) => included.has(track.nodeId) && track.nodeId !== root.id),
+          )
+        )
+          throw new Error('Component extraction cannot discard descendant animation tracks.');
+        const box = resolveSceneLayout(board).get(root.id)!;
+        const nodes = board.nodes
+          .filter((node) => included.has(node.id))
+          .map((node) => {
+            const copy = structuredClone(node);
+            copy.id = intent.idMap[node.id]!;
+            copy.parentId = node.id === root.id ? null : intent.idMap[node.parentId!]!;
+            if (node.id === root.id) {
+              copy.transform = sceneTransform();
+              copy.opacity = 1;
+              copy.visible = true;
+              delete copy.tint;
+              if (copy.layout)
+                copy.layout = {
+                  x: { ...copy.layout.x, anchorMin: 0, anchorMax: 1, offsetMin: 0, offsetMax: 0, pivot: 0.5 },
+                  y: { ...copy.layout.y, anchorMin: 0, anchorMax: 1, offsetMin: 0, offsetMax: 0, pivot: 0.5 },
+                };
+            }
+            return copy;
+          });
+        const text = nodes.find((node) => node.type === 'text');
+        const component: UIComponent = {
+          id: intent.componentId,
+          name: root.name,
+          revision: 1,
+          width: Math.max(1, box.width),
+          height: Math.max(1, box.height),
+          nodes,
+          exposed: text ? [{ name: 'label', nodeId: text.id, property: 'text' }] : [],
+        };
+        const instance: SceneNode = {
+          id: root.id,
+          name: root.name,
+          parentId: root.parentId,
+          type: 'instance',
+          componentId: component.id,
+          overrides: {},
+          transform: { ...root.transform },
+          opacity: root.opacity,
+          visible: root.visible,
+          ...(root.tint === undefined ? {} : { tint: root.tint }),
+          ...(root.layout ? { layout: structuredClone(root.layout) } : {}),
+          width: component.width,
+          height: component.height,
+        };
+        artboards = artboards.map((item) =>
+          item.id === board.id
+            ? {
+                ...item,
+                nodes: item.nodes.flatMap((node) =>
+                  node.id === root.id ? [instance] : included.has(node.id) ? [] : [node],
+                ),
+              }
+            : item,
+        );
+        components = [...(components ?? []), component];
+      } else if (intent.kind === 'node') {
         const board = artboards.find((board) => board.id === intent.artboardId);
         if (!board?.nodes.some((node) => node.id === intent.node.id))
           throw new Error('UI node no longer exists.');
