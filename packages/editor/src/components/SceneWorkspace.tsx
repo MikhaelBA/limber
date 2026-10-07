@@ -1,6 +1,16 @@
+import { SceneMotionSession } from '../engine/SceneMotionSession';
+import { EditSceneMotionCommand } from '../commands/sceneMotionCommands';
+import { SceneTimeline } from './SceneTimeline';
 import { SceneTree } from './SceneTree';
-import { useRef, useState } from 'react';
-import { sceneTransform, uuid, type SceneNode, type SceneTransform } from '@limber/core';
+import { useEffect, useRef, useState } from 'react';
+import {
+  sceneTransform,
+  uuid,
+  type SceneNode,
+  type SceneTransform,
+  type SceneProperty,
+  type SceneMotionPose,
+} from '@limber/core';
 import { useEngine } from '../hooks/useEngine';
 import { emptySkeletonData } from '../engine/EditorEngine';
 import { textureRegistry } from '../engine/TextureRegistry';
@@ -8,7 +18,7 @@ import { useEditorStore } from '../store/editorStore';
 import { EditSceneCommand, duplicateSceneCommand, type SceneEdit } from '../commands/sceneCommands';
 import { EditArtboardCommand } from '../commands/artboardCommands';
 import { SceneViewport } from './SceneViewport';
-import type { Command } from '../history/history';
+import { CompositeCommand, type Command } from '../history/history';
 
 const button = 'rounded border border-neutral-600 px-2 py-1 text-xs hover:bg-neutral-700 disabled:opacity-40';
 const input = 'w-full rounded border border-neutral-600 bg-neutral-900 px-2 py-1 text-sm';
@@ -18,18 +28,95 @@ export function SceneWorkspace() {
   const state = useEditorStore();
   const project = engine.project;
   const artboard = project.artboards.find((a) => a.id === project.editor.activeArtboardId)!;
+  const boardRef = useRef(artboard);
+  boardRef.current = artboard;
+  const [motion] = useState(() => new SceneMotionSession(() => boardRef.current));
+  const [motionOpen, setMotionOpen] = useState(false);
+  const [, redrawMotion] = useState(0);
+  useEffect(() => motion.subscribe(() => redrawMotion((value) => value + 1)), [motion]);
   const [selection, setSelection] = useState<string[]>([]);
   const selected = selection.filter((id) => artboard.nodes.some((n) => n.id === id));
-  const node = artboard.nodes.find((n) => n.id === selected[0]);
+  const node = motion.view().nodes.find((n) => n.id === selected[0]);
   const imageInput = useRef<HTMLInputElement>(null);
   const run = (command: Command) => {
     try {
       state.execute(command);
+      return true;
     } catch (error) {
       state.setStatus((error as Error).message);
+      return false;
     }
   };
-  const edit = (intent: SceneEdit) => run(new EditSceneCommand(project, artboard.id, intent));
+  const keyEntries = (entries: { nodeId: string; property: SceneProperty; value: number }[]) => {
+    const clip = motion.clip;
+    if (!clip || !entries.length) return;
+    const time = Math.min(clip.duration, Math.round(motion.time * clip.fps) / clip.fps);
+    const commands = entries.map(
+      (entry) =>
+        new EditSceneMotionCommand(project, artboard.id, {
+          kind: 'key',
+          clipId: clip.id,
+          ...entry,
+          trackId: uuid(),
+          key: { id: uuid(), time, value: entry.value, curve: { type: 'linear' } },
+        }),
+    );
+    const composite = new CompositeCommand('Key scene properties', commands);
+    if (
+      run({
+        scope: 'project',
+        label: composite.label,
+        do: () => composite.do(),
+        undo: () => composite.undo(),
+      })
+    ) {
+      motion.refresh();
+      motion.clearDraft();
+    }
+  };
+  const keyProperty = (property: SceneProperty, value?: number) => {
+    const nodes = motion.view().nodes;
+    keyEntries(
+      selected.map((id) => {
+        const node = nodes.find((n) => n.id === id)!;
+        return {
+          nodeId: id,
+          property,
+          value: value ?? (property === 'opacity' ? node.opacity : node.transform[property]),
+        };
+      }),
+    );
+  };
+  const edit = (intent: SceneEdit) => {
+    if (
+      motion.enabled &&
+      motion.clip &&
+      (intent.kind === 'transforms' ||
+        (intent.kind === 'update' && (intent.patch.transform || intent.patch.opacity !== undefined)))
+    ) {
+      const pose: SceneMotionPose =
+        intent.kind === 'transforms'
+          ? { transforms: intent.values, opacity: {} }
+          : {
+              transforms: intent.patch.transform ? { [intent.nodeId]: intent.patch.transform } : {},
+              opacity: intent.patch.opacity !== undefined ? { [intent.nodeId]: intent.patch.opacity } : {},
+            };
+      if (motion.autoKey) {
+        const entries: { nodeId: string; property: SceneProperty; value: number }[] = [];
+        const view = new Map(motion.view().nodes.map((node) => [node.id, node]));
+        for (const [id, transform] of Object.entries(pose.transforms))
+          for (const property of Object.keys(transform) as (keyof SceneTransform)[])
+            if (transform[property] !== view.get(id)!.transform[property])
+              entries.push({ nodeId: id, property, value: transform[property] });
+        for (const [id, value] of Object.entries(pose.opacity))
+          entries.push({ nodeId: id, property: 'opacity', value });
+        keyEntries(entries);
+      } else {
+        motion.setDraft(pose);
+        state.setStatus('Preview changed — press Key property to save it, or enable Auto-key.');
+      }
+    } else run(new EditSceneCommand(project, artboard.id, intent));
+  };
   const select = (id: string, add: boolean) =>
     setSelection(add ? (selected.includes(id) ? selected.filter((n) => n !== id) : [...selected, id]) : [id]);
   const add = (type: 'group' | 'rig') => {
@@ -106,6 +193,16 @@ export function SceneWorkspace() {
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Scene workspace">
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-700 p-2">
+        <button
+          className={button}
+          aria-pressed={motionOpen}
+          onClick={() => {
+            setMotionOpen(!motionOpen);
+            if (motionOpen) motion.setEnabled(false);
+          }}
+        >
+          Animation
+        </button>
         <label className="text-xs">
           Artboard{' '}
           <select
@@ -218,6 +315,7 @@ export function SceneWorkspace() {
           </div>
         </aside>
         <SceneViewport
+          motion={motion}
           artboard={artboard}
           revision={state.dataRevision}
           selected={selected}
@@ -395,6 +493,17 @@ export function SceneWorkspace() {
           )}
         </aside>
       </div>
+      {motionOpen && (
+        <SceneTimeline
+          project={project}
+          artboard={artboard}
+          revision={state.dataRevision}
+          session={motion}
+          selectedNodes={selected}
+          run={run}
+          onKey={keyProperty}
+        />
+      )}
     </section>
   );
 }

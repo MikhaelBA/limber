@@ -25,6 +25,7 @@ export type KeyframeSelection =
  * playhead position is NOT stored (it streams through engine transients).
  */
 interface UIState {
+  documentEpoch: number;
   workspace: 'rig' | 'scene';
   setWorkspace: (workspace: 'rig' | 'scene') => void;
   selectedBoneId: string | null;
@@ -77,6 +78,7 @@ export function bindEditorCommands(binder: (command: Command) => Command): void 
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useEditorStore = create<UIState>((set, get) => ({
+  documentEpoch: 0,
   workspace: 'rig',
   setWorkspace: (workspace) =>
     set({ workspace, selectedBoneId: null, selectedSlotId: null, selectedKeyframe: null }),
@@ -164,6 +166,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
   documentReplaced: () => {
     history.clear();
     set((s) => ({
+      documentEpoch: s.documentEpoch + 1,
       dataRevision: s.dataRevision + 1,
       canUndo: false,
       canRedo: false,

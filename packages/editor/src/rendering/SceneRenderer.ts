@@ -120,7 +120,7 @@ export interface SceneBounds {
 export interface SceneRenderer {
   readonly world: Container;
   setScene(artboard: Artboard): void;
-  preview(values: Record<string, SceneTransform>): void;
+  preview(values: Record<string, SceneTransform>, opacity?: Record<string, number>): void;
   highlight(ids: string[], tool: string): void;
   bounds(ids: string[]): SceneBounds | null;
   hitTest(x: number, y: number): string | null;
@@ -151,16 +151,23 @@ export class PixiSceneRenderer implements SceneRenderer {
     this.rebuilds++;
     this.preview({});
   }
-  preview(values: Record<string, SceneTransform>): void {
+  preview(values: Record<string, SceneTransform>, opacity: Record<string, number> = {}): void {
     if (!this.artboard) return;
-    const artboard = Object.keys(values).length
-      ? {
-          ...this.artboard,
-          nodes: this.artboard.nodes.map((node) =>
-            values[node.id] ? { ...node, transform: values[node.id]! } : node,
-          ),
-        }
-      : this.artboard;
+    const artboard =
+      Object.keys(values).length || Object.keys(opacity).length
+        ? {
+            ...this.artboard,
+            nodes: this.artboard.nodes.map((node) =>
+              values[node.id] || opacity[node.id] !== undefined
+                ? {
+                    ...node,
+                    transform: values[node.id] ?? node.transform,
+                    opacity: opacity[node.id] ?? node.opacity,
+                  }
+                : node,
+            ),
+          }
+        : this.artboard;
     this.entries = evaluateScene(artboard);
     for (const entry of this.entries) {
       const display = this.displays.get(entry.node.id);

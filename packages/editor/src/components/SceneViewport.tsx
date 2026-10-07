@@ -1,3 +1,4 @@
+import type { SceneMotionSession } from '../engine/SceneMotionSession';
 import { useEffect, useRef, useState } from 'react';
 import { Application } from 'pixi.js';
 import {
@@ -15,6 +16,7 @@ import { useEditorStore } from '../store/editorStore';
 
 type Tool = 'move' | 'rotate' | 'scale' | 'pivot';
 interface Props {
+  motion: SceneMotionSession;
   artboard: Artboard;
   revision: number;
   selected: string[];
@@ -121,6 +123,9 @@ export function SceneViewport(props: Props) {
         const sync = () => {
           drag = null;
           renderer.setScene(current.current.artboard);
+          current.current.motion.refresh();
+          const pose = current.current.motion.pose();
+          renderer.preview(pose.transforms, pose.opacity);
           if (boardId !== current.current.artboard.id) {
             boardId = current.current.artboard.id;
             frame(false);
@@ -138,6 +143,7 @@ export function SceneViewport(props: Props) {
         const down = (event: PointerEvent) => {
           if (event.button !== 0 && event.button !== 1) return;
           canvas.focus({ preventScroll: true });
+          if (current.current.motion.playing) current.current.motion.pause();
           const p = screen(event),
             start = world(p),
             state = current.current,
@@ -182,7 +188,7 @@ export function SceneViewport(props: Props) {
             start,
             pivot,
             ids,
-            source: state.artboard,
+            source: state.motion.view(),
             axis,
             values: {},
             pan,
@@ -256,7 +262,8 @@ export function SceneViewport(props: Props) {
               }
               d.values = transformedSceneSelection(d.source, d.ids, delta);
             }
-            renderer.preview(d.values);
+            const pose = current.current.motion.pose();
+            renderer.preview({ ...pose.transforms, ...d.values }, pose.opacity);
             draw(started);
           } catch (error) {
             useEditorStore.getState().setStatus((error as Error).message);
@@ -271,12 +278,14 @@ export function SceneViewport(props: Props) {
           if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
           if (d && !d.pan && Object.keys(d.values).length) current.current.onCommit(d.values);
           else if (d && !d.pan && d.clickedId) current.current.onSelect(d.clickedId, false);
-          renderer.preview({});
+          const pose = current.current.motion.pose();
+          renderer.preview(pose.transforms, pose.opacity);
           draw();
         };
         const cancel = () => {
           drag = null;
-          renderer.preview({});
+          const pose = current.current.motion.pose();
+          renderer.preview(pose.transforms, pose.opacity);
           draw();
         };
         const wheel = (event: WheelEvent) => {
@@ -322,7 +331,25 @@ export function SceneViewport(props: Props) {
         resize.observe(element);
         app.renderer.resize(Math.max(1, element.clientWidth), Math.max(1, element.clientHeight));
         sync();
+        const unsubscribeMotion = current.current.motion.onFrame(() => {
+          if (drag) return;
+          const started = performance.now(),
+            pose = current.current.motion.pose();
+          renderer.preview(pose.transforms, pose.opacity);
+          draw(started);
+        });
+        let previous = performance.now(),
+          raf = 0;
+        const tick = (now: number) => {
+          current.current.motion.advance(Math.max(0, (now - previous) / 1000));
+          previous = now;
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
         cleanup = () => {
+          cancelAnimationFrame(raf);
+          unsubscribeMotion();
+          current.current.motion.pause();
           window.removeEventListener('keydown', keydown);
           window.removeEventListener('keyup', keyup);
           window.removeEventListener('blur', cancel);

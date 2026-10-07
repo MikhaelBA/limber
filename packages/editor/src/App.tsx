@@ -52,6 +52,7 @@ function Shell() {
     });
   }, [engine]);
   const workspace = useEditorStore((s) => s.workspace);
+  const documentEpoch = useEditorStore((s) => s.documentEpoch);
   const dataRevision = useEditorStore((s) => s.dataRevision);
   const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
   const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
@@ -214,7 +215,7 @@ function Shell() {
         </button>
       </nav>
       {workspace === 'scene' || !engine.project.editor.activeRigId ? (
-        <SceneWorkspace key={engine.project.projectId} />
+        <SceneWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
       ) : (
         <>
           <MainToolbar />
