@@ -58,6 +58,7 @@ export function TopMenuBar() {
 
   const onNew = () => {
     engine.newDocument();
+    useEditorStore.getState().setWorkspace('rig');
     textureRegistry.clear(); // Object URLs + GPU textures belong to the old doc (§8.2).
     clearAutosave().catch(() => {});
     setHasAutosave(false);
@@ -73,6 +74,7 @@ export function TopMenuBar() {
     try {
       const doc = deserializeProject(await file.text(), file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''));
       engine.loadProject(doc);
+      st.setWorkspace(doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 && doc.editor.activeRigId ? 'rig' : 'scene');
       cancelScheduledAutosave();
       textureRegistry.clear();
       // Self-contained files carry their pixels: re-register every embedded
@@ -159,6 +161,7 @@ export function TopMenuBar() {
     try {
       const doc = deserializeProject(rec.json);
       engine.loadProject(doc);
+      st.setWorkspace(doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 && doc.editor.activeRigId ? 'rig' : 'scene');
       cancelScheduledAutosave();
       textureRegistry.clear();
       // Re-register every texture under its ORIGINAL id so attachments resolve.

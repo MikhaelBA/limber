@@ -1,3 +1,4 @@
+import { SceneWorkspace } from './components/SceneWorkspace';
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { Transform } from '@limber/core';
@@ -22,7 +23,7 @@ import { ViewportCanvas } from './components/ViewportCanvas';
 import { textureRegistry } from './engine/TextureRegistry';
 import { EngineProvider, useEngine } from './hooks/useEngine';
 import { scheduleAutosave } from './persistence/autosave';
-import { useEditorStore } from './store/editorStore';
+import { bindEditorCommands, useEditorStore } from './store/editorStore';
 
 /** Spine ctrl+C/V: the local transform of the last copied bone. */
 let transformClipboard: Transform | null = null;
@@ -30,6 +31,27 @@ const TRANSFORM_PROPS: (keyof Transform)[] = ['x', 'y', 'rotation', 'scaleX', 's
 
 function Shell() {
   const engine = useEngine();
+  useEffect(() => {
+    bindEditorCommands((command) => {
+      const bound = engine.bindCommand(command);
+      const run = (direction: 'do' | 'undo') => {
+        const rig = engine.project.editor.activeRigId;
+        bound[direction]();
+        const state = useEditorStore.getState();
+        if (rig !== engine.project.editor.activeRigId) state.clearSelection();
+        state.setMode(engine.mode);
+        state.setPlaying(engine.playing);
+      };
+      return {
+        get label() {
+          return bound.label;
+        },
+        do: () => run('do'),
+        undo: () => run('undo'),
+      };
+    });
+  }, [engine]);
+  const workspace = useEditorStore((s) => s.workspace);
   const dataRevision = useEditorStore((s) => s.dataRevision);
   const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
   const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
@@ -58,7 +80,10 @@ function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
+      if (
+        t &&
+        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+      ) {
         return;
       }
       const st = useEditorStore.getState();
@@ -69,16 +94,22 @@ function Shell() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         st.redo();
+      } else if (st.workspace === 'scene' || !engine.project.editor.activeRigId) {
+        return;
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         // Copy the selected bone's local transform.
-        const bone = st.selectedBoneId ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId) : null;
+        const bone = st.selectedBoneId
+          ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId)
+          : null;
         if (bone) {
           transformClipboard = { ...bone.setupPose };
           st.setStatus(`Copied ${bone.name}'s transform`);
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         // Paste: setup edits the rig; animate keys every property at the playhead.
-        const bone = st.selectedBoneId ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId) : null;
+        const bone = st.selectedBoneId
+          ? engine.skeleton.data.bones.find((b) => b.id === st.selectedBoneId)
+          : null;
         if (bone && transformClipboard) {
           if (st.mode === 'animate' && engine.currentAnimation) {
             const t = engine.currentTime;
@@ -163,28 +194,53 @@ function Shell() {
   return (
     <div className="flex h-full flex-col bg-neutral-900 text-neutral-200">
       <TopMenuBar />
-      <MainToolbar />
-      <PanelGroup direction="vertical" className="min-h-0 flex-1">
-        <Panel defaultSize={78} minSize={30}>
-          <PanelGroup direction="horizontal" className="h-full">
-            <Panel defaultSize={20} minSize={12} className="min-w-0">
-              <HierarchyPanel />
+      <nav className="flex gap-2 border-b border-neutral-700 px-3 py-1" aria-label="Workspace">
+        <button
+          className={workspace === 'scene' ? 'text-violet-300' : 'text-neutral-400'}
+          onClick={() => {
+            engine.pause();
+            useEditorStore.getState().setPlaying(false);
+            useEditorStore.getState().setWorkspace('scene');
+          }}
+        >
+          Scene
+        </button>
+        <button
+          disabled={!engine.project.editor.activeRigId}
+          className={workspace === 'rig' ? 'text-sky-300' : 'text-neutral-400'}
+          onClick={() => useEditorStore.getState().setWorkspace('rig')}
+        >
+          Character
+        </button>
+      </nav>
+      {workspace === 'scene' || !engine.project.editor.activeRigId ? (
+        <SceneWorkspace key={engine.project.projectId} />
+      ) : (
+        <>
+          <MainToolbar />
+          <PanelGroup direction="vertical" className="min-h-0 flex-1">
+            <Panel defaultSize={78} minSize={30}>
+              <PanelGroup direction="horizontal" className="h-full">
+                <Panel defaultSize={20} minSize={12} className="min-w-0">
+                  <HierarchyPanel />
+                </Panel>
+                <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+                <Panel minSize={30}>
+                  <ViewportCanvas />
+                </Panel>
+                <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+                <Panel defaultSize={24} minSize={14} className="min-w-0">
+                  <PropertiesPanel />
+                </Panel>
+              </PanelGroup>
             </Panel>
-            <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
-            <Panel minSize={30}>
-              <ViewportCanvas />
-            </Panel>
-            <PanelResizeHandle className="w-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
-            <Panel defaultSize={24} minSize={14} className="min-w-0">
-              <PropertiesPanel />
+            <PanelResizeHandle className="h-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+            <Panel defaultSize={26} minSize={8}>
+              <TimelinePanel />
             </Panel>
           </PanelGroup>
-        </Panel>
-        <PanelResizeHandle className="h-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
-        <Panel defaultSize={26} minSize={8}>
-          <TimelinePanel />
-        </Panel>
-      </PanelGroup>
+        </>
+      )}
       <StatusBar />
     </div>
   );

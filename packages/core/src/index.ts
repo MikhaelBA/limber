@@ -32,3 +32,4 @@ export * from './utils/uuid';
 // BoneByBone authoring project (legacy rig adapters remain supported).
 export * from './project/model';
 export * from './project/format';
+export * from './project/scene';

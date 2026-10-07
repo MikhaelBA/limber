@@ -25,6 +25,8 @@ export type KeyframeSelection =
  * playhead position is NOT stored (it streams through engine transients).
  */
 interface UIState {
+  workspace: 'rig' | 'scene';
+  setWorkspace: (workspace: 'rig' | 'scene') => void;
   selectedBoneId: string | null;
   /** Slot selection is exclusive with bone selection (§5.7 picking order). */
   selectedSlotId: string | null;
@@ -67,9 +69,17 @@ interface UIState {
   documentReplaced: () => void;
 }
 
+let commandBinder = (command: Command): Command => command;
+export function bindEditorCommands(binder: (command: Command) => Command): void {
+  commandBinder = binder;
+}
+
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useEditorStore = create<UIState>((set, get) => ({
+  workspace: 'rig',
+  setWorkspace: (workspace) =>
+    set({ workspace, selectedBoneId: null, selectedSlotId: null, selectedKeyframe: null }),
   selectedBoneId: null,
   selectedSlotId: null,
   hoveredBoneId: null,
@@ -88,7 +98,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
   statusMessage: '',
 
   execute: (cmd) => {
-    history.execute(cmd);
+    history.execute(commandBinder(cmd));
     set((s) => ({
       dataRevision: s.dataRevision + 1,
       canUndo: history.canUndo,
@@ -132,7 +142,8 @@ export const useEditorStore = create<UIState>((set, get) => ({
   setBrush: (patch) =>
     set((s) => ({
       brushRadius: patch.radius !== undefined ? Math.max(2, patch.radius) : s.brushRadius,
-      brushStrength: patch.strength !== undefined ? Math.min(1, Math.max(0.02, patch.strength)) : s.brushStrength,
+      brushStrength:
+        patch.strength !== undefined ? Math.min(1, Math.max(0.02, patch.strength)) : s.brushStrength,
       brushMode: patch.mode ?? s.brushMode,
     })),
   toggleGhosting: () => set((s) => ({ ghostingEnabled: !s.ghostingEnabled })),

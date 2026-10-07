@@ -27,13 +27,16 @@ describe('project-backed legacy editor', () => {
     expect(engine.skeleton.data).toBe(engine.document.skeleton);
   });
 
-  it('rejects unsupported scene rendering instead of silently hiding content', () => {
+  it('loads transformed and scene-only artboards without discarding content', () => {
     const engine = new EditorEngine();
-    const original = engine.project;
-    const unsupported = structuredClone(original);
-    unsupported.artboards[0]!.nodes[0]!.transform.x = 100;
-    expect(() => engine.loadProject(unsupported)).toThrow(/needs scene rendering/);
-    expect(engine.project).toBe(original);
+    const project = structuredClone(engine.project);
+    project.artboards[0]!.nodes[0]!.transform.x = 100;
+    engine.loadProject(project);
+    expect(engine.project).toBe(project);
+    project.artboards[0]!.nodes = [];
+    project.editor.activeRigId = null;
+    engine.loadProject(project);
+    expect(engine.skeleton.data.bones).toHaveLength(0);
   });
 
   it('round-trips 1000 seeded transform transactions through undo and redo', () => {

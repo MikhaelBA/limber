@@ -1,3 +1,4 @@
+import type { Command } from '../history/history';
 import {
   AnimationState,
   Skeleton,
@@ -10,7 +11,6 @@ import {
   projectFromLegacy,
   activeRigDocument,
   validateProject,
-  sceneTransform,
   type BoneByBoneProject,
   type Animation,
   type BoneData,
@@ -85,21 +85,67 @@ export class EditorEngine {
 
   loadProject(project: BoneByBoneProject): void {
     validateProject(project);
-    const doc = activeRigDocument(project);
-    if (!doc) throw new Error('This milestone opens projects with an active character rig. Scene-only editing is coming in the scene workspace milestone.');
-    const artboard = project.artboards.find((a) => a.id === project.editor.activeArtboardId)!;
-    const rig = artboard.nodes.find((n) => n.id === project.editor.activeRigId)!;
-    const identity = sceneTransform();
-    if (artboard.nodes.length !== 1 || rig.parentId !== null || !rig.visible || rig.opacity !== 1 ||
-        Object.keys(identity).some((key) => rig.transform[key as keyof typeof identity] !== identity[key as keyof typeof identity])) {
-      throw new Error('This artboard needs scene rendering, which is not available in this milestone. The open project has been kept unchanged.');
-    }
-    // Finish validation/construction before replacing the current document.
+    const doc = activeRigDocument(project) ?? {
+      skeleton: emptySkeletonData(false),
+      animations: [],
+      assetManifest: project.assetManifest,
+    };
     const skeleton = new Skeleton(doc.skeleton);
     this.project = project;
     this.document = doc;
     this.skeleton = skeleton;
     this.resetAnimationState();
+  }
+
+  /** Refresh the reference-backed rig adapter after scene edits, without duplicating authoring data. */
+  syncActiveRig(): void {
+    const doc = activeRigDocument(this.project);
+    if (doc && doc.skeleton === this.document.skeleton && doc.animations === this.document.animations) return;
+    this.document = doc ?? {
+      skeleton: emptySkeletonData(false),
+      animations: [],
+      assetManifest: this.project.assetManifest,
+    };
+    this.skeleton = new Skeleton(this.document.skeleton);
+    this.resetAnimationState();
+  }
+
+  focusRig(artboardId: string, rigId: string | null): void {
+    const artboard = this.project.artboards.find((a) => a.id === artboardId);
+    if (!artboard || (rigId !== null && !artboard.nodes.some((n) => n.id === rigId && n.type === 'rig'))) {
+      throw new Error('The command target no longer exists.');
+    }
+    this.project.editor = { activeArtboardId: artboardId, activeRigId: rigId };
+    this.syncActiveRig();
+  }
+
+  /** Every legacy command executes against its original rig, even after workspace navigation. */
+  bindCommand(command: Command): Command {
+    const project = this.project;
+    const target = { ...project.editor };
+    const animation = this.activeAnimationName;
+    const run = (direction: 'do' | 'undo') => {
+      if (this.project !== project) throw new Error('This command belongs to a different project.');
+      if (command.scope !== 'project') {
+        if (!target.activeRigId) throw new Error('Select a character rig before editing bones.');
+        this.focusRig(target.activeArtboardId, target.activeRigId);
+        if (
+          animation &&
+          this.document.animations.some((a) => a.name === animation) &&
+          this.activeAnimationName !== animation
+        )
+          this.setAnimation(animation);
+      }
+      command[direction]();
+      this.syncActiveRig();
+    };
+    return {
+      get label() {
+        return command.label;
+      },
+      do: () => run('do'),
+      undo: () => run('undo'),
+    };
   }
 
   get currentAnimation(): Animation | null {

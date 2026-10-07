@@ -25,7 +25,7 @@ Project and runtime compilation are separate contracts. Spine export remains an 
 ## Rendering and persistence
 
 Retain Pixi/WebGL initially. Extract a renderer adapter incrementally; the existing ViewportCanvas
-still owns the legacy drawing path until the scene viewport milestone. Heavy import/export/mesh work
+owns the character editing path. SceneViewport consumes portable evaluated scene transforms and setup skeletal poses. Legacy history commands bind to their originating rig; project commands resynchronize the active reference adapter. Heavy import/export/mesh work
 will move into workers as those features are implemented.
 
 Recovery writes complete OPFS generations and atomically switches IndexedDB pointers; the previous

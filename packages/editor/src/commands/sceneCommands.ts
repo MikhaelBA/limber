@@ -125,6 +125,7 @@ function editedNodes(nodes: SceneNode[], edit: SceneEdit): SceneNode[] {
  * Reparent preserves local transforms here; world-preserving gestures land with scene gizmos.
  */
 export class EditSceneCommand implements Command {
+  readonly scope = 'project' as const;
   readonly label: string;
   private readonly edit: SceneEdit;
   private before: SceneNode[] | null = null;

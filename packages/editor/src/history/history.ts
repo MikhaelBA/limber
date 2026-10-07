@@ -6,6 +6,7 @@
  */
 
 export interface Command {
+  readonly scope?: 'project';
   /** Future "Edit > Undo <label>" menu text. */
   readonly label: string;
   do(): void;
