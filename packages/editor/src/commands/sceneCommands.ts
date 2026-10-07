@@ -8,6 +8,7 @@ import {
   type SceneNodeBase,
   type Artboard,
   type SceneTransform,
+  type SceneClip,
 } from '@limber/core';
 import type { Command } from '../history/history';
 
@@ -22,7 +23,12 @@ export type SceneEdit =
   | { kind: 'transforms'; values: Record<string, SceneTransform> }
   | { kind: 'remove'; nodeIds: string[] }
   | { kind: 'group'; nodeIds: string[]; groupId: string; name: string }
-  | { kind: 'duplicate'; nodeIds: string[]; idMap: Record<string, string> }
+  | {
+      kind: 'duplicate';
+      nodeIds: string[];
+      idMap: Record<string, string>;
+      motionIdMap?: Record<string, string>;
+    }
   | { kind: 'reorder'; nodeId: string; beforeId: string | null };
 
 function requireNode(nodes: readonly SceneNode[], id: string): SceneNode {
@@ -146,6 +152,8 @@ export class EditSceneCommand implements Command {
   private readonly edit: SceneEdit;
   private before: SceneNode[] | null = null;
   private after: SceneNode[] | null = null;
+  private beforeClips: SceneClip[] | undefined;
+  private afterClips: SceneClip[] | undefined;
   private beforeRig: string | null = null;
   private afterRig: string | null = null;
 
@@ -155,6 +163,13 @@ export class EditSceneCommand implements Command {
     edit: SceneEdit,
   ) {
     this.edit = structuredClone(edit);
+    if (this.edit.kind === 'duplicate' && !this.edit.motionIdMap) {
+      const ids: string[] = [];
+      for (const clip of this.artboard().clips ?? [])
+        for (const track of clip.tracks)
+          if (this.edit.idMap[track.nodeId]) ids.push(track.id, ...track.keys.map((key) => key.id));
+      this.edit.motionIdMap = Object.fromEntries(ids.map((id) => [id, uuid()]));
+    }
     this.label = `${edit.kind[0]!.toUpperCase()}${edit.kind.slice(1)} scene nodes`;
   }
 
@@ -168,6 +183,34 @@ export class EditSceneCommand implements Command {
     const artboard = this.artboard();
     if (!this.after) {
       const after = editedNodes(artboard.nodes, this.edit);
+      this.beforeClips = artboard.clips;
+      this.afterClips = artboard.clips;
+      if (this.edit.kind === 'remove') {
+        const remaining = new Set(after.map((node) => node.id));
+        this.afterClips = artboard.clips?.map((clip) => ({
+          ...clip,
+          tracks: clip.tracks.filter((track) => remaining.has(track.nodeId)),
+        }));
+      } else if (this.edit.kind === 'duplicate') {
+        const intent = this.edit;
+        this.afterClips = artboard.clips?.map((clip) => ({
+          ...clip,
+          tracks: [
+            ...clip.tracks,
+            ...clip.tracks
+              .filter((track) => intent.idMap[track.nodeId])
+              .map((track) => ({
+                ...structuredClone(track),
+                id: intent.motionIdMap![track.id]!,
+                nodeId: intent.idMap[track.nodeId]!,
+                keys: track.keys.map((key) => ({
+                  ...structuredClone(key),
+                  id: intent.motionIdMap![key.id]!,
+                })),
+              })),
+          ],
+        }));
+      }
       const active = this.project.editor.activeArtboardId === artboard.id;
       this.beforeRig = this.project.editor.activeRigId;
       this.afterRig =
@@ -177,13 +220,17 @@ export class EditSceneCommand implements Command {
       // Validate a proposed view before mutating anything; failed edits leave history unchanged.
       validateProject({
         ...this.project,
-        artboards: this.project.artboards.map((a) => (a.id === artboard.id ? { ...a, nodes: after } : a)),
+        artboards: this.project.artboards.map((a) =>
+          a.id === artboard.id ? { ...a, nodes: after, clips: this.afterClips } : a,
+        ),
         editor: { ...this.project.editor, activeRigId: this.afterRig },
       });
       this.before = artboard.nodes;
       this.after = after;
     }
     artboard.nodes = this.after;
+    if (this.afterClips === undefined) delete artboard.clips;
+    else artboard.clips = this.afterClips;
     if (this.project.editor.activeArtboardId === artboard.id) this.project.editor.activeRigId = this.afterRig;
   }
 
@@ -191,6 +238,8 @@ export class EditSceneCommand implements Command {
     if (!this.before) return;
     const artboard = this.artboard();
     artboard.nodes = this.before;
+    if (this.beforeClips === undefined) delete artboard.clips;
+    else artboard.clips = this.beforeClips;
     if (this.project.editor.activeArtboardId === artboard.id)
       this.project.editor.activeRigId = this.beforeRig;
   }

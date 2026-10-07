@@ -33,3 +33,4 @@ export * from './utils/uuid';
 export * from './project/model';
 export * from './project/format';
 export * from './project/scene';
+export * from './project/motion';

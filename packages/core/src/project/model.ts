@@ -2,9 +2,10 @@ import type { Animation } from '../types/animation';
 import type { SkeletonData, Transform } from '../types/data';
 import type { AssetManifest, EditorDocument } from '../types/document';
 import { uuid } from '../utils/uuid';
+import type { SceneClip } from './motion';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 1;
+export const PROJECT_SCHEMA_VERSION = 2;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */
@@ -40,6 +41,8 @@ export interface RigNode extends SceneNodeBase {
 export type SceneNode = GroupNode | ImageNode | RigNode;
 
 export interface Artboard {
+  /** Schema 2: absent is an empty clip library, preserving schema-1 field shapes on migration. */
+  clips?: SceneClip[];
   id: string;
   name: string;
   width: number;

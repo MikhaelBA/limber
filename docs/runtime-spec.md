@@ -30,3 +30,7 @@ rename the source JSON to `.bbb`. Binary encoding is deferred until measurement 
 The current RuntimePlayer continues to accept legacy documents until the runtime compiler milestone.
 UI layout, typed parameters, triggers, binding, state priority, event ordering across state transitions
 and interruption semantics must receive their own golden fixtures before engine adapters are added.
+
+## Scene Motion Alpha (source schema 2)
+
+Artboards optionally own scene clip libraries; absent means empty. Scene tracks target stable node IDs and numeric transform/opacity properties. Their keys reuse stepped/linear/cubic interpolation. `sampleSceneClip` returns transient transforms/opacity; `SceneClock` defines forward time and ordered loop events. See ADR 0006 for boundary, scrubbing and event semantics. Legacy skeletal clips retain their existing contract inside each rig. The shipping runtime compiler is still pending; source schema 2 is not `.bbb`.

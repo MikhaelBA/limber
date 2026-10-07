@@ -1,3 +1,4 @@
+import { SCENE_PROPERTIES } from './motion';
 import { deserializeDocument } from '../serialization/serialize';
 import { Skeleton } from '../skeleton/Skeleton';
 import { PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, projectFromLegacy, type BoneByBoneProject } from './model';
@@ -32,6 +33,75 @@ function finite(value: unknown, label: string, min = -Infinity): asserts value i
 function array(value: unknown, label: string): unknown[] {
   if (!Array.isArray(value)) fail('INVALID_ARRAY', `${label} must be an array.`);
   return value;
+}
+
+function validateClips(value: unknown, nodeIds: Set<string>, ids: Set<string>): void {
+  if (value === undefined) return;
+  const takeId = (value: unknown, label: string) => {
+    text(value, label);
+    if (ids.has(value)) fail('DUPLICATE_ID', `Duplicate ID ${value}.`, value);
+    ids.add(value);
+    return value;
+  };
+  for (const item of array(value, 'Scene clips')) {
+    const clip = record(item, 'Scene clip');
+    const id = takeId(clip.id, 'Clip ID');
+    text(clip.name, 'Clip name');
+    finite(clip.duration, 'Clip duration', Number.EPSILON);
+    if (typeof clip.loop !== 'boolean') fail('INVALID_CLIP', 'Clip loop must be boolean.', id);
+    finite(clip.fps, 'Clip FPS', 1);
+    if (!Number.isInteger(clip.fps) || Number(clip.fps) > 240)
+      fail('INVALID_CLIP', 'Clip FPS must be an integer from 1 to 240.', id);
+    const targets = new Set<string>();
+    for (const item of array(clip.tracks, 'Scene tracks')) {
+      const track = record(item, 'Scene track');
+      const trackId = takeId(track.id, 'Track ID');
+      text(track.nodeId, 'Track node ID');
+      if (!nodeIds.has(track.nodeId))
+        fail('BROKEN_REFERENCE', `Track ${trackId} references a missing scene node.`, trackId);
+      if (!SCENE_PROPERTIES.includes(track.property as (typeof SCENE_PROPERTIES)[number]))
+        fail('INVALID_TRACK', `Unsupported scene property ${String(track.property)}.`, trackId);
+      const target = JSON.stringify([track.nodeId, track.property]);
+      if (targets.has(target))
+        fail('DUPLICATE_TRACK', 'Only one track per node/property is allowed.', trackId);
+      targets.add(target);
+      let previous = -1;
+      for (const item of array(track.keys, 'Scene keys')) {
+        const key = record(item, 'Scene key');
+        const keyId = takeId(key.id, 'Key ID');
+        finite(key.time, 'Key time', 0);
+        finite(key.value, 'Key value');
+        if (Number(key.time) <= previous || Number(key.time) > Number(clip.duration))
+          fail('INVALID_KEY_TIME', 'Keys must increase strictly and stay within clip duration.', keyId);
+        previous = Number(key.time);
+        const curve = record(key.curve, 'Key curve');
+        if (!['linear', 'stepped', 'bezier'].includes(String(curve.type)))
+          fail('INVALID_CURVE', 'Unknown scene key curve.', keyId);
+        if (curve.type === 'bezier') {
+          for (const name of ['c1', 'c2', 'c3', 'c4']) finite(curve[name], `Curve ${name}`);
+          if (Number(curve.c1) < 0 || Number(curve.c1) > 1 || Number(curve.c3) < 0 || Number(curve.c3) > 1)
+            fail('INVALID_CURVE', 'Bezier time handles must be within [0,1].', keyId);
+        }
+      }
+    }
+    let previous = -1;
+    for (const item of array(clip.events, 'Scene events')) {
+      const event = record(item, 'Scene event');
+      const eventId = takeId(event.id, 'Event ID');
+      text(event.name, 'Event name');
+      finite(event.time, 'Event time', 0);
+      if (Number(event.time) < previous || Number(event.time) > Number(clip.duration))
+        fail('INVALID_EVENT_TIME', 'Events must be ordered within clip duration.', eventId);
+      previous = Number(event.time);
+      if (
+        event.payload !== undefined &&
+        typeof event.payload !== 'string' &&
+        typeof event.payload !== 'number'
+      )
+        fail('INVALID_EVENT', 'Event payload must be a string or number.', eventId);
+      if (typeof event.payload === 'number') finite(event.payload, 'Event payload');
+    }
+  }
 }
 
 /** Validate before changing the active editor. O(nodes + parent links), without recursion. */
@@ -119,6 +189,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
       } else if (node.type !== 'group')
         fail('UNKNOWN_NODE', `Unsupported scene node type ${String(node.type)}.`, node.id);
     }
+    validateClips(artboard.clips, new Set(byId.keys()), ids);
     // Each ancestor path is visited once, including already-completed paths.
     const done = new Set<string>();
     for (const id of byId.keys()) {
@@ -160,6 +231,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
   const candidate = record(raw, 'Project');
   const project =
     candidate.format === undefined ? projectFromLegacy(deserializeDocument(json), legacyName) : candidate;
+  // Schema 1 has no scene clips. Preserve all existing fields and IDs; absent clips means [].
+  if (project.schemaVersion === 1) project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);
   return project;
 }

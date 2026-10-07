@@ -1,0 +1,147 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 2,
+  "projectId": "scene-motion-v2",
+  "name": "Scene Motion Alpha",
+  "artboards": [
+    {
+      "id": "board",
+      "name": "Standard scene",
+      "width": 700,
+      "height": 500,
+      "nodes": [
+        {
+          "id": "image-0",
+          "name": "Image 0",
+          "type": "image",
+          "parentId": null,
+          "transform": {
+            "x": -247.5,
+            "y": -180.0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "textureId": "white",
+          "width": 38,
+          "height": 26,
+          "tint": 16238683
+        },
+        {
+          "id": "image-1",
+          "name": "Image 1",
+          "type": "image",
+          "parentId": null,
+          "transform": {
+            "x": -192.5,
+            "y": -180.0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "textureId": "white",
+          "width": 38,
+          "height": 26,
+          "tint": 9141503
+        }
+      ],
+      "clips": [
+        {
+          "id": "motion",
+          "name": "Reward entrance",
+          "duration": 1,
+          "loop": true,
+          "fps": 30,
+          "tracks": [
+            {
+              "id": "track-x",
+              "nodeId": "image-0",
+              "property": "x",
+              "keys": [
+                {
+                  "id": "x0",
+                  "time": 0,
+                  "value": 0,
+                  "curve": {
+                    "type": "linear"
+                  }
+                },
+                {
+                  "id": "x1",
+                  "time": 1,
+                  "value": 100,
+                  "curve": {
+                    "type": "linear"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "track-opacity",
+              "nodeId": "image-1",
+              "property": "opacity",
+              "keys": [
+                {
+                  "id": "a0",
+                  "time": 0,
+                  "value": 1,
+                  "curve": {
+                    "type": "linear"
+                  }
+                },
+                {
+                  "id": "a1",
+                  "time": 1,
+                  "value": 0.2,
+                  "curve": {
+                    "type": "linear"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "id": "start",
+              "name": "start",
+              "time": 0
+            },
+            {
+              "id": "middle",
+              "name": "middle",
+              "time": 0.5
+            },
+            {
+              "id": "end",
+              "name": "end",
+              "time": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "white": {
+      "name": "white.svg",
+      "source": "embedded",
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzOCIgaGVpZ2h0PSIyNiI+PHJlY3Qgd2lkdGg9IjM4IiBoZWlnaHQ9IjI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=="
+    }
+  },
+  "editor": {
+    "activeArtboardId": "board",
+    "activeRigId": null
+  }
+}
