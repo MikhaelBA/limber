@@ -91,6 +91,14 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
       finite(node.opacity, 'Opacity', 0);
       if (node.opacity > 1 || typeof node.visible !== 'boolean')
         fail('INVALID_VISUAL', `Invalid opacity/visibility for ${node.id}.`, node.id);
+      if (
+        node.tint !== undefined &&
+        (!Number.isInteger(node.tint) ||
+          typeof node.tint !== 'number' ||
+          node.tint < 0 ||
+          node.tint > 0xffffff)
+      )
+        fail('INVALID_VISUAL', `Invalid tint for ${node.id}.`, node.id);
       if (node.type === 'image') {
         text(node.textureId, 'Image texture ID');
         if (!Object.hasOwn(manifest, node.textureId))

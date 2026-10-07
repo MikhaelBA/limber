@@ -222,6 +222,8 @@ export function SceneWorkspace() {
           revision={state.dataRevision}
           selected={selected}
           onSelect={select}
+          onCommit={(values) => edit({ kind: 'transforms', values })}
+          onClear={() => setSelection([])}
         />
         <aside
           className="w-60 shrink-0 overflow-auto border-l border-neutral-700 p-3"
@@ -296,7 +298,12 @@ export function SceneWorkspace() {
                   className={input}
                   value={node.parentId ?? ''}
                   onChange={(e) =>
-                    edit({ kind: 'reparent', nodeId: node.id, parentId: e.target.value || null })
+                    edit({
+                      kind: 'reparent',
+                      nodeId: node.id,
+                      parentId: e.target.value || null,
+                      preserveWorld: true,
+                    })
                   }
                 >
                   <option value="">Artboard</option>
@@ -336,6 +343,23 @@ export function SceneWorkspace() {
                   }}
                 />
               </label>
+              <label className="mb-2 block text-xs">
+                Tint
+                <input
+                  aria-label="Node tint"
+                  type="color"
+                  className="ml-2"
+                  key={`${node.id}-${node.tint}`}
+                  defaultValue={`#${(node.tint ?? 0xffffff).toString(16).padStart(6, '0')}`}
+                  onBlur={(e) =>
+                    edit({
+                      kind: 'update',
+                      nodeId: node.id,
+                      patch: { tint: parseInt(e.target.value.slice(1), 16) },
+                    })
+                  }
+                />
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.keys(node.transform) as (keyof SceneTransform)[]).map((key) => (
                   <label key={key} className="text-xs">
@@ -356,7 +380,7 @@ export function SceneWorkspace() {
                 ))}
               </div>
               <p className="my-2 text-xs text-neutral-400">
-                Angles use radians. Parent changes retain local coordinates.
+                Angles use radians. Parent changes preserve the world pose.
               </p>
               <button
                 className={button}

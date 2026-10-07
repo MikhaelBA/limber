@@ -1,20 +1,25 @@
 import {
   sceneTransform,
+  sceneReparentTransform,
   uuid,
   validateProject,
   type BoneByBoneProject,
   type SceneNode,
   type SceneNodeBase,
   type Artboard,
+  type SceneTransform,
 } from '@limber/core';
 import type { Command } from '../history/history';
 
-export type ScenePropertyPatch = Partial<Pick<SceneNodeBase, 'name' | 'opacity' | 'visible' | 'transform'>>;
+export type ScenePropertyPatch = Partial<
+  Pick<SceneNodeBase, 'name' | 'opacity' | 'visible' | 'transform' | 'tint'>
+>;
 /** Serializable intent, useful for reproducing edit/undo failures. */
 export type SceneEdit =
   | { kind: 'add'; node: SceneNode }
   | { kind: 'update'; nodeId: string; patch: ScenePropertyPatch }
-  | { kind: 'reparent'; nodeId: string; parentId: string | null }
+  | { kind: 'reparent'; nodeId: string; parentId: string | null; preserveWorld?: boolean }
+  | { kind: 'transforms'; values: Record<string, SceneTransform> }
   | { kind: 'remove'; nodeIds: string[] }
   | { kind: 'group'; nodeIds: string[]; groupId: string; name: string }
   | { kind: 'duplicate'; nodeIds: string[]; idMap: Record<string, string> }
@@ -59,7 +64,18 @@ function editedNodes(nodes: SceneNode[], edit: SceneEdit): SceneNode[] {
     }
     case 'reparent': {
       requireNode(nodes, edit.nodeId);
-      return nodes.map((n) => (n.id === edit.nodeId ? { ...n, parentId: edit.parentId } : n));
+      const transform = edit.preserveWorld
+        ? sceneReparentTransform({ id: '', name: '', width: 1, height: 1, nodes }, edit.nodeId, edit.parentId)
+        : undefined;
+      return nodes.map((n) =>
+        n.id === edit.nodeId ? { ...n, parentId: edit.parentId, transform: transform ?? n.transform } : n,
+      );
+    }
+    case 'transforms': {
+      for (const id of Object.keys(edit.values)) requireNode(nodes, id);
+      return nodes.map((n) =>
+        Object.hasOwn(edit.values, n.id) ? { ...n, transform: structuredClone(edit.values[n.id]!) } : n,
+      );
     }
     case 'remove': {
       const ids = sceneSubtreeIds(nodes, edit.nodeIds);
@@ -122,7 +138,7 @@ function editedNodes(nodes: SceneNode[], edit: SceneEdit): SceneNode[] {
 /**
  * Copy-on-write scene transactions retain only node-list references and edited nodes.
  * No full-project snapshot per command. Rig payloads keep their existing identity.
- * Reparent preserves local transforms here; world-preserving gestures land with scene gizmos.
+ * Reparent retains local transforms by default; preserveWorld opts into affine world-pose retention.
  */
 export class EditSceneCommand implements Command {
   readonly scope = 'project' as const;

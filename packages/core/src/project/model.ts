@@ -19,6 +19,8 @@ export interface SceneNodeBase {
   transform: SceneTransform;
   opacity: number;
   visible: boolean;
+  /** Optional RGB multiplier; absent means white for schema-v1 compatibility. */
+  tint?: number;
 }
 
 export interface GroupNode extends SceneNodeBase {

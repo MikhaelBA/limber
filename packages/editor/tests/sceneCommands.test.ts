@@ -22,6 +22,62 @@ function fixture() {
 }
 
 describe('scene edit transactions', () => {
+  it('commits multi-node transforms atomically and rejects invalid tint', () => {
+    const { project, artboard } = fixture();
+    const before = serializeProject(project);
+    const history = new HistoryManager();
+    history.execute(
+      new EditSceneCommand(project, artboard.id, {
+        kind: 'transforms',
+        values: { a: { ...sceneTransform(), x: 20 }, b: { ...sceneTransform(), rotation: 1 } },
+      }),
+    );
+    expect(artboard.nodes.find((n) => n.id === 'a')!.transform.x).toBe(20);
+    history.undo();
+    expect(serializeProject(project)).toBe(before);
+    expect(() =>
+      history.execute(
+        new EditSceneCommand(project, artboard.id, {
+          kind: 'transforms',
+          values: { a: { ...sceneTransform(), x: 30 }, missing: sceneTransform() },
+        }),
+      ),
+    ).toThrow();
+    expect(serializeProject(project)).toBe(before);
+    expect(history.canRedo).toBe(true);
+    expect(() =>
+      new EditSceneCommand(project, artboard.id, {
+        kind: 'update',
+        nodeId: 'a',
+        patch: { tint: 0x1000000 },
+      }).do(),
+    ).toThrow(/tint/);
+  });
+
+  it('preserves world pose on reparent and undoes to the exact original channels', () => {
+    const { project, artboard } = fixture();
+    artboard.nodes.find((n) => n.id === 'a')!.transform = { ...sceneTransform(), scaleX: -2, x: 10 };
+    artboard.nodes.find((n) => n.id === 'b')!.transform = { ...sceneTransform(), scaleY: 3, x: 30 };
+    const before = serializeProject(project);
+    const command = new EditSceneCommand(project, artboard.id, {
+      kind: 'reparent',
+      nodeId: 'child',
+      parentId: 'b',
+      preserveWorld: true,
+    });
+    command.do();
+    expect(artboard.nodes.find((n) => n.id === 'child')!.parentId).toBe('b');
+    command.undo();
+    expect(serializeProject(project)).toBe(before);
+    const cycle = new EditSceneCommand(project, artboard.id, {
+      kind: 'reparent',
+      nodeId: 'a',
+      parentId: 'child',
+      preserveWorld: true,
+    });
+    expect(() => cycle.do()).toThrow();
+    expect(serializeProject(project)).toBe(before);
+  });
   it('adds, edits and restores a node without changing identity or unrelated rig payloads', () => {
     const { project, artboard, group } = fixture();
     const original = serializeProject(project);

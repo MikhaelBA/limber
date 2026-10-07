@@ -36,6 +36,7 @@ try {
     'project-files.mjs',
     'recovery.mjs',
     'scene-workspace.mjs',
+    'scene-interaction.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {
