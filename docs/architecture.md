@@ -28,9 +28,9 @@ Retain Pixi/WebGL initially. Extract a renderer adapter incrementally; the exist
 still owns the legacy drawing path until the scene viewport milestone. Heavy import/export/mesh work
 will move into workers as those features are implemented.
 
-The existing IndexedDB document-plus-texture recovery stays available throughout migration. OPFS
-snapshots require atomic commit/recovery and failure tests before replacing it. Never delete the only
-recoverable snapshot during a failed open or migration.
+Recovery writes complete OPFS generations and atomically switches IndexedDB pointers; the previous
+readable snapshot remains available. IndexedDB document-plus-texture records are the fallback for
+unsupported OPFS or write failures. Never delete the only recoverable snapshot during a failed import.
 
 ## Verification
 

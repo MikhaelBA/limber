@@ -7,7 +7,7 @@ import {
   type TextureMeta,
 } from '@limber/core';
 import { buildSpineBundle } from '../export/spineBundle';
-import { clearAutosave, readAutosave } from '../persistence/autosave';
+import { cancelScheduledAutosave, clearAutosave, readAutosave } from '../persistence/autosave';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
@@ -53,7 +53,7 @@ export function TopMenuBar() {
             .setStatus(`Autosave from ${new Date(rec.savedAt).toLocaleTimeString()} found — File → Restore autosave`);
         }
       })
-      .catch(() => {});
+      .catch((error: Error) => useEditorStore.getState().setStatus(error.message));
   }, []);
 
   const onNew = () => {
@@ -73,6 +73,7 @@ export function TopMenuBar() {
     try {
       const doc = deserializeProject(await file.text(), file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''));
       engine.loadProject(doc);
+      cancelScheduledAutosave();
       textureRegistry.clear();
       // Self-contained files carry their pixels: re-register every embedded
       // texture under its ORIGINAL id so attachments resolve instantly.
@@ -158,6 +159,7 @@ export function TopMenuBar() {
     try {
       const doc = deserializeProject(rec.json);
       engine.loadProject(doc);
+      cancelScheduledAutosave();
       textureRegistry.clear();
       // Re-register every texture under its ORIGINAL id so attachments resolve.
       await Promise.all(
@@ -178,7 +180,7 @@ export function TopMenuBar() {
         }
       }
       st.documentReplaced();
-      st.setStatus(`Autosave restored — ${rec.textures.length + fromEmbed} texture(s) included`);
+      st.setStatus(`Autosave restored${rec.recoveredFromPrevious ? ' from previous complete snapshot' : ''} — ${rec.textures.length + fromEmbed} texture(s) included`);
     } catch (err) {
       st.setStatus(`Autosave restore failed: ${(err as Error).message}`);
     }
