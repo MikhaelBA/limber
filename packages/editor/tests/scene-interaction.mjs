@@ -18,6 +18,16 @@ try {
   await page.getByText(/Opened standard.bbbproj/).waitFor();
   const canvas = page.getByTestId('scene-viewport').locator('canvas');
   await canvas.waitFor();
+  // Native select/font metrics vary by OS; visual fixtures use an exact renderer viewport.
+  await page.getByTestId('scene-viewport').evaluate((element) => {
+    element.style.flex = 'none';
+    element.style.width = '976px';
+    element.style.height = '749px';
+  });
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector('[data-testid="scene-canvas"] canvas');
+    return canvas?.width === 976 && canvas?.height === 749;
+  });
   await page.getByRole('button', { name: 'Fit artboard', exact: true }).click();
   const bounds = await canvas.boundingBox(),
     scale = Math.min((bounds.width - 80) / 700, (bounds.height - 80) / 500);
@@ -50,7 +60,10 @@ try {
       };
       const first = await decode(a),
         second = await decode(b);
-      if (first.width !== second.width || first.height !== second.height) return 1;
+      if (first.width !== second.width || first.height !== second.height)
+        throw new Error(
+          `Screenshot dimensions differ: ${first.width}x${first.height} vs ${second.width}x${second.height}`,
+        );
       let changed = 0;
       for (let i = 0; i < first.data.length; i += 4)
         if (Math.max(...[0, 1, 2].map((k) => Math.abs(first.data[i + k] - second.data[i + k]))) > 12)

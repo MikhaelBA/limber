@@ -61,6 +61,7 @@ jobs:
         with:
           name: browser-evidence
           path: packages/editor/.smoke
+          include-hidden-files: true
           retention-days: 7
 
       - name: Editor production build
