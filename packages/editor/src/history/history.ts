@@ -23,7 +23,24 @@ export class CompositeCommand implements Command {
   ) {}
 
   do(): void {
-    for (const part of this.parts) part.do();
+    const completed: Command[] = [];
+    try {
+      for (const part of this.parts) {
+        part.do();
+        completed.push(part);
+      }
+    } catch (error) {
+      const failures: unknown[] = [error];
+      for (let i = completed.length - 1; i >= 0; i--) {
+        try {
+          completed[i]!.undo();
+        } catch (rollbackError) {
+          failures.push(rollbackError);
+        }
+      }
+      if (failures.length > 1) throw new AggregateError(failures, 'Composite command and rollback failed.');
+      throw error;
+    }
   }
 
   undo(): void {
@@ -37,24 +54,26 @@ export class HistoryManager {
   private readonly limit = 200;
 
   execute(cmd: Command): void {
-    this.redoStack.length = 0; // A new command invalidates the redo branch.
     cmd.do();
+    this.redoStack.length = 0; // Only a successful command invalidates redo.
     this.undoStack.push(cmd);
     if (this.undoStack.length > this.limit) this.undoStack.shift();
   }
 
   undo(): boolean {
-    const cmd = this.undoStack.pop();
+    const cmd = this.undoStack.at(-1);
     if (!cmd) return false;
     cmd.undo();
+    this.undoStack.pop();
     this.redoStack.push(cmd);
     return true;
   }
 
   redo(): boolean {
-    const cmd = this.redoStack.pop();
+    const cmd = this.redoStack.at(-1);
     if (!cmd) return false;
     cmd.do();
+    this.redoStack.pop();
     this.undoStack.push(cmd);
     return true;
   }
