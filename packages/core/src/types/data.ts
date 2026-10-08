@@ -109,7 +109,23 @@ export interface SkinData {
   attachments: Record<string, string>;
 }
 
+export type MarkerKind = 'point' | 'socket' | 'spawnPoint' | 'hitbox' | 'hurtbox' | 'trigger';
+export type MarkerShape =
+  | { type: 'rectangle'; width: number; height: number }
+  | { type: 'polygon'; vertices: number[] };
+interface MarkerBase {
+  id: string;
+  name: string;
+  boneId: string;
+  transform: Transform;
+}
+export type MarkerData =
+  | (MarkerBase & { kind: 'point' | 'socket' | 'spawnPoint' })
+  | (MarkerBase & { kind: 'hitbox' | 'hurtbox' | 'trigger'; shape: MarkerShape });
+
 export interface SkeletonData {
+  /** Native schema 4; absent means no authored runtime markers. */
+  markers?: MarkerData[];
   /**
    * ALWAYS stored in topological order (parents before children).
    * The array index IS the bone index used by the FK solver and by attachment

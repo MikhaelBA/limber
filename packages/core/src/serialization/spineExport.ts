@@ -38,7 +38,12 @@ interface Json {
   [k: string]: unknown;
 }
 
-export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>): string {
+export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
+  if (doc.skeleton.markers?.length) {
+    const warning = 'Spine export omits BoneByBone markers; keep the native .bbbproj for sockets and hit areas.';
+    if (!warnings) throw new Error(warning);
+    warnings.push(warning);
+  }
   // Skeleton also re-validates — a corrupt document throws instead of
   // exporting silently-broken JSON.
   const skeleton = new Skeleton(doc.skeleton);

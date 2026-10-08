@@ -39,6 +39,9 @@ export function MainToolbar() {
       execute(cmd);
       engine.setAnimation(cmd.name);
     }
+    if (next === 'animate' && !engine.currentAnimation) {
+      engine.setAnimation(engine.document.animations[0]?.name ?? null);
+    }
     engine.pause();
     setPlaying(false);
     engine.mode = next;

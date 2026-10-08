@@ -124,9 +124,10 @@ export function TopMenuBar() {
   const onExportSpine = () => {
     const st = useEditorStore.getState();
     try {
-      const json = exportSpineJson(engine.document);
+      const warnings: string[] = [];
+      const json = exportSpineJson(engine.document, undefined, warnings);
       download(new Blob([json], { type: 'application/json' }), 'skeleton.json');
-      st.setStatus('Spine skeleton JSON exported (4.1 format — pair with your texture atlas)');
+      st.setStatus(warnings.join(' ') || 'Spine skeleton JSON exported (4.2 format — pair with your texture atlas)');
     } catch (err) {
       st.setStatus(`Spine export failed: ${(err as Error).message}`);
     }
@@ -145,6 +146,7 @@ export function TopMenuBar() {
       } else {
         st.setStatus('Spine JSON exported — no packed textures (drop images first to build an atlas)');
       }
+      if (bundle.warnings.length) st.setStatus(bundle.warnings.join(' '));
     } catch (err) {
       st.setStatus(`Bundle export failed: ${(err as Error).message}`);
     }

@@ -241,7 +241,7 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
   const project =
     candidate.format === undefined ? projectFromLegacy(deserializeDocument(json), legacyName) : candidate;
   // Missing clips/layout/components preserve their historical empty/absolute defaults.
-  if (project.schemaVersion === 1 || project.schemaVersion === 2)
+  if (project.schemaVersion === 1 || project.schemaVersion === 2 || project.schemaVersion === 3)
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);
   return project;

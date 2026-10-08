@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Application, Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
 import type { AttachmentData } from '@limber/core';
 import {
+  evaluateMarkers,
   applyTimeline,
   resetPose,
   Skeleton,
@@ -653,6 +654,26 @@ function wireViewport(
   // the SELECTED slot's active mesh attachment. Handles read the skinning
   // cache, so dragged vertices and painted weights update live via tick().
 
+  const markersG = new Graphics();
+  world.addChild(markersG);
+  const drawMarkers = () => {
+    markersG.clear();
+    const evaluated = evaluateMarkers(engine.skeleton.data, engine.skeleton.pose, engine.skeleton.boneIndexMap);
+    for (const { marker, world: matrix, outline } of evaluated) {
+      const color = marker.kind === 'hitbox' ? 0xff6878 : marker.kind === 'hurtbox' ? 0x7aa8ff : 0x47ddbb;
+      const x = matrix[4], y = matrix[5], r = 5 / camera.scale;
+      markersG.setStrokeStyle({ width: 1.5 / camera.scale, color });
+      markersG.moveTo(x - r, y).lineTo(x + r, y).moveTo(x, y - r).lineTo(x, y + r).stroke();
+      // The short local X axis exposes orientation/reflection as well as position.
+      markersG.moveTo(x, y).lineTo(x + matrix[0] * 15, y + matrix[1] * 15).stroke();
+      if (outline.length) {
+        markersG.moveTo(outline[0]!, outline[1]!);
+        for (let i = 2; i < outline.length; i += 2) markersG.lineTo(outline[i]!, outline[i + 1]!);
+        markersG.closePath().stroke();
+      }
+    }
+    (window as unknown as Record<string, unknown>).__markers = evaluated.map(({ marker, world: matrix, outline }) => ({ id: marker.id, world: matrix, outline }));
+  };
   const handlesG = new Graphics();
   world.addChild(handlesG); // Above bones — handles are the active edit layer.
 
@@ -1430,6 +1451,7 @@ function wireViewport(
     updateSlotMeshes();
     drawGhosts();
     drawBones();
+    drawMarkers();
     drawHandles();
 
     tickCount++;

@@ -15,6 +15,7 @@ export { exportSpineJson } from './serialization/spineExport';
 export { packAtlas, buildAtlasText, uniqueTexturePaths } from './serialization/atlasPack';
 export type { AtlasImageInput, AtlasLayout, AtlasPlacement, PackAtlasOptions } from './serialization/atlasPack';
 export * from './skeleton/skinning';
+export * from './skeleton/markers';
 
 // Animation
 export * from './animation/bezier';

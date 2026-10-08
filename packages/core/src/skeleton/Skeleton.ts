@@ -2,6 +2,7 @@ import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/da
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
 import { topologicalSortBones } from './topologicalSort';
+import { validateMarkers } from './markers';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -146,6 +147,7 @@ export class Skeleton {
   /** Structural validation with descriptive errors — catches corrupted documents early. */
   private validate(): void {
     const boneIds = this.boneIndexMap;
+    validateMarkers(this.data.markers, boneIds);
     if (boneIds.size !== this.data.bones.length) {
       throw new Error('Duplicate bone ids in skeleton.');
     }

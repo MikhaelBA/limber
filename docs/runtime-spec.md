@@ -38,3 +38,11 @@ Artboards optionally own scene clip libraries; absent means empty. Scene tracks 
 ## Portable UI model (source schema 3)
 
 Layout resolves local unscaled boxes before additive transform animation. Nine-slice source borders survive resizing unchanged. Components expand without copying children into authored instances, with typed exposed overrides and explicit migration requirements. ADR 0007 defines these semantics and text adapter limits. Schemas 1 and 2 migrate by advancing the schema identifier only; missing layout/components retain absolute/empty defaults. These source/evaluation contracts do not imply that the legacy RuntimePlayer renders UI or consumes `.bbb`.
+
+## Rig markers (source schema 4)
+
+Bone local transforms are composed with their parent's evaluated world transform in topological order. Setup data is restored before every sample; Setup mode bypasses animation tracks, while Animate samples into the transient pose. Slots bind to bones and own color, default attachment and draw-order position. Active skin entries replace slot defaults; sampled attachment tracks override that resolved attachment from their first key onward. Animated draw order is a full permutation of slot indices. Structural edits rewrite these references by identity before publication.
+
+Optional skeleton markers have unique IDs, names, same-rig bone references and local affine transforms. Point, socket and spawnPoint have no area geometry. Hitbox, hurtbox and trigger carry a centered positive rectangle or a simple polygon of 3–256 coordinate pairs (concave allowed, self-intersections rejected). Positions use rig units and angles radians. Evaluation after FK/IK computes `rigNodeWorld * boneWorld * markerLocal`. The returned outline is transformed by the same matrix; geometry is metadata and does not itself run collision detection. Preview and runtime consumers use the sampled pose without modifying authored markers. Source schemas 1–3 migrate by advancing only the schema identifier.
+
+Spine export cannot represent these native semantics and reports their omission; it leaves the native source untouched. The portable evaluator is available from core, but the `.bbb` compiler and Unity/Cocos socket APIs remain later milestones.

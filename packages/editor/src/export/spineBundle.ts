@@ -10,6 +10,7 @@ import { textureRegistry } from '../engine/TextureRegistry';
  */
 
 export interface SpineBundle {
+  warnings: string[];
   json: string;
   atlas: string;
   png: Blob | null; // null when the document has no packed textures.
@@ -25,8 +26,9 @@ export async function buildSpineBundle(doc: EditorDocument): Promise<SpineBundle
     if (doc.assetManifest[textureId]) entries.push({ textureId, path: texturePaths.get(textureId)!, blob });
   }
 
-  const json = exportSpineJson(doc, texturePaths);
-  if (entries.length === 0) return { json, atlas: '', png: null };
+  const warnings: string[] = [];
+  const json = exportSpineJson(doc, texturePaths, warnings);
+  if (entries.length === 0) return { json, atlas: '', png: null, warnings };
 
   const images = await Promise.all(
     entries.map(async (e) => {
@@ -50,5 +52,5 @@ export async function buildSpineBundle(doc: EditorDocument): Promise<SpineBundle
   }
   const png = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
   if (!png) throw new Error('PNG encoding failed — cannot composite the atlas.');
-  return { json, atlas, png };
+  return { json, atlas, png, warnings };
 }

@@ -20,7 +20,7 @@ function fixture() {
 describe('scene motion sampling and schema', () => {
   it('round-trips the immutable schema-2 fixture and samples multiple properties without mutating setup', () => {
     const { project, artboard, clip } = fixture();
-    expect(project).toEqual({ ...JSON.parse(json), schemaVersion: 3 });
+    expect(project).toEqual({ ...JSON.parse(json), schemaVersion: 4 });
     const before = serializeProject(project),
       pose = sampleSceneClip(artboard, clip, 0.5);
     expect(pose.transforms['image-0']!.x).toBe(50);

@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(process.env.SPRINE_URL ?? 'http://localhost:5173/');
@@ -50,8 +51,50 @@ try {
   assert.deepEqual(await save(), changed);
   mkdirSync('packages/editor/.smoke', { recursive: true });
   await page.screenshot({ path: 'packages/editor/.smoke/rig-structural.png' });
+  // Immutable native marker fixture: UI authoring, validation, persistence and sampled poses.
+  const markerFixture = JSON.parse(readFileSync(new URL('../../../fixtures/bbbproj-v4-markers.json', import.meta.url), 'utf8'));
+  const openProject = async (project) => {
+    await page.locator('input[type=file]').setInputFiles({ name: 'markers.bbbproj', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+    await page.waitForFunction(() => window.__markers?.some((marker) => marker.id === 'weapon'));
+  };
+  await openProject(markerFixture);
+  await page.getByText('Markers & sockets (2)', { exact: true }).click();
+  await selectBone('hand');
+  await page.getByLabel('New marker kind', { exact: true }).selectOption('hitbox');
+  await page.getByRole('button', { name: 'Add marker', exact: true }).click();
+  const field = async (name, value) => { const input = page.getByLabel(`Marker ${name}`, { exact: true }); await input.fill(value); await input.press('Enter'); };
+  await field('name', 'Sword hit');
+  await field('x', '40');
+  await field('width', '80');
+  const authored = await save();
+  assert.equal(authored.schemaVersion, 4);
+  assert.equal(authored.artboards[0].nodes[0].skeleton.markers.length, 3);
+  await field('width', '-2');
+  await page.locator('footer').getByText(/dimensions must be positive/).waitFor();
+  assert.deepEqual(await save(), authored);
+  await page.getByRole('button', { name: 'Delete marker', exact: true }).click();
+  assert.equal((await save()).artboards[0].nodes[0].skeleton.markers.length, 2);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), authored);
+  await page.keyboard.press('Control+y');
+  assert.equal((await save()).artboards[0].nodes[0].skeleton.markers.length, 2);
+  await openProject(authored);
+  assert.deepEqual(await save(), authored);
+  await page.getByRole('button', { name: 'Animate', exact: true }).click();
+  assert.equal(await page.getByLabel('Marker name', { exact: true }).isDisabled(), true);
+  const ruler = page.locator('.cursor-ew-resize').first();
+  // Timeline uses 100 px/s. Sample the middle of the existing wave animation.
+  await ruler.click({ position: { x: 50, y: 12 } });
+  await page.waitForFunction(() => Math.abs(window.__markers?.find((marker) => marker.id === 'weapon')?.world[5]) > 1);
+  const evaluated = await page.evaluate(() => window.__markers.find((marker) => marker.id === 'weapon').world);
+  assert.ok(Math.abs(evaluated[4] - (60 + 40 * Math.cos(Math.PI / 4))) < 0.1, JSON.stringify(evaluated));
+  assert.ok(Math.abs(evaluated[5] - 40 * Math.sin(Math.PI / 4)) < 0.1);
+  assert.deepEqual(await save(), authored, 'Sampling must not change source transforms or keys');
+  await page.getByRole('button', { name: 'Setup', exact: true }).click();
+  await page.waitForFunction(() => Math.abs(window.__markers?.find((marker) => marker.id === 'weapon')?.world[5]) < 0.001);
+  await page.screenshot({ path: 'packages/editor/.smoke/rig-markers.png' });
   assert.deepEqual(errors, []);
-  console.log('PASS: weighted delete errors in hierarchy/hotkey, singular parent rejection, reparent and exact native undo/redo');
+  console.log('PASS: marker create/edit/delete, validation, save/reopen, animated world poses and setup isolation; weighted delete errors in hierarchy/hotkey, singular parent rejection, reparent and exact native undo/redo');
 } finally {
   await browser.close();
 }

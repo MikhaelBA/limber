@@ -417,6 +417,7 @@ export class RemoveBoneCommand implements Command {
         );
       }
       proposed.bones = proposed.bones.filter((bone) => bone.id !== this.boneId);
+      if (proposed.markers) proposed.markers = proposed.markers.filter((marker) => marker.boneId !== this.boneId);
     });
     applyRigSnapshot(this.engine, after);
     this.before = before;

@@ -1,3 +1,4 @@
+import { MarkerPanel } from './MarkerPanel';
 import { useRef, useState } from 'react';
 import { wouldCreateCycle } from '../commands/boneCommands';
 import { useEngine } from '../hooks/useEngine';
@@ -314,6 +315,7 @@ export function HierarchyPanel() {
             </div>
           );
         })}
+        <MarkerPanel />
       </div>
     </div>
   );

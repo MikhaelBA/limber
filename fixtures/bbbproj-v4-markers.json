@@ -1,0 +1,146 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 4,
+  "projectId": "project-marker-fixture",
+  "name": "Marker character",
+  "artboards": [
+    {
+      "id": "artboard-character",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "rig-character",
+          "name": "Character rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "root",
+                "name": "root",
+                "parentId": null,
+                "length": 60,
+                "setupPose": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "hand",
+                "name": "hand",
+                "parentId": "root",
+                "length": 60,
+                "setupPose": {
+                  "x": 60,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [],
+            "attachments": [],
+            "skins": [],
+            "activeSkin": "",
+            "ikConstraints": [],
+            "markers": [
+              {
+                "id": "weapon",
+                "name": "Weapon socket",
+                "kind": "socket",
+                "boneId": "hand",
+                "transform": {
+                  "x": 40,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "body-area",
+                "name": "Body hurtbox",
+                "kind": "hurtbox",
+                "boneId": "root",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                },
+                "shape": {
+                  "type": "rectangle",
+                  "width": 40,
+                  "height": 70
+                }
+              }
+            ]
+          },
+          "animations": [
+            {
+              "name": "wave",
+              "duration": 1,
+              "timelines": [
+                {
+                  "kind": "boneProperty",
+                  "boneId": "hand",
+                  "property": "rotation",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "value": 0,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    },
+                    {
+                      "time": 1,
+                      "value": 1.5707963267948966,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "loop": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {},
+  "editor": {
+    "activeArtboardId": "artboard-character",
+    "activeRigId": "rig-character"
+  }
+}
