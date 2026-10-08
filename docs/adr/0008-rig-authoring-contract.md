@@ -1,6 +1,6 @@
 # ADR 0008: Rig helpers, runtime markers and structural edit safety
 
-Status: accepted contract; Phase 4 CI passed. Bone/slot/skin safety passed CI. Markers are in verification; human/mirror helpers remain pending.
+Status: accepted contract; Phase 4 CI passed. Bone/slot/skin safety and markers passed CI. Human/mirror helpers are in final verification.
 
 Retain the existing bone, slot, attachment, skin and animation model. Rig helpers create setup data through scoped commands and cannot insert animation keys. Setup and animation remain visibly distinct modes. The character viewport retains its current coordinate convention (positive Y downward); a human guide uses head above pelvis and legs below it.
 

@@ -1,3 +1,4 @@
+import { RigHelperPanel } from './RigHelperPanel';
 import { MarkerPanel } from './MarkerPanel';
 import { useRef, useState } from 'react';
 import { wouldCreateCycle } from '../commands/boneCommands';
@@ -315,6 +316,7 @@ export function HierarchyPanel() {
             </div>
           );
         })}
+        <RigHelperPanel />
         <MarkerPanel />
       </div>
     </div>

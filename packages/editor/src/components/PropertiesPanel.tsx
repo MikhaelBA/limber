@@ -205,7 +205,7 @@ export function PropertiesPanel() {
   const title = slot ? 'Slot' : bone ? 'Bone' : 'None';
 
   return (
-    <aside className="flex h-full flex-col overflow-auto bg-neutral-900">
+    <aside aria-label="Character properties" className="flex h-full flex-col overflow-auto bg-neutral-900">
       <div className="border-b border-neutral-800 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
         Properties — {title}
       </div>

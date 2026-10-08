@@ -106,7 +106,7 @@ log('selection indicator shown:', selected);
 if (!selected) fail('no selection indicator after clicking a bone');
 
 // 7. Edit rotation through the properties panel (X, Y, then Rot ° fields).
-const rotField = page.locator('input[type="number"]').nth(2);
+const rotField = page.getByRole('complementary', { name: 'Character properties' }).getByLabel('Rot °', { exact: true });
 if ((await rotField.count()) > 0) {
   await rotField.fill('45');
   await rotField.press('Enter');
@@ -204,7 +204,7 @@ await shot('08-dropped.png');
 // The sprite must follow the bone: select root, move it via X, re-read vertex.
 await rootBoneRow.click();
 await page.waitForTimeout(200);
-const xField = page.locator('input[type="number"]').nth(0);
+const xField = page.getByRole('complementary', { name: 'Character properties' }).getByLabel('X', { exact: true });
 await xField.fill('120');
 await xField.press('Enter');
 await page.waitForTimeout(400);
