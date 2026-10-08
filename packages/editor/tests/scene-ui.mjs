@@ -213,9 +213,23 @@ try {
       align: 'start',
       color: 0xffffff,
     };
-    return rasterizeUIText(node, { width: 360, height: 60 }).canvas.toDataURL();
+    const result = rasterizeUIText(node, { width: 360, height: 60 });
+    return {
+      dataUrl: result.canvas.toDataURL(),
+      widths: result.widths,
+      fontAvailable: document.fonts.check('28px "Noto Sans Arabic"'),
+      faces: Array.from(document.fonts).map((face) => ({
+        family: face.family,
+        weight: face.weight,
+        status: face.status,
+      })),
+      browser: navigator.userAgent,
+    };
   });
-  const actual = Buffer.from(rtl.split(',')[1], 'base64');
+  const actual = Buffer.from(rtl.dataUrl.split(',')[1], 'base64');
+  writeFileSync('packages/editor/.smoke/ui-rtl-actual.png', actual);
+  const { dataUrl: _dataUrl, ...fontMetrics } = rtl;
+  writeFileSync('packages/editor/.smoke/ui-rtl-metrics.json', JSON.stringify(fontMetrics, null, 2));
   const path = 'fixtures/ui-rtl-v1.png';
   if (process.env.UPDATE_UI_GOLDEN === '1') writeFileSync(path, actual);
   const difference = await page.evaluate(
