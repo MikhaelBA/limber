@@ -29,6 +29,35 @@ export class Skeleton {
   }
 
   /**
+   * Install a validated snapshot whose weights use its own bone-array indices.
+   * Unlike rebuild(), this never interprets snapshot weights in the old index
+   * space. Failed validation leaves source, maps and pose untouched.
+   */
+  replaceData(next: SkeletonData): void {
+    const prepared = new Skeleton(structuredClone(next));
+    prepared.remapAttachmentWeights(next.bones.map((bone) => bone.id));
+    for (const [id, index] of prepared.boneIndexMap) {
+      const old = this.boneIndexMap.get(id);
+      if (old !== undefined) prepared.pose.bones[index]!.local = { ...this.pose.bones[old]!.local };
+    }
+    for (const [id, index] of prepared.slotIndexMap) {
+      const old = this.slotIndexMap.get(id);
+      if (old !== undefined) Object.assign(prepared.pose.slots[index]!, this.pose.slots[old]!);
+    }
+    for (const key of Object.keys(this.data)) {
+      if (!Object.hasOwn(prepared.data, key)) Reflect.deleteProperty(this.data, key);
+    }
+    Object.assign(this.data, prepared.data);
+    this.boneIndexMap.clear();
+    for (const [id, index] of prepared.boneIndexMap) this.boneIndexMap.set(id, index);
+    this.slotIndexMap.clear();
+    for (const [id, index] of prepared.slotIndexMap) this.slotIndexMap.set(id, index);
+    this.attachmentById.clear();
+    for (const [id, attachment] of prepared.attachmentById) this.attachmentById.set(id, attachment);
+    Object.assign(this.pose, prepared.pose);
+  }
+
+  /**
    * Call after ANY structural command (add/remove/reparent bone, slot or IK
    * edits): re-sorts bones topologically (indices shift!), rebuilds index maps,
    * re-allocates the pose copying current values over BY BONE ID (the visible

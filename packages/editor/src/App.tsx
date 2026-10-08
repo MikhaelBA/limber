@@ -154,7 +154,8 @@ function Shell() {
         } else if (st.selectedSlotId) {
           st.execute(new RemoveSlotCommand(engine, st.selectedSlotId));
         } else if (st.selectedBoneId) {
-          st.execute(new RemoveBoneCommand(engine, st.selectedBoneId));
+          try { st.execute(new RemoveBoneCommand(engine, st.selectedBoneId)); }
+          catch (error) { st.setStatus((error as Error).message); }
         }
       } else if (e.key === ' ') {
         e.preventDefault();

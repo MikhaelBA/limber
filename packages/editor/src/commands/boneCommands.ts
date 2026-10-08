@@ -1,8 +1,10 @@
-import type { BoneData, IKConstraintData, SkeletonData, SlotData, Transform } from '@limber/core';
+import type { BoneData, SkeletonData, Transform } from '@limber/core';
 import { uuid } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { decomposeAffine, worldToLocalAffine } from '../math/matrix';
+import { applyRigSnapshot, captureRig, editRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
+import { removeSlotReferences } from './slotCommands';
 
 function cloneTransform(t: Transform): Transform {
   return {
@@ -43,18 +45,20 @@ export function wouldCreateCycle(data: SkeletonData, boneId: string, newParentId
 /**
  * The world-preserving setup pose `boneId` would need under `newParentId`
  * (null = root): re-expresses the bone's setup world matrix in the new parent's
- * space, then decomposes (editing-time approximation, see decomposeAffine).
+ * space, then uses the same affine convention as the FK solver.
  */
 function reparentedSetup(engine: EditorEngine, boneId: string, newParentId: string | null): Transform {
   const sk = engine.skeleton;
   const worlds = engine.solveSetupWorlds();
-  const bi = sk.boneIndexMap.get(boneId)!;
+  const bi = sk.boneIndexMap.get(boneId);
+  if (bi === undefined) throw new Error(`Bone "${boneId}" not found.`);
   const w = new Float64Array(6);
   for (let k = 0; k < 6; k++) w[k] = worlds[bi * 6 + k]!;
   if (newParentId === null) {
     return decomposeAffine(w[0]!, w[1]!, w[2]!, w[3]!, w[4]!, w[5]!);
   }
-  const pi = sk.boneIndexMap.get(newParentId)!;
+  const pi = sk.boneIndexMap.get(newParentId);
+  if (pi === undefined) throw new Error(`Parent bone "${newParentId}" not found.`);
   const p = new Float64Array(6);
   for (let k = 0; k < 6; k++) p[k] = worlds[pi * 6 + k]!;
   const l = new Float64Array(6);
@@ -84,7 +88,15 @@ export class AddBoneCommand implements Command {
       name: 'bone', // Placeholder — the unique name is chosen at first do().
       parentId,
       length: opts.length ?? 50,
-      setupPose: { x: local.x, y: local.y, rotation: opts.rotation ?? 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
+      setupPose: {
+        x: local.x,
+        y: local.y,
+        rotation: opts.rotation ?? 0,
+        scaleX: 1,
+        scaleY: 1,
+        shearX: 0,
+        shearY: 0,
+      },
     };
   }
 
@@ -99,15 +111,15 @@ export class AddBoneCommand implements Command {
       this._label = `Add Bone ${this.bone.name}`;
       this.named = true;
     }
-    // Structural: push + rebuild (the index space shifts — DESIGN.md §5.3 rules).
-    this.engine.skeleton.data.bones.push(this.bone);
-    this.engine.skeleton.rebuild();
+    editRig(this.engine, (data) => {
+      data.bones.push(structuredClone(this.bone));
+    });
   }
 
   undo(): void {
-    const data = this.engine.skeleton.data;
-    data.bones = data.bones.filter((b) => b.id !== this.bone.id);
-    this.engine.skeleton.rebuild();
+    editRig(this.engine, (data) => {
+      data.bones = data.bones.filter((b) => b.id !== this.bone.id);
+    });
   }
 }
 
@@ -192,7 +204,11 @@ export class DragBoneTransformCommand implements Command {
   }
 
   get changed(): boolean {
-    return this.before !== null && this.after !== null && JSON.stringify(this.before) !== JSON.stringify(this.after);
+    return (
+      this.before !== null &&
+      this.after !== null &&
+      JSON.stringify(this.before) !== JSON.stringify(this.after)
+    );
   }
 
   open(): void {
@@ -285,8 +301,9 @@ export class DragBoneLengthCommand implements Command {
 export class ReparentBoneCommand implements Command {
   readonly label: string;
   private readonly boneId: string;
-  private readonly before: { parentId: string | null; setup: Transform };
-  private readonly after: { parentId: string | null; setup: Transform };
+  private readonly target: { parentId: string | null; setup: Transform };
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
 
   constructor(
     private engine: EditorEngine,
@@ -294,24 +311,33 @@ export class ReparentBoneCommand implements Command {
     newParentId: string | null,
   ) {
     const bone = this.bone(boneId);
+    if (wouldCreateCycle(engine.skeleton.data, boneId, newParentId)) {
+      throw new Error('Cannot reparent a bone to itself or its descendants.');
+    }
     this.boneId = boneId;
-    this.before = { parentId: bone.parentId, setup: cloneTransform(bone.setupPose) };
-    this.after = { parentId: newParentId, setup: reparentedSetup(engine, boneId, newParentId) };
+    this.target = { parentId: newParentId, setup: reparentedSetup(engine, boneId, newParentId) };
     this.label = `Reparent ${bone.name}`;
   }
 
   do(): void {
-    const bone = this.bone(this.boneId);
-    bone.parentId = this.after.parentId;
-    bone.setupPose = cloneTransform(this.after.setup);
-    this.engine.skeleton.rebuild();
+    if (this.after) {
+      applyRigSnapshot(this.engine, this.after);
+      return;
+    }
+    const before = captureRig(this.engine);
+    const after = prepareRigEdit(this.engine, (data) => {
+      const bone = data.bones.find((b) => b.id === this.boneId);
+      if (!bone) throw new Error(`Bone "${this.boneId}" no longer exists.`);
+      bone.parentId = this.target.parentId;
+      bone.setupPose = cloneTransform(this.target.setup);
+    });
+    applyRigSnapshot(this.engine, after);
+    this.before = before;
+    this.after = after;
   }
 
   undo(): void {
-    const bone = this.bone(this.boneId);
-    bone.parentId = this.before.parentId;
-    bone.setupPose = cloneTransform(this.before.setup);
-    this.engine.skeleton.rebuild();
+    if (this.before) applyRigSnapshot(this.engine, this.before);
   }
 
   private bone(id: string): BoneData {
@@ -330,11 +356,8 @@ export class ReparentBoneCommand implements Command {
 export class RemoveBoneCommand implements Command {
   readonly label: string;
   private readonly boneId: string;
-  private readonly bone: BoneData; // deep copy at construction
-  private childSnapshots: { id: string; parentId: string | null; setup: Transform }[] = [];
-  private removedConstraints: IKConstraintData[] = [];
-  private repointedSlots: { slot: SlotData; oldBoneId: string }[] = [];
-  private removedSlots: SlotData[] = [];
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
 
   constructor(
     private engine: EditorEngine,
@@ -343,65 +366,65 @@ export class RemoveBoneCommand implements Command {
     const bone = engine.skeleton.data.bones.find((b) => b.id === boneId);
     if (!bone) throw new Error(`RemoveBoneCommand: bone "${boneId}" not found.`);
     this.boneId = boneId;
-    this.bone = structuredClone(bone);
     this.label = `Delete ${bone.name}`;
   }
 
   do(): void {
+    if (this.after) {
+      applyRigSnapshot(this.engine, this.after);
+      return;
+    }
     const data = this.engine.skeleton.data;
     const target = data.bones.find((b) => b.id === this.boneId);
-    if (!target) return;
+    if (!target) throw new Error(`Bone "${this.boneId}" no longer exists.`);
     const newParentId = target.parentId;
+
+    const boneIndex = this.engine.skeleton.boneIndexMap.get(this.boneId)!;
+    for (const attachment of data.attachments) {
+      const weights = attachment.weights ?? [];
+      for (let p = 0; p < weights.length;) {
+        const count = weights[p++]!;
+        for (let k = 0; k < count; k++, p += 2) {
+          if (weights[p] === boneIndex) {
+            throw new Error(
+              `Rebind or remove weighted attachment "${attachment.name}" before deleting this bone.`,
+            );
+          }
+        }
+      }
+    }
 
     // Capture + compute BEFORE mutating (reparentedSetup reads current worlds).
     const children = data.bones.filter((b) => b.parentId === this.boneId);
-    this.childSnapshots = children.map((c) => ({
-      id: c.id,
-      parentId: c.parentId,
-      setup: cloneTransform(c.setupPose),
-    }));
     const moves = children.map((c) => ({ id: c.id, setup: reparentedSetup(this.engine, c.id, newParentId) }));
-
-    this.removedConstraints = data.ikConstraints.filter(
-      (c) =>
-        c.bones.includes(this.boneId) || c.targetId === this.boneId || c.poleVectorId === this.boneId,
-    );
-    const boundSlots = data.slots.filter((s) => s.boneId === this.boneId);
-    this.repointedSlots = newParentId === null ? [] : boundSlots.map((s) => ({ slot: s, oldBoneId: s.boneId }));
-    this.removedSlots = newParentId === null ? boundSlots : [];
-
-    // Apply.
-    for (const move of moves) {
-      const child = data.bones.find((b) => b.id === move.id)!;
-      child.parentId = newParentId;
-      child.setupPose = cloneTransform(move.setup);
-    }
-    data.ikConstraints = data.ikConstraints.filter((c) => !this.removedConstraints.includes(c));
-    if (this.removedSlots.length > 0) {
-      data.slots = data.slots.filter((s) => !this.removedSlots.includes(s));
-    }
-    for (const fix of this.repointedSlots) fix.slot.boneId = newParentId!;
-    data.bones = data.bones.filter((b) => b.id !== this.boneId);
-    this.engine.skeleton.rebuild();
+    const before = captureRig(this.engine);
+    const after = prepareRigEdit(this.engine, (proposed, animations) => {
+      for (const move of moves) {
+        const child = proposed.bones.find((b) => b.id === move.id)!;
+        child.parentId = newParentId;
+        child.setupPose = cloneTransform(move.setup);
+      }
+      proposed.ikConstraints = proposed.ikConstraints.filter(
+        (c) => !c.bones.includes(this.boneId) && c.targetId !== this.boneId && c.poleVectorId !== this.boneId,
+      );
+      for (const slot of proposed.slots.filter((s) => s.boneId === this.boneId)) {
+        if (newParentId === null) removeSlotReferences(proposed, animations, slot.id);
+        else slot.boneId = newParentId;
+      }
+      for (const animation of animations) {
+        animation.timelines = animation.timelines.filter(
+          (tl) => tl.kind !== 'boneProperty' || tl.boneId !== this.boneId,
+        );
+      }
+      proposed.bones = proposed.bones.filter((bone) => bone.id !== this.boneId);
+    });
+    applyRigSnapshot(this.engine, after);
+    this.before = before;
+    this.after = after;
   }
 
   undo(): void {
-    const data = this.engine.skeleton.data;
-    data.bones.push(this.bone);
-    for (const snap of this.childSnapshots) {
-      const child = data.bones.find((b) => b.id === snap.id);
-      if (!child) continue;
-      child.parentId = snap.parentId;
-      child.setupPose = cloneTransform(snap.setup);
-    }
-    for (const c of this.removedConstraints) {
-      if (!data.ikConstraints.includes(c)) data.ikConstraints.push(c);
-    }
-    for (const slot of this.removedSlots) {
-      if (!data.slots.includes(slot)) data.slots.push(slot);
-    }
-    for (const fix of this.repointedSlots) fix.slot.boneId = fix.oldBoneId;
-    this.engine.skeleton.rebuild();
+    if (this.before) applyRigSnapshot(this.engine, this.before);
   }
 }
 

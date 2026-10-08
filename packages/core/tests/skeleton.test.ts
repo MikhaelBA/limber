@@ -194,6 +194,42 @@ describe('resetPose (pipeline step 1)', () => {
 });
 
 describe('Skeleton.rebuild (structural edits)', () => {
+  it('installs snapshot-owned weight indices atomically while retaining wrapper references', () => {
+    const sk = new Skeleton(makeSkeletonData([makeBone('root', null), makeBone('child', 'root')]));
+    sk.data.attachments.push(makeAttachment('att', [1, 1, 1]));
+    sk.rebuild();
+    const data = sk.data;
+    const pose = sk.pose;
+    const maps = sk.boneIndexMap;
+    const before = structuredClone(data);
+    const next = structuredClone(data);
+    next.bones.shift();
+    next.bones[0]!.parentId = null;
+    next.attachments[0]!.weights = [1, 0, 1];
+    sk.replaceData(next);
+    expect(sk.data.attachments[0]!.weights).toEqual([1, 0, 1]);
+    sk.replaceData(before);
+    expect(sk.data).toEqual(before);
+    const unsorted = structuredClone(before);
+    unsorted.bones.reverse();
+    unsorted.attachments[0]!.weights = [1, 0, 1]; // Child occupies incoming index 0.
+    sk.replaceData(unsorted);
+    expect(sk.data).toEqual(before);
+    expect(sk.data).toBe(data);
+    expect(sk.pose).toBe(pose);
+    expect(sk.boneIndexMap).toBe(maps);
+    const invalid = structuredClone(before);
+    invalid.bones[1]!.parentId = 'missing';
+    const oldPose = structuredClone(pose);
+    expect(() => sk.replaceData(invalid)).toThrow();
+    expect(sk.data).toEqual(before);
+    expect(sk.pose).toEqual(oldPose);
+    expect([...maps]).toEqual([
+      ['root', 0],
+      ['child', 1],
+    ]);
+  });
+
   it('shifts indices, preserves the current pose BY BONE ID, and starts new bones at setup', () => {
     const data = makeSkeletonData([makeBone('root', null), makeBone('child', 'root', { x: 5 })]);
     const sk = new Skeleton(data);

@@ -41,7 +41,7 @@ function editSlots(engine: EditorEngine, edit: (data: SkeletonData, animations: 
   engine.skeleton.rebuild();
 }
 
-function removeSlotReferences(data: SkeletonData, animations: Animation[], slotId: string): void {
+export function removeSlotReferences(data: SkeletonData, animations: Animation[], slotId: string): void {
   const index = data.slots.findIndex((slot) => slot.id === slotId);
   if (index < 0) throw new Error(`Slot "${slotId}" not found.`);
   // A clipping boundary is exclusive: retain the same boundary before the surviving successor.

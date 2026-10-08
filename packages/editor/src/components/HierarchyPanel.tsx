@@ -59,7 +59,8 @@ export function HierarchyPanel() {
 
   const removeSelected = () => {
     if (!selected) return;
-    execute(new RemoveBoneCommand(engine, selected));
+    try { execute(new RemoveBoneCommand(engine, selected)); }
+    catch (error) { setStatus((error as Error).message); }
   };
 
   const reparent = (boneId: string, newParentId: string | null) => {
@@ -68,7 +69,8 @@ export function HierarchyPanel() {
       setStatus('Cannot reparent a bone under its own descendant.');
       return;
     }
-    execute(new ReparentBoneCommand(engine, boneId, newParentId));
+    try { execute(new ReparentBoneCommand(engine, boneId, newParentId)); }
+    catch (error) { setStatus((error as Error).message); }
   };
 
   const isDropTarget = (targetId: string) => {

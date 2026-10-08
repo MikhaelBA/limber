@@ -457,6 +457,7 @@ export function PropertiesPanel() {
           <label className="flex items-center gap-2">
             <span className="w-16 shrink-0 text-xs text-neutral-400">Parent</span>
             <select
+              aria-label="Bone parent"
               value={bone.parentId ?? ''}
               onChange={(e) => {
                 const next = e.target.value || null;
@@ -464,7 +465,8 @@ export function PropertiesPanel() {
                   setStatus('Cannot parent a bone under its own descendant.');
                   return;
                 }
-                execute(new ReparentBoneCommand(engine, bone.id, next));
+                try { execute(new ReparentBoneCommand(engine, bone.id, next)); }
+                catch (error) { setStatus((error as Error).message); }
               }}
               className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
             >

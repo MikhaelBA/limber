@@ -50,9 +50,12 @@ export function worldToLocalAffine(
   const wtx = child[4]!;
   const wty = child[5]!;
   const det = pa * pd - pb * pc;
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-12) {
+    throw new Error('Cannot reparent through a zero-scale transform.');
+  }
   const ia = pd / det;
-  const ib = -pb / det;
-  const ic = -pc / det;
+  const ib = -pc / det;
+  const ic = -pb / det;
   const id = pa / det;
   out[0] = ia * wa + ib * wb;
   out[1] = ic * wa + id * wb;
@@ -68,9 +71,8 @@ export function worldToLocalAffine(
  * Decomposes a 2x3 affine into a Transform.
  *
  * EDITING-TIME ONLY — the runtime data path never decomposes world matrices
- * (DESIGN.md §1 principle 5). Exact when the source had no shearY; shearY is
- * absorbed into shearX. Scale sign flips (negative scale) collapse to rotation
- * — an acceptable approximation for reparent convenience ops.
+ * (DESIGN.md §1 principle 5). Canonical nonsingular decomposition: shearY is
+ * absorbed into shearX, and reflection is retained in the sign of scaleY.
  */
 export function decomposeAffine(
   a: number,
@@ -87,13 +89,16 @@ export function decomposeAffine(
   // Y-basis (c, d) expressed in the rotated frame: u = tan(shearX)·scaleY, v = scaleY.
   const u = cos * c + sin * d;
   const v = -sin * c + cos * d;
+  if (![a, b, c, d, tx, ty].every(Number.isFinite) || scaleX < 1e-12 || Math.abs(v) < 1e-12) {
+    throw new Error('Cannot reparent a zero-scale or invalid transform.');
+  }
   return {
     x: tx,
     y: ty,
     rotation,
     scaleX,
     scaleY: v,
-    shearX: Math.atan2(u, v),
+    shearX: Math.atan(u / v),
     shearY: 0,
   };
 }
