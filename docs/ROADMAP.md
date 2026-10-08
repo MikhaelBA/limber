@@ -9,7 +9,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed  |
 | 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed  |
 | 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed  |
-| 4     | Game UI, 9-slice, text/RTL, layout, components                       | UI Alpha implemented; CI pending |
+| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Tests passed; Docker fix pending |
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Partial legacy implementation    |
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Partial legacy implementation    |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Partial legacy IK                |

@@ -16,6 +16,8 @@ COPY tsconfig.json tsconfig.base.json vitest.config.ts ./
 COPY packages/core packages/core
 COPY packages/runtime packages/runtime
 COPY packages/editor packages/editor
+# The reward template is shared with the immutable native-source fixture.
+COPY fixtures/bbbproj-v3-reward.json fixtures/bbbproj-v3-reward.json
 
 RUN npm run build \
  && npm run build -w @limber/editor
