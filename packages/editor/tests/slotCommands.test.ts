@@ -3,7 +3,13 @@ import type { Animation, Timeline } from '@limber/core';
 import { EditorEngine } from '../src/engine/EditorEngine';
 import { HistoryManager, CompositeCommand } from '../src/history/history';
 import { AddBoneCommand } from '../src/commands/boneCommands';
-import { AddSlotCommand, RemoveSlotCommand, SetSlotPropsCommand, ReorderSlotCommand, SetSlotBlendCommand } from '../src/commands/slotCommands';
+import {
+  AddSlotCommand,
+  RemoveSlotCommand,
+  SetSlotPropsCommand,
+  ReorderSlotCommand,
+  SetSlotBlendCommand,
+} from '../src/commands/slotCommands';
 import {
   AddTextureCommand,
   AddAttachmentCommand,
@@ -31,7 +37,8 @@ type SlotAttTl = Extract<Timeline, { kind: 'slotAttachment' }>;
 
 const slotColorTl = (anim: Animation) => anim.timelines.find((t): t is SlotColorTl => t.kind === 'slotColor');
 const drawOrderTl = (anim: Animation) => anim.timelines.find((t): t is DrawOrderTl => t.kind === 'drawOrder');
-const slotAttTl = (anim: Animation) => anim.timelines.find((t): t is SlotAttTl => t.kind === 'slotAttachment');
+const slotAttTl = (anim: Animation) =>
+  anim.timelines.find((t): t is SlotAttTl => t.kind === 'slotAttachment');
 
 /** Engine with one animation active + animate mode (keying preconditions). */
 function animEngine(): { engine: EditorEngine; anim: Animation } {
@@ -66,6 +73,119 @@ describe('AddSlotCommand', () => {
 });
 
 describe('RemoveSlotCommand', () => {
+  it('preserves animated draw order, clipping boundaries and exact undo/redo state', () => {
+    const { engine, anim } = animEngine();
+    const data = engine.skeleton.data;
+    const ids = Array.from({ length: 3 }, () => {
+      const command = new AddSlotCommand(engine, data.bones[0]!.id);
+      command.do();
+      return command.slotId;
+    });
+    data.attachments.push({
+      id: 'clip',
+      name: 'clip',
+      type: 'clipping',
+      textureId: '',
+      vertices: [0, 0, 10, 0, 10, 10],
+      endSlotId: ids[1]!,
+    });
+    anim.timelines.push({
+      kind: 'drawOrder',
+      keyframes: [
+        { time: 0, curve: { type: 'stepped' }, slotOrder: [2, 1, 0] },
+        { time: 1, curve: { type: 'stepped' }, slotOrder: [1, 0, 2] },
+      ],
+    });
+    anim.timelines.push({
+      kind: 'slotColor',
+      slotId: ids[1]!,
+      keyframes: [{ time: 0, curve: { type: 'linear' }, value: RED }],
+    });
+    engine.skeleton.rebuild();
+    const before = structuredClone(engine.document);
+    const history = new HistoryManager();
+    history.execute(new RemoveSlotCommand(engine, ids[1]!));
+    expect(data.slots.map((s) => s.id)).toEqual([ids[0], ids[2]]);
+    expect(drawOrderTl(anim)!.keyframes.map((k) => k.slotOrder)).toEqual([
+      [1, 0],
+      [0, 1],
+    ]);
+    expect(data.attachments[0]!.endSlotId).toBe(ids[2]);
+    engine.scrub(0);
+    engine.tick(0);
+    expect(engine.skeleton.pose.slotOrder.map((i) => data.slots[i]!.id)).toEqual([ids[2], ids[0]]);
+    const after = structuredClone(engine.document);
+    history.undo();
+    expect(engine.document).toEqual(before);
+    history.redo();
+    expect(engine.document).toEqual(after);
+    history.undo();
+    history.execute(new RemoveSlotCommand(engine, ids[2]!));
+    expect(drawOrderTl(anim)!.keyframes.map((k) => k.slotOrder)).toEqual([
+      [1, 0],
+      [1, 0],
+    ]);
+    history.undo();
+    expect(engine.document).toEqual(before);
+  });
+
+  it('adds slots to every animated permutation and removes the last clipping boundary safely', () => {
+    const { engine, anim } = animEngine();
+    const root = engine.skeleton.data.bones[0]!.id;
+    const first = new AddSlotCommand(engine, root);
+    first.do();
+    new KeyDrawOrderCommand(engine).do();
+    const second = new AddSlotCommand(engine, root);
+    second.do();
+    expect(drawOrderTl(anim)!.keyframes[0]!.slotOrder).toEqual([0, 1]);
+    second.undo();
+    expect(drawOrderTl(anim)!.keyframes[0]!.slotOrder).toEqual([0]);
+    engine.skeleton.data.attachments.push({
+      id: 'clip',
+      name: 'clip',
+      type: 'clipping',
+      textureId: '',
+      vertices: [0, 0, 1, 0, 1, 1],
+      endSlotId: first.slotId,
+    });
+    const remove = new RemoveSlotCommand(engine, first.slotId);
+    remove.do();
+    expect(engine.skeleton.data.attachments[0]!.endSlotId).toBeNull();
+    expect(drawOrderTl(anim)!.keyframes[0]!.slotOrder).toEqual([]);
+    remove.undo();
+    expect(engine.skeleton.data.attachments[0]!.endSlotId).toBe(first.slotId);
+  });
+
+  it('rejects invalid slot changes before mutating data, pose or redo history', () => {
+    const { engine, anim } = animEngine();
+    const root = engine.skeleton.data.bones[0]!.id;
+    const slot = new AddSlotCommand(engine, root);
+    slot.do();
+    const history = new HistoryManager();
+    history.execute(new SetSlotBlendCommand(engine, slot.slotId, 'add'));
+    history.undo();
+    const before = structuredClone(engine.document);
+    const pose = structuredClone(engine.skeleton.pose);
+    expect(() => history.execute(new AddSlotCommand(engine, 'missing-bone'))).toThrow(/unknown boneId/);
+    const props = { name: 'slot', boneId: root, color: 0xffffffff };
+    expect(() =>
+      history.execute(
+        new SetSlotPropsCommand(engine, slot.slotId, props, { ...props, boneId: 'missing-bone' }),
+      ),
+    ).toThrow(/unknown boneId/);
+    expect(engine.document).toEqual(before);
+    expect(engine.skeleton.pose).toEqual(pose);
+    expect(history.canRedo).toBe(true);
+    anim.timelines.push({
+      kind: 'drawOrder',
+      keyframes: [{ time: 0, curve: { type: 'stepped' }, slotOrder: [42] }],
+    });
+    const malformed = structuredClone(engine.document);
+    expect(() => history.execute(new RemoveSlotCommand(engine, slot.slotId))).toThrow(/invalid draw-order/);
+    expect(engine.document).toEqual(malformed);
+    expect(history.canRedo).toBe(true);
+  });
+
   it('cleans skin entries and slot timelines; undo restores everything', () => {
     const { engine, anim } = animEngine();
     const data = engine.skeleton.data;
@@ -75,7 +195,13 @@ describe('RemoveSlotCommand', () => {
     const slotId = slotCmd.slotId;
 
     new AddTextureCommand(engine, TEX, 'spot.png').do();
-    const att = new AddAttachmentCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 10, height: 10 });
+    const att = new AddAttachmentCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
     att.do();
     const skinCmd = new AddSkinCommand(engine);
     skinCmd.do();
@@ -145,7 +271,13 @@ describe('AddAttachmentCommand', () => {
     new AddTextureCommand(engine, TEX, 'head.png').do();
     const slotCmd = new AddSlotCommand(engine, rootId);
     slotCmd.do();
-    const cmd = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 5, y: -5, width: 20, height: 10 });
+    const cmd = new AddAttachmentCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 5,
+      y: -5,
+      width: 20,
+      height: 10,
+    });
     cmd.do();
 
     const att = engine.skeleton.data.attachments[0]!;
@@ -169,7 +301,13 @@ describe('AddAttachmentCommand', () => {
     const engine = new EditorEngine();
     const rootId = engine.skeleton.data.bones[0]!.id;
     const slotCmd = new AddSlotCommand(engine, rootId);
-    const attCmd = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 0, y: 0, width: 8, height: 8 });
+    const attCmd = new AddAttachmentCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 8,
+      height: 8,
+    });
     const composite = new CompositeCommand('Drop Image spot.png', [
       new AddTextureCommand(engine, TEX, 'spot.png'),
       slotCmd,
@@ -194,7 +332,12 @@ describe('AddAttachmentCommand', () => {
     skinCmd.do();
     new SetActiveSkinCommand(engine, skinCmd.name).do();
 
-    const cmd = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 0, y: 0, width: 4, height: 4 }, 'skin');
+    const cmd = new AddAttachmentCommand(
+      engine,
+      slotCmd.slotId,
+      { textureId: TEX, x: 0, y: 0, width: 4, height: 4 },
+      'skin',
+    );
     cmd.do();
     expect(engine.skeleton.data.slots[0]!.defaultAttachmentId).toBeNull();
     expect(engine.skeleton.data.skins[0]!.attachments[slotCmd.slotId]).toBe(cmd.attachmentId);
@@ -286,7 +429,13 @@ describe('SetAttachmentPropsCommand', () => {
     const rootId = engine.skeleton.data.bones[0]!.id;
     const slotCmd = new AddSlotCommand(engine, rootId);
     slotCmd.do();
-    const att = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 0, y: 0, width: 10, height: 10 });
+    const att = new AddAttachmentCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
     att.do();
 
     const cmd = new SetAttachmentPropsCommand(
@@ -300,7 +449,9 @@ describe('SetAttachmentPropsCommand', () => {
     expect(a.name).toBe('head2');
     expect(a.vertices).toEqual(regionVertices({ x: 10, y: 0, width: 20, height: 5 }));
     cmd.undo();
-    expect(engine.skeleton.data.attachments[0]!.vertices).toEqual(regionVertices({ x: 0, y: 0, width: 10, height: 10 }));
+    expect(engine.skeleton.data.attachments[0]!.vertices).toEqual(
+      regionVertices({ x: 0, y: 0, width: 10, height: 10 }),
+    );
   });
 
   it('regionOf round-trips x/y/w/h through the corner array (height uses BR.y)', () => {
@@ -308,9 +459,21 @@ describe('SetAttachmentPropsCommand', () => {
     const rootId = engine.skeleton.data.bones[0]!.id;
     const slotCmd = new AddSlotCommand(engine, rootId);
     slotCmd.do();
-    const att = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 5, y: -3, width: 64, height: 32 });
+    const att = new AddAttachmentCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 5,
+      y: -3,
+      width: 64,
+      height: 32,
+    });
     att.do();
-    expect(regionOf(engine.skeleton.data.attachments[0]!)).toEqual({ textureId: TEX, x: 5, y: -3, width: 64, height: 32 });
+    expect(regionOf(engine.skeleton.data.attachments[0]!)).toEqual({
+      textureId: TEX,
+      x: 5,
+      y: -3,
+      width: 64,
+      height: 32,
+    });
   });
 });
 
@@ -359,6 +522,57 @@ describe('ReorderSlotCommand', () => {
 });
 
 describe('Skins', () => {
+  it('rejects unknown activation atomically and keeps animation while switching skins', () => {
+    const { engine, anim } = animEngine();
+    const slot = new AddSlotCommand(engine, engine.skeleton.data.bones[0]!.id);
+    slot.do();
+    const first = new AddAttachmentCommand(engine, slot.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 4,
+      height: 4,
+    });
+    first.do();
+    const second = new AddAttachmentCommand(engine, slot.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 8,
+      height: 8,
+    });
+    second.do();
+    const skin = new AddSkinCommand(engine);
+    skin.do();
+    new SetActiveSkinCommand(engine, skin.name).do();
+    new SetSlotAttachmentCommand(engine, slot.slotId, first.attachmentId, 'skin').do();
+    anim.timelines.push({
+      kind: 'slotAttachment',
+      slotId: slot.slotId,
+      keyframes: [{ time: 0.5, curve: { type: 'stepped' }, attachmentId: second.attachmentId }],
+    });
+    const tracks = structuredClone(anim.timelines);
+    engine.scrub(0);
+    engine.tick(0);
+    expect(engine.skeleton.pose.slots[0]!.attachmentId).toBe(first.attachmentId);
+    engine.scrub(1);
+    engine.tick(0);
+    expect(engine.skeleton.pose.slots[0]!.attachmentId).toBe(second.attachmentId);
+    const history = new HistoryManager();
+    history.execute(new SetActiveSkinCommand(engine, ''));
+    history.undo();
+    const before = structuredClone(engine.document);
+    const pose = structuredClone(engine.skeleton.pose);
+    expect(() => history.execute(new SetActiveSkinCommand(engine, 'missing'))).toThrow(/not found/);
+    expect(engine.document).toEqual(before);
+    expect(engine.skeleton.pose).toEqual(pose);
+    expect(history.canRedo).toBe(true);
+    expect(anim.timelines).toEqual(tracks);
+    history.redo();
+    engine.tick(0);
+    expect(engine.skeleton.pose.slots[0]!.attachmentId).toBe(second.attachmentId);
+  });
+
   it('add/remove/select with validation and active-skin fallback', () => {
     const engine = new EditorEngine();
     const data = engine.skeleton.data;
@@ -487,7 +701,7 @@ describe('Slot color & draw order keyframes', () => {
     expect(slotColorTl(anim)!.keyframes[0]!.value).toBe(0x00ff00ff);
   });
 
-  it('KeySlotColorCommand defaults to the slot\'s current pose color', () => {
+  it("KeySlotColorCommand defaults to the slot's current pose color", () => {
     const { engine, anim } = animEngine();
     const data = engine.skeleton.data;
     const rootId = data.bones[0]!.id;
@@ -506,7 +720,13 @@ describe('HistoryManager + CompositeCommand', () => {
     const rootId = engine.skeleton.data.bones[0]!.id;
     const history = new HistoryManager();
     const slotCmd = new AddSlotCommand(engine, rootId);
-    const attCmd = new AddAttachmentCommand(engine, slotCmd.slotId, { textureId: TEX, x: 0, y: 0, width: 8, height: 8 });
+    const attCmd = new AddAttachmentCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 8,
+      height: 8,
+    });
     history.execute(
       new CompositeCommand('Drop Image spot.png', [
         new AddTextureCommand(engine, TEX, 'spot.png'),

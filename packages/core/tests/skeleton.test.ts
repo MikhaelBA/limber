@@ -21,6 +21,23 @@ const makeAttachment = (id: string, weights?: number[]): AttachmentData => ({
 });
 
 describe('Skeleton construction & validation', () => {
+  it('validates inactive skins and rejects ambiguous skin or attachment identities', () => {
+    const data = makeSkeletonData([makeBone('root', null)]);
+    data.skins.push({ name: 'inactive', attachments: { missing: 'missing' } });
+    expect(() => new Skeleton(structuredClone(data))).toThrow(/unknown slotId/);
+    data.slots.push(makeSlot('slot', 'root'));
+    data.skins[0]!.attachments = { slot: 'missing' };
+    expect(() => new Skeleton(structuredClone(data))).toThrow(/unknown attachmentId/);
+    data.attachments.push(makeAttachment('att'));
+    data.skins[0]!.attachments = { slot: 'att' };
+    expect(() => new Skeleton(structuredClone(data))).not.toThrow();
+    data.skins.push({ name: 'inactive', attachments: {} });
+    expect(() => new Skeleton(structuredClone(data))).toThrow(/unique and nonempty/);
+    data.skins.pop();
+    data.attachments.push(makeAttachment('att'));
+    expect(() => new Skeleton(structuredClone(data))).toThrow(/Duplicate attachment/);
+  });
+
   it('sorts bones topologically and bakes index maps', () => {
     const sk = new Skeleton(
       makeSkeletonData([makeBone('grandchild', 'child'), makeBone('child', 'root'), makeBone('root', null)]),
@@ -33,7 +50,15 @@ describe('Skeleton construction & validation', () => {
 
   it('initializes the pose from the setup pose', () => {
     const sk = new Skeleton(makeSkeletonData([makeBone('root', null, { x: 3, y: 4 })]));
-    expect(sk.pose.bones[0]!.local).toEqual({ x: 3, y: 4, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 });
+    expect(sk.pose.bones[0]!.local).toEqual({
+      x: 3,
+      y: 4,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      shearX: 0,
+      shearY: 0,
+    });
     expect(sk.pose.worldMatrices.length).toBe(6);
   });
 
@@ -72,11 +97,7 @@ describe('Skeleton construction & validation', () => {
   });
 
   it('throws on IK constraints controlling more than 2 bones', () => {
-    const data = makeSkeletonData([
-      makeBone('a', null),
-      makeBone('b', 'a'),
-      makeBone('c', 'b'),
-    ]);
+    const data = makeSkeletonData([makeBone('a', null), makeBone('b', 'a'), makeBone('c', 'b')]);
     data.ikConstraints.push({
       id: 'ik1',
       bones: ['a', 'b', 'c'],
@@ -130,7 +151,10 @@ describe('Skeleton construction & validation', () => {
 describe('resetPose (pipeline step 1)', () => {
   it('restores setup pose for all bones', () => {
     const sk = new Skeleton(
-      makeSkeletonData([makeBone('root', null, { x: 1, y: 2 }), makeBone('child', 'root', { rotation: 0.5 })]),
+      makeSkeletonData([
+        makeBone('root', null, { x: 1, y: 2 }),
+        makeBone('child', 'root', { rotation: 0.5 }),
+      ]),
     );
     sk.pose.bones[0]!.local.x = 99;
     sk.pose.bones[1]!.local.rotation = 42;

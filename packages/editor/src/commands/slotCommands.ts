@@ -1,5 +1,5 @@
-import type { SkeletonData, SlotData } from '@limber/core';
-import { uuid } from '@limber/core';
+import type { Animation, SkeletonData, SlotData } from '@limber/core';
+import { Skeleton, uuid } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 
@@ -9,6 +9,65 @@ function uniqueSlotName(data: SkeletonData, base: string): string {
   let i = 2;
   while (names.has(name)) name = base + i++;
   return name;
+}
+
+/** Slot edits keep bone indices fixed. Validate the complete proposal before publishing it. */
+function editSlots(engine: EditorEngine, edit: (data: SkeletonData, animations: Animation[]) => void): void {
+  const data = structuredClone(engine.skeleton.data);
+  const animations = structuredClone(engine.document.animations);
+  edit(data, animations);
+  new Skeleton(data);
+  for (const anim of animations) {
+    for (const timeline of anim.timelines) {
+      if (timeline.kind !== 'drawOrder') continue;
+      for (const key of timeline.keyframes) {
+        if (
+          key.slotOrder.length !== data.slots.length ||
+          new Set(key.slotOrder).size !== data.slots.length ||
+          key.slotOrder.some((index) => !Number.isInteger(index) || index < 0 || index >= data.slots.length)
+        ) {
+          throw new Error(`Animation "${anim.name}" has an invalid draw-order permutation.`);
+        }
+      }
+    }
+  }
+  const live = engine.skeleton.data;
+  live.slots = data.slots;
+  live.skins = data.skins;
+  live.attachments = data.attachments;
+  engine.document.animations.forEach((anim, index) => {
+    anim.timelines = animations[index]!.timelines;
+  });
+  engine.skeleton.rebuild();
+}
+
+function removeSlotReferences(data: SkeletonData, animations: Animation[], slotId: string): void {
+  const index = data.slots.findIndex((slot) => slot.id === slotId);
+  if (index < 0) throw new Error(`Slot "${slotId}" not found.`);
+  // A clipping boundary is exclusive: retain the same boundary before the surviving successor.
+  const successor = data.slots[index + 1]?.id ?? null;
+  for (const attachment of data.attachments) {
+    if (attachment.type === 'clipping' && attachment.endSlotId === slotId) attachment.endSlotId = successor;
+  }
+  for (const skin of data.skins) delete skin.attachments[slotId];
+  for (const anim of animations) {
+    anim.timelines = anim.timelines.filter(
+      (timeline) =>
+        !(
+          (timeline.kind === 'slotColor' || timeline.kind === 'slotAttachment') &&
+          timeline.slotId === slotId
+        ),
+    );
+    for (const timeline of anim.timelines) {
+      if (timeline.kind !== 'drawOrder') continue;
+      for (const key of timeline.keyframes) {
+        key.slotOrder = key.slotOrder
+          .filter((old) => old !== index)
+          .map((old) => (old > index ? old - 1 : old));
+      }
+    }
+  }
+  data.slots.splice(index, 1);
 }
 
 /**
@@ -46,30 +105,41 @@ export class AddSlotCommand implements Command {
       this._label = `Add Slot ${this.slot.name}`;
       this.named = true;
     }
-    this.engine.skeleton.data.slots.push(this.slot);
-    this.engine.skeleton.rebuild();
+    editSlots(this.engine, (data, animations) => {
+      if (data.slots.some((slot) => slot.id === this.slotId)) throw new Error('Duplicate slot id.');
+      const index = data.slots.length;
+      data.slots.push(structuredClone(this.slot));
+      for (const anim of animations) {
+        for (const timeline of anim.timelines) {
+          if (timeline.kind === 'drawOrder') {
+            for (const key of timeline.keyframes) key.slotOrder.push(index);
+          }
+        }
+      }
+    });
   }
 
   undo(): void {
-    const data = this.engine.skeleton.data;
-    data.slots = data.slots.filter((s) => s.id !== this.slot.id);
-    this.engine.skeleton.rebuild();
+    editSlots(this.engine, (data, animations) => removeSlotReferences(data, animations, this.slotId));
   }
 }
 
 /** Everything that references a slot must be captured for a clean undo. */
 interface RemoveSlotSnapshots {
   slot: SlotData;
+  index: number;
   /** skins' slotId entries (name -> had-entry + attachmentId). */
   skinEntries: { skinName: string; attachmentId: string }[];
-  /** slot-referencing timelines in every animation (index + deep copy). */
-  timelines: { animName: string; index: number; timeline: unknown }[];
+  /** Includes indexed draw-order keys as well as removed slot tracks. */
+  animations: Animation[];
+  clipEnds: { attachmentId: string; endSlotId: string }[];
 }
 
 /**
  * Removes a slot and every reference to it: skin entries (validation requires
  * skins reference known slot ids) and slotColor/slotAttachment timelines across
- * all animations. The attachment objects themselves stay — they have their own
+ * all animations. Remaps draw-order keys and exclusive clipping boundaries.
+ * The attachment objects themselves stay — they have their own
  * lifecycle via RemoveAttachmentCommand.
  */
 export class RemoveSlotCommand implements Command {
@@ -95,39 +165,41 @@ export class RemoveSlotCommand implements Command {
         ? [{ skinName: skin.name, attachmentId: skin.attachments[this.slotId]! }]
         : [],
     );
-    const timelines: RemoveSlotSnapshots['timelines'] = [];
-    const liveTimelines: unknown[] = [];
-    for (const anim of this.engine.document.animations) {
-      for (const tl of anim.timelines) {
-        if ((tl.kind === 'slotColor' || tl.kind === 'slotAttachment') && tl.slotId === this.slotId) {
-          timelines.push({ animName: anim.name, index: anim.timelines.indexOf(tl), timeline: structuredClone(tl) });
-          liveTimelines.push(tl);
-        }
-      }
-    }
-    this.snaps = { slot: structuredClone(slot), skinEntries, timelines };
-
-    for (const skin of data.skins) delete skin.attachments[this.slotId];
-    for (const anim of this.engine.document.animations) {
-      anim.timelines = anim.timelines.filter((tl) => !liveTimelines.includes(tl));
-    }
-    data.slots = data.slots.filter((s) => s.id !== this.slotId);
-    this.engine.skeleton.rebuild();
+    const snaps: RemoveSlotSnapshots = {
+      slot: structuredClone(slot),
+      index: data.slots.indexOf(slot),
+      skinEntries,
+      animations: structuredClone(this.engine.document.animations),
+      clipEnds: data.attachments.flatMap((attachment) =>
+        attachment.type === 'clipping' && attachment.endSlotId === this.slotId
+          ? [{ attachmentId: attachment.id, endSlotId: this.slotId }]
+          : [],
+      ),
+    };
+    editSlots(this.engine, (proposed, animations) => removeSlotReferences(proposed, animations, this.slotId));
+    this.snaps = snaps;
   }
 
   undo(): void {
     if (!this.snaps) return;
-    const data = this.engine.skeleton.data;
-    data.slots.push(this.snaps.slot);
-    for (const { skinName, attachmentId } of this.snaps.skinEntries) {
-      data.skins.find((s) => s.name === skinName)!.attachments[this.slotId] = attachmentId;
-    }
-    for (const { animName, index, timeline } of this.snaps.timelines) {
-      const anim = this.engine.document.animations.find((a) => a.name === animName)!;
-      anim.timelines.splice(Math.min(index, anim.timelines.length), 0, structuredClone(timeline) as never);
-    }
+    const snaps = this.snaps;
+    editSlots(this.engine, (data, animations) => {
+      data.slots.splice(snaps.index, 0, structuredClone(snaps.slot));
+      for (const { skinName, attachmentId } of snaps.skinEntries) {
+        const skin = data.skins.find((s) => s.name === skinName);
+        if (!skin) throw new Error(`Skin "${skinName}" no longer exists.`);
+        skin.attachments[this.slotId] = attachmentId;
+      }
+      for (const { attachmentId, endSlotId } of snaps.clipEnds) {
+        const attachment = data.attachments.find((a) => a.id === attachmentId);
+        if (!attachment) throw new Error(`Attachment "${attachmentId}" no longer exists.`);
+        attachment.endSlotId = endSlotId;
+      }
+      animations.forEach((anim, index) => {
+        anim.timelines = structuredClone(snaps.animations[index]!.timelines);
+      });
+    });
     this.snaps = null;
-    this.engine.skeleton.rebuild();
   }
 }
 
@@ -194,12 +266,21 @@ export class SetSlotPropsCommand implements Command {
   private apply(snap: SlotPropsSnapshot): void {
     const slot = this.engine.skeleton.data.slots.find((s) => s.id === this.slotId);
     if (!slot) throw new Error(`SetSlotPropsCommand: slot "${this.slotId}" no longer exists.`);
+    const proposed = structuredClone(this.engine.skeleton.data);
+    Object.assign(
+      proposed.slots.find((s) => s.id === this.slotId)!,
+      snap,
+    );
+    new Skeleton(proposed);
     const rebind = slot.boneId !== snap.boneId;
     slot.name = snap.name;
     slot.boneId = snap.boneId;
     slot.color = snap.color;
-    if (rebind) this.engine.skeleton.rebuild(); // Index maps are bone-keyed; pose parity is preserved by id.
-    else this.engine.skeleton.pose.slots[this.engine.skeleton.slotIndexMap.get(this.slotId)!]!.color = snap.color;
+    if (rebind)
+      this.engine.skeleton.rebuild(); // Index maps are bone-keyed; pose parity is preserved by id.
+    else
+      this.engine.skeleton.pose.slots[this.engine.skeleton.slotIndexMap.get(this.slotId)!]!.color =
+        snap.color;
   }
 }
 
@@ -213,7 +294,11 @@ export class ReorderSlotCommand implements Command {
   readonly label: string;
   private readonly slotId: string;
   private beforeOrder: string[] | null = null;
-  private beforeKeyframes: { animName: string; timelineIndex: number; keyframes: { slotOrder: number[] }[] }[] = [];
+  private beforeKeyframes: {
+    animName: string;
+    timelineIndex: number;
+    keyframes: { slotOrder: number[] }[];
+  }[] = [];
 
   constructor(
     private engine: EditorEngine,
@@ -238,55 +323,61 @@ export class ReorderSlotCommand implements Command {
       this.beforeKeyframes = this.engine.document.animations.flatMap((anim) =>
         anim.timelines.flatMap((tl, timelineIndex) =>
           tl.kind === 'drawOrder'
-            ? [{ animName: anim.name, timelineIndex, keyframes: tl.keyframes.map((k) => ({ slotOrder: [...k.slotOrder] })) }]
+            ? [
+                {
+                  animName: anim.name,
+                  timelineIndex,
+                  keyframes: tl.keyframes.map((k) => ({ slotOrder: [...k.slotOrder] })),
+                },
+              ]
             : [],
         ),
       );
     }
 
-    const oldIdOrder = data.slots.map((s) => s.id);
-    const moved = data.slots.splice(at, 1)[0]!;
-    data.slots.splice(to, 0, moved);
+    editSlots(this.engine, (data, animations) => {
+      const oldIdOrder = data.slots.map((s) => s.id);
+      const moved = data.slots.splice(at, 1)[0]!;
+      data.slots.splice(to, 0, moved);
 
-    // Re-map drawOrder keyframes: permutation entries are draw-position -> slot
-    // INDEX in the OLD space; translate via the slot id at that old index.
-    for (const anim of this.engine.document.animations) {
-      for (const tl of anim.timelines) {
-        if (tl.kind !== 'drawOrder') continue;
-        for (const kf of tl.keyframes) {
-          const remapped = kf.slotOrder.map((oldIndex) => {
-            const id = oldIdOrder[oldIndex];
-            return id === undefined ? oldIndex : data.slots.findIndex((s) => s.id === id);
-          });
-          kf.slotOrder = remapped.every((i) => i >= 0) ? remapped : kf.slotOrder;
+      // Re-map drawOrder keyframes: permutation entries are draw-position -> slot
+      // INDEX in the OLD space; translate via the slot id at that old index.
+      for (const anim of animations) {
+        for (const tl of anim.timelines) {
+          if (tl.kind !== 'drawOrder') continue;
+          for (const kf of tl.keyframes) {
+            const remapped = kf.slotOrder.map((oldIndex) => {
+              const id = oldIdOrder[oldIndex];
+              return id === undefined ? oldIndex : data.slots.findIndex((s) => s.id === id);
+            });
+            kf.slotOrder = remapped.every((i) => i >= 0) ? remapped : kf.slotOrder;
+          }
         }
       }
-    }
-
-    this.engine.skeleton.rebuild();
+    });
   }
 
   undo(): void {
     if (!this.beforeOrder) return;
-    const data = this.engine.skeleton.data;
-    const byId = new Map(data.slots.map((s) => [s.id, s]));
-    const restored: typeof data.slots = [];
-    for (const id of this.beforeOrder) {
-      const slot = byId.get(id);
-      if (slot) restored.push(slot);
-    }
-    // Slots added after this command ran keep their relative position at the end.
-    for (const slot of data.slots) if (!restored.includes(slot)) restored.push(slot);
-    data.slots = restored;
-
-    for (const { animName, timelineIndex, keyframes } of this.beforeKeyframes) {
-      const anim = this.engine.document.animations.find((a) => a.name === animName);
-      const tl = anim?.timelines[timelineIndex];
-      if (tl && tl.kind === 'drawOrder') {
-        tl.keyframes.forEach((kf, i) => (kf.slotOrder = [...keyframes[i]!.slotOrder]));
+    const beforeOrder = this.beforeOrder;
+    editSlots(this.engine, (data, animations) => {
+      const byId = new Map(data.slots.map((s) => [s.id, s]));
+      const restored: typeof data.slots = [];
+      for (const id of beforeOrder) {
+        const slot = byId.get(id);
+        if (slot) restored.push(slot);
       }
-    }
+      // Slots added after this command ran keep their relative position at the end.
+      for (const slot of data.slots) if (!restored.includes(slot)) restored.push(slot);
+      data.slots = restored;
 
-    this.engine.skeleton.rebuild();
+      for (const { animName, timelineIndex, keyframes } of this.beforeKeyframes) {
+        const anim = animations.find((a) => a.name === animName);
+        const tl = anim?.timelines[timelineIndex];
+        if (tl && tl.kind === 'drawOrder') {
+          tl.keyframes.forEach((kf, i) => (kf.slotOrder = [...keyframes[i]!.slotOrder]));
+        }
+      }
+    });
   }
 }

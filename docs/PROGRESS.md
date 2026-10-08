@@ -135,3 +135,13 @@ Diagnostic follow-up `653dffa` needed an unused-binding lint correction (`c3d602
 ## 8 October 2026 Phase 4 RTL gate passed; Docker follow-up
 
 Commit `1107b91`; CI run 37770105482 passed all 251 unit tests, eight browser suites and both builds. VPS and GitHub Pages deployments succeeded. Docker failed because its build stage did not copy the native reward source fixture imported by the template command. Add that exact JSON file to the Docker build stage; no fixture or application behavior changes. Docker Desktop is unavailable locally, so the container verification remains a remote CI check. The Phase 4 regression gate is green; container delivery confirmation remains pending before publishing the next rig milestone.
+
+## 8 October 2026 Phase 4 complete
+
+Docker follow-up `df458b7`; CI run 37770931582 passed Test & Build, Docker, VPS and Pages deployments. The complete Phase 4 gate is closed.
+
+## 8 October 2026 Phase 5A slot and skin edit safety
+
+Slot insertion extends every animated draw-order permutation. Deletion removes slot tracks and skin references, translates draw-order indices by surviving identity and retains exclusive clipping boundaries through the next surviving slot. Undo restores the original slot position, timelines and clipping endpoints; redo reproduces the same source. Slot insertion, deletion, reordering and property rebinding validate a copy before publishing. Skin add/remove/activation validates all skins before mutation, rejects unknown activation without corrupting data/pose/history and preserves animation tracks. Core validation now checks inactive skins, unique nonempty skin names and duplicate attachment IDs.
+
+Five new regression tests cover indexed permutations, middle/last and empty slot cases, exact undo/redo state, clipping endpoints, rejected edits with intact redo/pose, animated attachment precedence during skin switching and inactive-skin references. Full local checks passed with 256 unit tests, both builds and all eight browser suites. The existing scene golden remains 0.000% different; 100-image CPU render-submit p95 was 0.90ms. Remote CI is pending. Bone structural safety, typed markers/sockets, human helper, mirroring and the character fixture remain unfinished; this is not the Phase 5 gate.

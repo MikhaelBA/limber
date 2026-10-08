@@ -125,6 +125,9 @@ export class Skeleton {
     }
 
     const attachmentIds = new Set(this.data.attachments.map((a) => a.id));
+    if (attachmentIds.size !== this.data.attachments.length) {
+      throw new Error('Duplicate attachment ids in skeleton.');
+    }
 
     for (const slot of this.data.slots) {
       if (!boneIds.has(slot.boneId)) {
@@ -163,11 +166,14 @@ export class Skeleton {
       }
     }
 
-    if (this.data.activeSkin !== '') {
-      const skin = this.data.skins.find((s) => s.name === this.data.activeSkin);
-      if (!skin) {
-        throw new Error(`activeSkin "${this.data.activeSkin}" not found in skins.`);
-      }
+    const skinNames = new Set(this.data.skins.map((skin) => skin.name));
+    if (skinNames.size !== this.data.skins.length || skinNames.has('')) {
+      throw new Error('Skin names must be unique and nonempty.');
+    }
+    if (this.data.activeSkin !== '' && !skinNames.has(this.data.activeSkin)) {
+      throw new Error(`activeSkin "${this.data.activeSkin}" not found in skins.`);
+    }
+    for (const skin of this.data.skins) {
       for (const [slotId, attachmentId] of Object.entries(skin.attachments)) {
         if (!this.slotIndexMap.has(slotId)) {
           throw new Error(`Skin "${skin.name}" references unknown slotId "${slotId}".`);

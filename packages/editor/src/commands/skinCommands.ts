@@ -1,6 +1,18 @@
-import type { SkinData } from '@limber/core';
+import type { SkeletonData, SkinData } from '@limber/core';
+import { Skeleton } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
+
+function editSkins(engine: EditorEngine, edit: (data: SkeletonData) => void): void {
+  const proposed = structuredClone(engine.skeleton.data);
+  edit(proposed);
+  new Skeleton(proposed);
+  const data = engine.skeleton.data;
+  const switched = data.activeSkin !== proposed.activeSkin;
+  data.skins = proposed.skins;
+  data.activeSkin = proposed.activeSkin;
+  if (switched) engine.skeleton.rebuild();
+}
 
 /** Creates an empty skin (no per-slot overrides yet). */
 export class AddSkinCommand implements Command {
@@ -22,16 +34,18 @@ export class AddSkinCommand implements Command {
       this.named = true;
       this._label = `Add Skin ${this.name}`;
     }
-    this.engine.skeleton.data.skins.push({ name: this.name, attachments: {} });
+    editSkins(this.engine, (data) => {
+      data.skins.push({ name: this.name, attachments: {} });
+    });
   }
 
   undo(): void {
-    const skins = this.engine.skeleton.data.skins;
-    skins.splice(skins.findIndex((s) => s.name === this.name), 1);
-    if (this.engine.skeleton.data.activeSkin === this.name) {
-      this.engine.skeleton.data.activeSkin = '';
-      this.engine.skeleton.rebuild();
-    }
+    editSkins(this.engine, (data) => {
+      const index = data.skins.findIndex((s) => s.name === this.name);
+      if (index < 0) throw new Error(`Skin "${this.name}" not found.`);
+      data.skins.splice(index, 1);
+      if (data.activeSkin === this.name) data.activeSkin = '';
+    });
   }
 }
 
@@ -53,22 +67,26 @@ export class RemoveSkinCommand implements Command {
 
   do(): void {
     const data = this.engine.skeleton.data;
-    this.removed = data.skins.splice(this.index, 1)[0] ?? null;
-    this.wasActive = data.activeSkin === this.name;
-    if (this.wasActive) {
-      data.activeSkin = '';
-      this.engine.skeleton.rebuild();
-    }
+    const index = data.skins.findIndex((skin) => skin.name === this.name);
+    if (index < 0) throw new Error(`Skin "${this.name}" not found.`);
+    const removed = structuredClone(data.skins[index]!);
+    const wasActive = data.activeSkin === this.name;
+    editSkins(this.engine, (proposed) => {
+      proposed.skins.splice(index, 1);
+      if (wasActive) proposed.activeSkin = '';
+    });
+    this.index = index;
+    this.removed = removed;
+    this.wasActive = wasActive;
   }
 
   undo(): void {
     if (!this.removed) return;
-    const data = this.engine.skeleton.data;
-    data.skins.splice(Math.min(this.index, data.skins.length), 0, this.removed);
-    if (this.wasActive) {
-      data.activeSkin = this.name;
-      this.engine.skeleton.rebuild();
-    }
+    const removed = this.removed;
+    editSkins(this.engine, (data) => {
+      data.skins.splice(Math.min(this.index, data.skins.length), 0, structuredClone(removed));
+      if (this.wasActive) data.activeSkin = this.name;
+    });
   }
 }
 
@@ -98,7 +116,8 @@ export class SetActiveSkinCommand implements Command {
   }
 
   private apply(name: string): void {
-    this.engine.skeleton.data.activeSkin = name;
-    this.engine.skeleton.rebuild(); // Throws on unknown skin names (validation).
+    editSkins(this.engine, (data) => {
+      data.activeSkin = name;
+    });
   }
 }
