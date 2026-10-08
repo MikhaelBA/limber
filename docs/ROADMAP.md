@@ -54,3 +54,12 @@ honestly. Do not execute later phases merely because reference prompts are embed
 - [x] Device presets, reward popup template and localization stress preview.
 - [x] Four-aspect browser fixture, corner preservation, RTL and component propagation evidence.
 - [ ] Full regression checks and Phase 4 CI gate.
+
+## Upcoming Rig Alpha checklist
+
+- [ ] Preserve and verify setup/animation separation and skin/attachment switching.
+- [ ] Make structural bone/slot/skin edits atomic and preserve draw order through undo.
+- [ ] Typed markers and deterministic socket world transforms with source migration.
+- [ ] Human rig helper and world-space bone mirroring with reflected-parent tests.
+- [ ] Marker editing/preview and semantic Pin Hand/Foot controls.
+- [ ] Character browser fixture, full regression checks and Phase 5 CI gate.

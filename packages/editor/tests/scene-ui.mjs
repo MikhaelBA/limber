@@ -235,7 +235,19 @@ try {
     browser: rtl.browser,
   };
   writeFileSync('packages/editor/.smoke/ui-rtl-metrics.json', JSON.stringify(fontMetrics, null, 2));
-  const path = 'fixtures/ui-rtl-v1.png';
+  assert.ok(
+    ['win32', 'linux'].includes(process.platform),
+    'Review an RTL raster before enabling another browser-test platform',
+  );
+  assert.equal(rtl.fontAvailable, true);
+  assert.ok(rtl.faces.some((face) => face.status === 'loaded' && face.family.includes('Noto Sans Arabic')));
+  // Chromium's native font backends differ in advance rounding even with the same bundled font.
+  const expectedAdvance = process.platform === 'linux' ? 257 : 258.71990966796875;
+  assert.ok(
+    Math.abs(rtl.widths[0] - expectedAdvance) < 0.05,
+    `Unexpected RTL font advance: ${rtl.widths[0]}`,
+  );
+  const path = process.platform === 'linux' ? 'fixtures/ui-rtl-linux-v1.png' : 'fixtures/ui-rtl-v1.png';
   if (process.env.UPDATE_UI_GOLDEN === '1') writeFileSync(path, actual);
   const difference = await page.evaluate(
     async ({ actual, expected }) => {
