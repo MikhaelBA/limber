@@ -228,7 +228,12 @@ try {
   });
   const actual = Buffer.from(rtl.dataUrl.split(',')[1], 'base64');
   writeFileSync('packages/editor/.smoke/ui-rtl-actual.png', actual);
-  const { dataUrl: _dataUrl, ...fontMetrics } = rtl;
+  const fontMetrics = {
+    widths: rtl.widths,
+    fontAvailable: rtl.fontAvailable,
+    faces: rtl.faces,
+    browser: rtl.browser,
+  };
   writeFileSync('packages/editor/.smoke/ui-rtl-metrics.json', JSON.stringify(fontMetrics, null, 2));
   const path = 'fixtures/ui-rtl-v1.png';
   if (process.env.UPDATE_UI_GOLDEN === '1') writeFileSync(path, actual);
