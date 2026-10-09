@@ -385,3 +385,14 @@ the runtime source, matching existing fixture tests. Typecheck passes with runti
 absent, and both parity cases pass. The paced weight browser helper also now awaits real UI status
 instead of importing a Vite-only store module; its complete workflow passes against production.
 The feature implementation and numerical budget are unchanged. A fresh full CI run follows.
+
+## 9 October 2026 Phase 6 complete
+
+Commit `95bdfd1`; CI run 37982002648 passed all checks, 341 unit tests, all sixteen browser suites,
+Docker and both deployments. The clean-checkout runtime test repair is confirmed. Standard/Heavy
+Linux CI CPU update/render-submit p95 was 1.40/4.20ms; exact transform counts were 10000/40004.
+Heavy worker computation/publication was 290.7/39.9ms with inspector interaction and rendering
+active. CI also records software-graphics frame gaps separately; hardware GPU performance is not
+claimed. All Phase 6 feature and acceptance checklist items are complete. Phase 7 starts with the
+constraint contract, atomic authoring and Pin Hand/Foot; Sol 6.1 / High remains the recommendation
+for the first increment. Its expanded task checklist is in ROADMAP.md.

@@ -46,3 +46,14 @@ passed. Scene/RTL raster gates retain their existing tolerances. Raw browser evi
 `packages/editor/.smoke/mesh-performance.json` and uploaded by CI with the screenshots.
 
 The final remote Phase 6 gate is recorded in PROGRESS.md and ROADMAP.md after it completes.
+
+## Remote acceptance gate
+
+[CI run 37982002648](https://github.com/MikhaelBA/limber/actions/runs/37982002648), commit `95bdfd1`,
+passed all 341 unit tests, sixteen browser workflows, Docker and both deployments on a clean Linux
+checkout. Standard/Heavy CPU update/render-submit p95 was 1.40/4.20ms. Heavy worker computation
+and publication were 290.7/39.9ms, with the asserted inspector interaction, rendering and cache
+preservation. The CI renderer was also SwiftShader: actual frame-gap p95 was 29.7/87.3ms, with
+a 116.7ms maximum gap during Heavy worker computation. These graphics-cadence limits remain
+visible in the evidence and are not relabeled as 60fps playback. This closes the Phase 6 acceptance
+gate defined in ADR 0017; platform hardware/GPU certification remains a later release task.
