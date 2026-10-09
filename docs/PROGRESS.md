@@ -270,3 +270,25 @@ both builds. All thirteen browser suites passed (scene golden 0.000%, CPU p95 0.
 browser workflows also passed against the production build, including the generated worker assets.
 Remote CI is pending. Smooth weights, linked/shared meshes and the final Phase 6 performance gate
 remain unfinished.
+
+## 9 October 2026 Phase 6F published
+
+Commit `6ed9b92`; CI run 37949541821 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6G weight smoothing
+
+Bound weighted meshes now expose strength and pass count for whole-mesh smoothing. The portable
+algorithm averages unique sorted edge neighbors, reads the previous complete pass, treats empty
+rows as slot-bone rigid weights, and normalizes/prunes each pass to the chosen influence limit.
+Computation runs in an isolated cancellable Worker with bounded progress messages. Publication
+retains geometry, bindings and Deform clips and rejects changed project/rig/mode/source.
+
+Numeric golden tests cover one/two passes, rigid fallback, tie pruning and unchanged input. Seeded
+multi-pass tests check normalized finite rows, maximum influence count and triangle-order parity.
+The browser workflow passes numeric output, Bind/Deform preservation, exact undo/redo and native
+roundtrip, invalid-input redo retention, hard cancellation and stale-result isolation. An initial exact
+floating-point assertion differed by 5.6e-17; the numerical golden now uses the documented tolerance.
+Full local checks passed with 319 unit tests, TypeScript, lint/boundaries, formatting and both builds.
+All fourteen browser suites passed (scene golden 0.000%, CPU p95 0.80ms), and the smoothing workflow
+also passed from the production build. Remote CI is pending. Linked/shared meshes and the complete
+Phase 6 performance gate remain unfinished.

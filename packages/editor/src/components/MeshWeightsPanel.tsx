@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NormalizeMeshWeightsCommand } from '../commands/weightCommands';
 import { BindMeshCommand } from '../commands/bindMeshCommand';
 import { AutoWeightsControls } from './AutoWeightsControls';
+import { SmoothWeightsControls } from './SmoothWeightsControls';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -98,6 +99,11 @@ export function MeshWeightsPanel({ attachmentId }: { attachmentId: string }) {
           Prune weights
         </button>
       </div>
+      <SmoothWeightsControls
+        attachmentId={attachmentId}
+        slotId={slotId}
+        maxInfluences={limit.trim() ? Number(limit) : NaN}
+      />
     </fieldset>
   );
 }

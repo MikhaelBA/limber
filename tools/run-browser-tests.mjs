@@ -44,6 +44,7 @@ try {
     'mesh-binding.mjs',
     'auto-weights.mjs',
     'auto-mesh.mjs',
+    'smooth-weights.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {

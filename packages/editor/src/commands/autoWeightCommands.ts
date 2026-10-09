@@ -49,7 +49,7 @@ export function prepareAutoWeights(
 
 /** Async results enter normal history only while their source rig is still current. */
 export class ApplyAutoWeightsCommand implements Command {
-  readonly label = 'Auto Weights';
+  readonly label: string;
   private before: RigSnapshot | null = null;
   private after: RigSnapshot | null = null;
   private weights: number[];
@@ -58,8 +58,10 @@ export class ApplyAutoWeightsCommand implements Command {
     private attachmentId: string,
     weights: readonly number[],
     private fingerprint: string,
+    private operation = 'Auto weights',
   ) {
     this.weights = [...weights];
+    this.label = operation;
   }
   do(): void {
     if (this.after) {
@@ -67,7 +69,7 @@ export class ApplyAutoWeightsCommand implements Command {
       return;
     }
     if (this.engine.mode !== 'setup' || rigFingerprint(this.engine) !== this.fingerprint)
-      throw new Error('Auto weights discarded because the rig changed. Run it again.');
+      throw new Error(`${this.operation} discarded because the rig changed. Run it again.`);
     const before = captureRig(this.engine),
       after = prepareRigEdit(this.engine, (data) => {
         const mesh = data.attachments.find((item) => item.id === this.attachmentId);

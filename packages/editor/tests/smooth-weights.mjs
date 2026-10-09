@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { chromium } from 'playwright';
+import { installHeldWorkers } from '../../../tools/held-worker-harness.mjs';
+
+const source = JSON.parse(readFileSync('fixtures/bbbproj-v5-bind-mesh.json', 'utf8'));
+source.artboards[0].nodes[0].skeleton.attachments[0].weights = [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1];
+source.artboards[0].nodes[0].animations[0].timelines.push({ kind: 'deform', attachmentId: 'mesh', keyframes: [{ time: 0, offsets: Array(8).fill(2), curve: { type: 'linear' } }] });
+const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } }); page.setDefaultTimeout(30000);
+  const errors = []; page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(installHeldWorkers); await page.goto(process.env.SPRINE_URL ?? 'http://localhost:5173/');
+  await page.waitForFunction(() => window.__ticks > 2);
+  const open = async (project) => page.locator('input[type=file]').setInputFiles({ name: 'smooth.bbbproj', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  const save = async () => { const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Save', exact: true }).click(); return JSON.parse(readFileSync(await (await pending).path(), 'utf8')); };
+  const select = async () => page.getByText(/^bind test mesh/).first().click();
+  const start = async () => { await page.getByRole('button', { name: 'Smooth weights', exact: true }).click(); await page.getByRole('progressbar', { name: 'Smooth weights progress' }).waitFor(); await page.waitForFunction(() => window.__workerJobs.at(-1)?.result !== null); };
+  await open(source); await select(); const before = await save();
+  await start(); assert.deepEqual(await save(), before); await page.evaluate(() => window.__releaseWeights());
+  await page.locator('footer').getByText(/Weights smoothed/).waitFor(); const after = await save(), mesh = after.artboards[0].nodes[0].skeleton.attachments[0];
+  const expected = [2, 0, 2/3, 1, 1/3, 2, 0, 1/4, 1, 3/4, 2, 0, 1/3, 1, 2/3, 2, 0, 3/4, 1, 1/4];
+  assert.equal(mesh.weights.length, expected.length); mesh.weights.forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-12));
+  assert.deepEqual(mesh.boneBindings, source.artboards[0].nodes[0].skeleton.attachments[0].boneBindings);
+  assert.deepEqual(after.artboards[0].nodes[0].animations, source.artboards[0].nodes[0].animations);
+  await page.keyboard.press('Control+z'); assert.deepEqual(await save(), before);
+  await page.getByLabel('Weight smoothing strength', { exact: true }).fill('-1');
+  await page.getByRole('button', { name: 'Smooth weights', exact: true }).click();
+  await page.locator('footer').getByText(/Smoothing needs strength/).waitFor(); assert.deepEqual(await save(), before);
+  await page.keyboard.press('Control+y'); assert.deepEqual(await save(), after);
+  await open(after); await select(); assert.deepEqual(await save(), after);
+  await start(); await page.getByRole('button', { name: 'Cancel smooth weights', exact: true }).click();
+  await page.locator('footer').getByText('Smooth weights cancelled.', { exact: true }).waitFor(); assert.deepEqual(await save(), after);
+  assert.equal(await page.evaluate(() => window.__workerJobs.at(-1).terminated), true);
+  await start(); const name = page.getByRole('complementary', { name: 'Character properties' }).getByRole('textbox', { name: 'Name', exact: true });
+  await name.fill('changed during smoothing'); await name.press('Enter'); const changed = await save();
+  await page.evaluate(() => window.__releaseWeights()); await page.locator('footer').getByText(/Smooth weights discarded because the rig changed/).waitFor();
+  assert.deepEqual(await save(), changed);
+  await page.keyboard.press('Control+z'); assert.deepEqual(await save(), after);
+  await page.getByLabel('Maximum mesh influences', { exact: true }).fill('1'); await start();
+  await page.evaluate(() => window.__releaseWeights()); await page.locator('footer').getByText(/Weights smoothed/).waitFor();
+  assert.deepEqual((await save()).artboards[0].nodes[0].skeleton.attachments[0].weights, [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1]);
+  await page.getByRole('button', { name: 'Animate', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Smooth weights', exact: true }).isDisabled(), true);
+  assert.deepEqual(errors, []);
+  console.log('PASS: real smoothing worker, numeric edge-average golden, maximum influence limit, binding/deform preservation, exact history/roundtrip, invalid-input redo, cancel/stale and Setup isolation');
+} finally { await browser.close(); }

@@ -3,3 +3,4 @@ export * from './topology';
 export * from './affine';
 export * from './autoWeights';
 export * from './autoMesh';
+export * from './smoothWeights';

@@ -75,6 +75,6 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Explicit bone binding and bind-pose-preserving skinning.
 - [x] Auto weights worker with progress, hard cancellation and stale-result isolation.
 - [x] Auto grid mesh worker with progress, cancellation and stale-result isolation.
-- [ ] Weight smoothing with normalized influences and atomic history.
+- [x] Weight smoothing worker with normalized influences and atomic history.
 - [ ] Linked/shared meshes with independent instance bindings/deform semantics.
 - [ ] Standard/Heavy fixture costs, responsive worker workflow and full Phase 6 CI gate.
