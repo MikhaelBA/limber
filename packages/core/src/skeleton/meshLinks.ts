@@ -26,7 +26,7 @@ export function resolveMeshLinks(data: SkeletonData, refresh = false): void {
       const own = attachment[key], shared = source[key];
       if (!refresh && own !== undefined && own !== shared &&
           (!Array.isArray(own) || !Array.isArray(shared) || own.length !== shared.length ||
-           own.some((value, index) => value !== shared[index])))
+           Array.from(own).some((value, index) => value !== shared[index])))
         throw new Error(`Shared mesh "${attachment.name}" has conflicting geometry; detach before editing it independently.`);
     }
     links.push([attachment, source]);

@@ -38,6 +38,15 @@ function fixture() {
 }
 
 describe('Deform source validation and curves', () => {
+  it('retains the exact bound checks when a conservative estimate exceeds Float32 but coordinates cancel safely', () => {
+    const { skeleton, animations, timeline } = fixture();
+    skeleton.attachments[0]!.meshVertices = [3e38,3e38,3e38-1e30,3e38,3e38,3e38-1e30];
+    skeleton.attachments[0]!.boneBindings = [{ boneId: 'root', matrix: [2,1e-8,-2,1e-8,0,0] }];
+    timeline.keyframes[1]!.offsets = null;
+    expect(() => validateDeformTimelines(skeleton, animations)).not.toThrow();
+    skeleton.attachments[0]!.boneBindings[0]!.matrix[3] = 2;
+    expect(() => validateDeformTimelines(skeleton, animations)).toThrow(/bound deformation/);
+  });
   it('rejects deformation that overflows after applying an otherwise valid bind matrix', () => {
     const { skeleton, animations, timeline } = fixture();
     skeleton.attachments[0]!.boneBindings = [{ boneId: 'root', matrix: [1e20, 0, 0, 1e20, 0, 0] }];

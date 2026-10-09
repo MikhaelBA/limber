@@ -1,0 +1,12 @@
+{
+  "fixtureVersion": 1,
+  "kind": "Heavy",
+  "bones": 120,
+  "side": 100,
+  "constraints": 10,
+  "animations": 10,
+  "influences": 4,
+  "duration": 2,
+  "clipping": true,
+  "deform": true
+}

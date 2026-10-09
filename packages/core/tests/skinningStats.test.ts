@@ -3,6 +3,14 @@ import { Skeleton, solveFK, updateSkinning, createSkinningStats } from '../src';
 import { readFileSync } from 'node:fs';
 
 describe('optional skinning work counters', () => {
+  it.each(['mesh', 'region', 'clipping'] as const)('rejects %s geometry outside finite Float32 pose precision', (type) => {
+    const project = JSON.parse(readFileSync('fixtures/bbbproj-v5-bind-mesh.json', 'utf8'));
+    const data = project.artboards[0].nodes[0].skeleton, attachment = data.attachments[0];
+    attachment.type = type; delete attachment.weights; delete attachment.boneBindings;
+    attachment.meshVertices[0] = 1e40;
+    if (type === 'region') { attachment.vertices = attachment.meshVertices; attachment.uvs = attachment.meshUVs; }
+    expect(() => new Skeleton(data)).toThrow(/finite pose precision/);
+  });
   it('counts rigid/weighted vertices, influence transforms and bind products without changing output', () => {
     const project = JSON.parse(readFileSync('fixtures/bbbproj-v5-bind-mesh.json', 'utf8'));
     const skeleton = new Skeleton(project.artboards[0].nodes[0].skeleton);

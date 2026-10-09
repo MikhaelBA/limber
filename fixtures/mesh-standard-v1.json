@@ -1,0 +1,12 @@
+{
+  "fixtureVersion": 1,
+  "kind": "Standard",
+  "bones": 60,
+  "side": 50,
+  "constraints": 5,
+  "animations": 10,
+  "influences": 4,
+  "duration": 2,
+  "clipping": false,
+  "deform": false
+}

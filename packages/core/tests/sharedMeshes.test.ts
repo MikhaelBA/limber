@@ -46,6 +46,9 @@ describe('shared mesh geometry with independent runtime state', () => {
     const data = activeRigDocument(fixture())!.skeleton;
     data.attachments[1]!.meshVertices = [0, 0];
     expect(() => new Skeleton(data)).toThrow(/conflicting geometry/);
+    data.attachments[1]!.meshVertices = [...data.attachments[0]!.meshVertices!];
+    delete data.attachments[1]!.meshVertices![0];
+    expect(() => new Skeleton(data)).toThrow(/conflicting geometry/);
     delete data.attachments[1]!.meshVertices;
     data.attachments[1]!.weights!.pop();
     expect(() => new Skeleton(data)).toThrow(/malformed weights/);

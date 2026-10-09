@@ -46,6 +46,7 @@ try {
     'auto-mesh.mjs',
     'smooth-weights.mjs',
     'shared-meshes.mjs',
+    'mesh-performance.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {

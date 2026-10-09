@@ -222,6 +222,14 @@ export class Skeleton {
 
     for (const attachment of this.data.attachments) {
       try {
+        // Source geometry becomes Float32 pose/GPU data. Finite doubles outside
+        // that range must fail load rather than create infinite renderer vertices/UVs.
+        const local = attachment.type === 'region' ? attachment.vertices : attachment.meshVertices;
+        const uvs = attachment.type === 'region' ? attachment.uvs : attachment.meshUVs;
+        for (const values of [local, uvs]) if (Array.isArray(values)) {
+          for (let i = 0; i < values.length; i++) if (!Number.isFinite(Math.fround(values[i]!)))
+            throw new Error('Geometry exceeds finite pose precision.');
+        }
         if (attachment.type === 'mesh') {
           if (!attachment.meshUVs) throw new Error('Mesh UVs are required.');
           validateMeshTopology({ vertices: attachment.meshVertices!, triangles: attachment.meshTriangles!, uvs: attachment.meshUVs, hull: attachment.meshHull });

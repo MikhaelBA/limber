@@ -7,7 +7,7 @@ export function installHeldWorkers() {
     onerror = null;
     constructor(url, options) {
       this.native = new NativeWorker(url, options);
-      this.stats = { frames: 0, gaps: [], terminated: false, result: null };
+      this.stats = { frames: 0, gaps: [], computing: false, terminated: false, result: null };
       window.__workerJobs.push(this.stats);
       let last = performance.now();
       const frame = (now) => {
@@ -20,11 +20,13 @@ export function installHeldWorkers() {
       requestAnimationFrame(frame);
       this.native.onmessage = (event) => {
         if (event.data.kind === 'progress' && event.data.fraction === 0) {
+          this.stats.computing = true;
           this.stats.frames = 0;
           this.stats.gaps = [];
           last = performance.now();
         }
         if (event.data.kind === 'result') {
+          this.stats.computing = false;
           this.stats.result = event.data;
           this.pending = event;
         } else this.onmessage?.(event);

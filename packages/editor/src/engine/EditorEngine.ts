@@ -17,6 +17,7 @@ import {
   type EditorDocument,
   type EventFrame,
   type SkeletonData,
+  type SkinningStats,
 } from '@limber/core';
 
 export type EditorMode = 'setup' | 'animate';
@@ -190,7 +191,7 @@ export class EditorEngine {
    * reset → apply animation (animate mode only) → FK → skin attachments.
    * (IK slots in between when Phase 6 lands.)
    */
-  tick(deltaMS: number): void {
+  tick(deltaMS: number, skinningStats?: SkinningStats): void {
     const dt = Math.min(deltaMS, 100) / 1000;
     if (this.playing && this.animState.hasCurrent) {
       this.animState.update(dt * this.playbackSpeed);
@@ -212,7 +213,7 @@ export class EditorEngine {
     if (this.skeleton.data.ikConstraints.length > 0) {
       solveIK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
     }
-    updateSkinning(this.skeleton);
+    updateSkinning(this.skeleton, skinningStats);
     this.emitTransient('time', this.currentTime);
   }
 

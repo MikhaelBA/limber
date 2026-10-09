@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Application, Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, UPDATE_PRIORITY } from 'pixi.js';
 import type { AttachmentData } from '@limber/core';
 import {
   evaluateMarkers,
@@ -10,6 +10,7 @@ import {
   solveIK,
   updateSkinning,
   worldToAttachmentVertex,
+  createSkinningStats,
 } from '@limber/core';
 import {
   AutoKeyBonePropCommand,
@@ -358,6 +359,10 @@ function wireViewport(
     mesh: Mesh;
     /** Last attachmentId the mesh was built for (null = hidden placeholder state). */
     attachmentId: string | null;
+    sourceUvs?: number[];
+    sourceTriangles?: number[];
+    textureVersion?: number;
+    textureId?: string;
   }
 
   const slotMeshes = new Map<string, SlotMesh>();
@@ -365,6 +370,9 @@ function wireViewport(
   let recDataRev = -1;
   let recTexVer = -1;
   let recSkeleton: unknown = null;
+  let recWorldMatrices: Float32Array | null = null;
+  let geometryBuilds = 0;
+  let ghostBuilds = 0;
   const drawPosOfSlot: number[] = [];
   const scratchPoint = { x: 0, y: 0 };
 
@@ -454,6 +462,7 @@ function wireViewport(
   };
 
   const makeSlotMesh = (): SlotMesh => {
+    geometryBuilds++;
     const geometry = new MeshGeometry({
       positions: new Float32Array(8),
       uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
@@ -479,10 +488,13 @@ function wireViewport(
     for (const slot of data.slots) {
       if (!slotMeshes.has(slot.id)) slotMeshes.set(slot.id, makeSlotMesh());
     }
-    // Textures may have arrived (registry.version) — force re-resolution.
-    for (const entry of slotMeshes.values()) entry.attachmentId = null;
-    // The ghost evaluator shares the (read-only) data but owns its pose/maps.
-    ghostSkeleton = new Skeleton(data);
+    // Weight/property edits share source data with the existing ghost evaluator.
+    // Only a new rig or structural pose allocation requires rebuilding its maps/caches.
+    if (recSkeleton !== engine.skeleton || recWorldMatrices !== engine.skeleton.pose.worldMatrices) {
+      ghostSkeleton = new Skeleton(data);
+      ghostBuilds++;
+      recWorldMatrices = engine.skeleton.pose.worldMatrices;
+    }
     recDataRev = dataRev;
     recTexVer = texVer;
     recSkeleton = engine.skeleton;
@@ -523,28 +535,40 @@ function wireViewport(
         drawPolygonOutline(attachment, state.verts, 0xe6d55a, 0.9);
       }
 
-      if (slotPose.attachmentId !== entry.attachmentId) {
+      const attachmentChanged = slotPose.attachmentId !== entry.attachmentId;
+      if (attachmentChanged || entry.textureVersion !== textureRegistry.version || entry.textureId !== attachment?.textureId) {
         entry.attachmentId = slotPose.attachmentId;
         if (attachment && isTextured && local) {
           entry.mesh.texture = textureRegistry.get(attachment.textureId) ?? textureRegistry.placeholder;
-          // Topology changed (vertex count / triangles): swap in fresh geometry.
-          const uvs = new Float32Array(local.length);
-          const srcUvs =
-            attachment.type === 'region'
-              ? attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1]
-              : attachment.meshUVs ?? [];
-          for (let k = 0; k < uvs.length; k++) uvs[k] = srcUvs[k] ?? 0;
-          const indices =
-            attachment.type === 'region'
-              ? new Uint32Array([0, 1, 2, 0, 2, 3])
-              : new Uint32Array(attachment.meshTriangles ?? []);
-          entry.mesh.geometry.destroy();
-          entry.mesh.geometry = new MeshGeometry({
-            positions: new Float32Array(local.length),
-            uvs,
-            indices,
-          });
+          entry.textureVersion = textureRegistry.version;
+          entry.textureId = attachment.textureId;
         }
+      }
+      const sourceUvs = attachment?.type === 'region' ? attachment.uvs : attachment?.meshUVs;
+      const sourceTriangles = attachment?.type === 'mesh' ? attachment.meshTriangles : undefined;
+      if (attachment && isTextured && local && (attachmentChanged ||
+          entry.sourceUvs !== sourceUvs || entry.sourceTriangles !== sourceTriangles ||
+          entry.mesh.geometry.positions.length !== local.length)) {
+        // Topology changed (vertex count / triangles): swap in fresh geometry.
+        geometryBuilds++;
+        const uvs = new Float32Array(local.length);
+        const srcUvs =
+          attachment.type === 'region'
+            ? attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1]
+            : attachment.meshUVs ?? [];
+        for (let k = 0; k < uvs.length; k++) uvs[k] = srcUvs[k] ?? 0;
+        const indices =
+          attachment.type === 'region'
+            ? new Uint32Array([0, 1, 2, 0, 2, 3])
+            : new Uint32Array(attachment.meshTriangles ?? []);
+        entry.mesh.geometry.destroy();
+        entry.mesh.geometry = new MeshGeometry({
+          positions: new Float32Array(local.length),
+          uvs,
+          indices,
+        });
+        entry.sourceUvs = sourceUvs;
+        entry.sourceTriangles = sourceTriangles;
       }
 
       if (!attachment || !isTextured || !local || !state) {
@@ -1448,8 +1472,25 @@ function wireViewport(
 
   let tickCount = 0;
   let lastTickAt = performance.now();
+  // Bounded opt-in browser evidence. Normal playback allocates no profiling records.
+  type RigFrame = { coreMs: number; viewportMs: number; vertexTransforms: number;
+    bindMatrixProducts: number; vertices: number; attachments: number; maskedMeshes: number };
+  type RigCapture = { limit: number; frames: (RigFrame & { cpuMs: number; timestamp: number })[] };
+  let measuredFrame: RigFrame | null = null;
+  let measuredCapture: RigCapture | null = null;
+  let measuredStart = 0;
+  let measuredStats: ReturnType<typeof createSkinningStats> | undefined;
   const updateViewport = (deltaMS: number): void => {
-    engine.tick(deltaMS);
+    const capture = (window as unknown as { __rigFrameMetrics?: RigCapture }).__rigFrameMetrics;
+    const recording = deltaMS > 0 && capture && capture.frames.length < Math.min(600, capture.limit);
+    measuredFrame = null;
+    if (recording) {
+      measuredCapture = capture;
+      measuredStart = performance.now();
+      measuredStats ??= createSkinningStats();
+    }
+    engine.tick(deltaMS, recording ? measuredStats : undefined);
+    const coreMs = recording ? performance.now() - measuredStart : 0;
 
     const st = useEditorStore.getState();
     if (st.dataRevision !== recDataRev || textureRegistry.version !== recTexVer || recSkeleton !== engine.skeleton) {
@@ -1467,6 +1508,8 @@ function wireViewport(
     // Test hooks for the smoke suite: how many slot meshes render + where the
     // first one sits (skeleton space) so "sprite follows bone" is assertable.
     w.__slotMeshes = slotsContainer.children.length;
+    w.__rigGeometryBuilds = geometryBuilds;
+    w.__rigGhostBuilds = ghostBuilds;
     const first = slotsContainer.children[0] as Mesh | undefined;
     w.__slotMesh0 = first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
     w.__slotMeshVerts0 = first && first.visible ? first.geometry.positions.length / 2 : 0;
@@ -1513,12 +1556,27 @@ function wireViewport(
     } else {
       w.__ikTarget0 = null;
     }
+    if (recording) measuredFrame = {
+      coreMs, viewportMs: performance.now() - measuredStart,
+      vertices: measuredStats!.vertices, attachments: measuredStats!.attachments,
+      vertexTransforms: measuredStats!.vertexTransforms, bindMatrixProducts: measuredStats!.bindMatrixProducts,
+      maskedMeshes: [...slotMeshes.values()].filter((entry) => entry.mesh.visible && entry.mesh.mask).length,
+    };
   };
   theApp.ticker.add(() => {
     lastTickAt = performance.now();
     // Background tabs must not fast-forward playback.
     updateViewport(Math.min(theApp.ticker.deltaMS, 100));
   });
+  // Pixi submits rendering at LOW; UTILITY observes completion of CPU submission.
+  // GPU completion is asynchronous and is intentionally outside cpuMs.
+  theApp.ticker.add(() => {
+    if (measuredFrame && measuredCapture) {
+      const timestamp = performance.now();
+      measuredCapture.frames.push({ ...measuredFrame, timestamp, cpuMs: timestamp - measuredStart });
+      measuredFrame = null;
+    }
+  }, undefined, UPDATE_PRIORITY.UTILITY);
 
   // rAF-frozen webviews (observed in the in-app browser: 0 frames in 2.5s
   // while visibility reports "visible") leave the canvas on its very first

@@ -11,7 +11,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed                 |
 | 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed                 |
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed                 |
-| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Workers/shared meshes; performance gate pending |
+| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Features/performance verified; final CI pending |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Partial legacy IK                               |
 | 8     | Logic, typed parameters, state machine and bindings                  | Pending                                         |
 | 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas                     |

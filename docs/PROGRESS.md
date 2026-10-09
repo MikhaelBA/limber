@@ -349,3 +349,30 @@ Phase 6I validation: all 335 unit tests, TypeScript, lint/boundaries, formatting
 passed. All fifteen browser suites passed, including scene/RTL goldens; the shared-mesh workflow
 also passed against production assets. The schema-advancement regression initially found two
 browser assertions still expecting schema 5; they now expect schema 6. Remote CI follows.
+
+## 9 October 2026 Phase 6I published
+
+Commit `5a59f4e`; CI run 37979002490 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6J complete mesh performance fixtures
+
+Versioned profiles now generate Standard (60 bones/2500 weighted vertices/5 constraints/10 clips)
+and Heavy (120 bones/10000 weighted vertices/10 constraints/10 clips/clipping/Deform). Runtime/
+preview parity and actual vertex-transform counters are asserted. Bounded opt-in ticker capture
+measures core, viewport and CPU rendering submission separately from actual frame cadence. The
+full Heavy worker workflow verifies an inspector interaction during computation, preserved GPU/
+ghost caches, clips/Bind and exact history/native roundtrip. ADR 0017 defines this evidence gate.
+
+The complete fixture exposed repeated bind/Deform validation costs; conservative bounds now prove
+ordinary segments safe in O(vertices + bindings), retaining exact checks near Float32 limits. Sparse
+conflicting linked geometry and source coordinates/UVs outside finite Float32 range are rejected.
+Renderer updates retain unchanged geometry/ghost caches for weight/property edits, rebuilding only
+when the relevant source or structural allocation changes.
+
+All local checks passed with 341 unit tests, TypeScript, lint/boundaries, formatting and both builds.
+All sixteen browser suites passed with unchanged scene/RTL tolerances. The complete production
+profile workflow also passed: Standard/Heavy CPU update/render-submit p95 1.70/3.20ms, with
+10000/40004 vertex transforms per frame. Heavy worker computation/publication was 500.6/31.4ms
+with rendering and inspector interaction active. SwiftShader actual frame-gap p95 was 27.6/61.0ms;
+CPU budget passage is not a hardware-independent 60fps GPU claim. docs/performance/phase6-mesh.md
+contains the full scope and limits. No Phase 6 feature task remains; the final remote CI gate follows.

@@ -24,3 +24,12 @@ when failing. Seed 0xbbb001 is the default. Planned benchmark sizes follow PRODU
 owner follows the moving tip through its frozen Bind; the instance follows root with its own weights
 and a vertical Deform. At t=0.5 their complete world-coordinate arrays differ by the expected +30 X
 and +10 Y. Tests verify one serialized geometry, independent pose caches and full numeric output.
+
+`mesh-standard-v1.json` and `mesh-heavy-v1.json` are immutable fixture profiles generated into
+native projects by `playbackFixture` in `tools/mesh-fixtures.mjs`. Standard has 60 bones, 2500
+four-influence vertices, 5 active IK constraints and 10 clips. Heavy has 120 bones, 10000 four-
+influence vertices, 10 constraints/clips, clipping and complete Deform arrays. They are distinct from
+the geometry-only worker race fixtures. `mesh-performance.mjs` records 180 steady-state frames,
+actual influence-transform counts, CPU render submission, real frame gaps and the graphics driver;
+see docs/performance/phase6-mesh.md for scope and limits. Native project generation uses no artwork
+or randomness.

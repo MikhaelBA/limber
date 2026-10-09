@@ -62,6 +62,7 @@ export function validateDeformTimelines(data: SkeletonData, animations: readonly
                   Math.max(1, a.curve.c2 ?? 1 / 3, a.curve.c4 ?? 1),
                 ]
               : [0, 1];
+        let maxX = 0, maxY = 0;
         for (let k = 0; k < local!.length; k++) {
           const from = a.offsets?.[k] ?? 0,
             to = b.offsets?.[k] ?? 0;
@@ -69,6 +70,9 @@ export function validateDeformTimelines(data: SkeletonData, animations: readonly
             const offset = from + (to - from) * t;
             if (!finiteFloat(offset) || !finiteFloat(local![k]! + offset))
               fail('deformation exceeds finite pose precision.');
+            const bound = Math.abs(local![k]! + offset);
+            if (k % 2 === 0) maxX = Math.max(maxX, bound);
+            else maxY = Math.max(maxY, bound);
           }
         }
         if (Array.isArray(attachment?.boneBindings)) {
@@ -76,6 +80,12 @@ export function validateDeformTimelines(data: SkeletonData, animations: readonly
             // Malformed binding shape is rejected by Skeleton validation.
             if (!Array.isArray(binding?.matrix) || binding.matrix.length !== 6) continue;
             const m = binding.matrix;
+            // Most meshes fit comfortably in Float32. A conservative absolute bound
+            // proves every vertex safe without a bones × vertices scan for each segment.
+            // Keep the original exact checks near the limit (including large cancellation).
+            const xBound = Math.abs(m[0]!) * maxX + Math.abs(m[2]!) * maxY + Math.abs(m[4]!);
+            const yBound = Math.abs(m[1]!) * maxX + Math.abs(m[3]!) * maxY + Math.abs(m[5]!);
+            if (finiteFloat(xBound * (1 + 1e-12)) && finiteFloat(yBound * (1 + 1e-12))) continue;
             for (let k = 0; k < local!.length; k += 2) {
               for (const t of limits) {
                 const ax = a.offsets?.[k] ?? 0,
