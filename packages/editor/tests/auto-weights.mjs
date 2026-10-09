@@ -29,7 +29,7 @@ try {
       return { durationMs: job.result.durationMs, frames: job.frames, frameGapP95Ms: sorted[Math.floor(sorted.length * 0.95)] ?? 0, maxFrameGapMs: sorted.at(-1) ?? 0 };
     });
     if (stats.durationMs > 100) assert.ok(stats.frames >= 2, `${kind} did not render while computing`);
-    await page.evaluate(() => window.__releaseWeights());
+    const publicationMs = await page.evaluate(() => window.__releaseWeights());
     await page.locator('footer').getByText(/Auto weights applied/).waitFor();
     const after = await save(), weights = after.artboards[0].nodes[0].skeleton.attachments[0].weights;
     let cursor = 0, count = 0;
@@ -44,7 +44,7 @@ try {
     await page.keyboard.press('Control+z'); assert.deepEqual(await save(), before);
     await page.keyboard.press('Control+y'); assert.deepEqual(await save(), after);
     await open(after); await select(); assert.deepEqual(await save(), after);
-    metrics.push({ kind, vertices: count, bones: source.artboards[0].nodes[0].skeleton.bones.length, ...stats });
+    metrics.push({ kind, vertices: count, bones: source.artboards[0].nodes[0].skeleton.bones.length, publicationMs, ...stats });
   }
   // An aborted job preserves source and redo; redo is created by an ordinary name edit.
   await open(meshFixture('Standard')); await select();

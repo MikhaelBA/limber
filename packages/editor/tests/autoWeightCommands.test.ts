@@ -45,10 +45,36 @@ function fixture() {
   return { engine, slot: slot.slotId, mesh: mesh.attachmentId };
 }
 describe('automatic weights publication', () => {
+  it('rejects known but unbound influences without changing source, pose caches or redo', () => {
+    const { engine, mesh } = fixture(),
+      history = new HistoryManager();
+    const attachment = engine.skeleton.attachmentById.get(mesh)!;
+    attachment.boneBindings = [attachment.boneBindings![0]!];
+    engine.skeleton.rebuild();
+    const fingerprint = rigFingerprint(engine);
+    history.execute(
+      new ApplyAutoWeightsCommand(engine, mesh, [1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1], fingerprint),
+    );
+    history.undo();
+    const before = structuredClone(engine.project),
+      state = engine.skeleton.pose.attachments.get(mesh);
+    expect(() =>
+      history.execute(
+        new ApplyAutoWeightsCommand(engine, mesh, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], fingerprint),
+      ),
+    ).toThrow(/not bound/);
+    expect(engine.project).toEqual(before);
+    expect(engine.skeleton.pose.attachments.get(mesh)).toBe(state);
+    expect(history.canRedo).toBe(true);
+  });
   it('preserves bind shape, deform tracks and exact source through undo/redo', () => {
     const { engine, slot, mesh } = fixture(),
       history = new HistoryManager();
     engine.tick(0);
+    const cachedState = engine.skeleton.pose.attachments.get(mesh)!,
+      cachedMatrices = engine.skeleton.pose.worldMatrices;
+    const cachedDeform = cachedState.deform,
+      cachedSkin = cachedState.skinMatrices;
     const vertices = [...engine.skeleton.pose.attachments.get(mesh)!.verts];
     const before = structuredClone(engine.project),
       input = prepareAutoWeights(engine, mesh, slot, 2);
@@ -56,6 +82,10 @@ describe('automatic weights publication', () => {
       command = new ApplyAutoWeightsCommand(engine, mesh, weights, rigFingerprint(engine));
     weights.fill(99);
     history.execute(command);
+    expect(engine.skeleton.pose.attachments.get(mesh)).toBe(cachedState);
+    expect(engine.skeleton.pose.worldMatrices).toBe(cachedMatrices);
+    expect(cachedState.deform).toBe(cachedDeform);
+    expect(cachedState.skinMatrices).toBe(cachedSkin);
     engine.tick(0);
     const after = structuredClone(engine.project);
     vertices.forEach((value, i) =>
@@ -68,6 +98,7 @@ describe('automatic weights publication', () => {
     expect(engine.project).toEqual(before);
     history.redo();
     expect(engine.project).toEqual(after);
+    expect(engine.skeleton.pose.attachments.get(mesh)).toBe(cachedState);
   });
   it('rejects stale, invalid and wrong-mode results before source or redo changes', () => {
     const { engine, slot, mesh } = fixture(),

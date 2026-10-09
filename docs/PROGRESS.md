@@ -292,3 +292,25 @@ Full local checks passed with 319 unit tests, TypeScript, lint/boundaries, forma
 All fourteen browser suites passed (scene golden 0.000%, CPU p95 0.80ms), and the smoothing workflow
 also passed from the production build. Remote CI is pending. Linked/shared meshes and the complete
 Phase 6 performance gate remain unfinished.
+
+## 9 October 2026 Phase 6G published
+
+Commit `d80dc0b`; CI run 37951259937 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6H weight publication cost
+
+Final-result timing exposed 86.4ms Standard and 295.5ms Heavy publication pauses despite Worker
+computation being responsive. Weight publication now validates only the new normalized/bound
+influences and changes one copied array, preserving unchanged geometry and pose/deform/bind
+caches. Complete source fingerprint guards remain, without a redundant source clone. Streaming
+weight validation removes per-vertex row/Set/influence allocations. Tests verify exact history and
+unchanged caches and reject known but unbound influences without source/redo changes.
+
+The optimized production-build measurements were 21.5ms Standard and 41.4ms Heavy publication. The
+timer covers delivery/authoring microtasks; subsequent renderer reconciliation is outside it. Optional
+reusable core skinning counters now report actual vertex/influence transforms and bind products
+without changing output. Full local checks passed with 321 unit tests, TypeScript, lint/boundaries,
+formatting and both builds. All fourteen browser suites passed (scene golden 0.000%, CPU p95
+0.80ms); the optimized weight workflow also passed from the production build. Remote CI is pending.
+Linked/shared meshes, full Standard constraints/clips and Heavy clipping/deform playback/frame
+measurements remain unfinished; this increment does not close the Phase 6 gate.

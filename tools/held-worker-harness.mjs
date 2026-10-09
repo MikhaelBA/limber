@@ -30,8 +30,12 @@ export function installHeldWorkers() {
         } else this.onmessage?.(event);
       };
       this.native.onerror = (event) => this.onerror?.(event);
-      window.__releaseWeights = () => {
+      window.__releaseWeights = async () => {
+        const start = performance.now();
         if (this.pending && !this.stats.terminated) this.onmessage?.(this.pending);
+        // Drain the job wrapper and authoring promise continuations, including publication.
+        for (let i = 0; i < 4; i++) await Promise.resolve();
+        return performance.now() - start;
       };
     }
     postMessage(message) {

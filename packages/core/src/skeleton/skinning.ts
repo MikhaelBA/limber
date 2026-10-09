@@ -2,6 +2,26 @@ import type { AttachmentData } from '../types/data';
 import type { AttachmentPoseState } from '../types/pose';
 import type { Skeleton } from './Skeleton';
 
+/** Optional exact work counters; callers own/reuse the record. */
+export interface SkinningStats {
+  attachments: number;
+  vertices: number;
+  rigidVertices: number;
+  weightedVertices: number;
+  vertexTransforms: number;
+  bindMatrixProducts: number;
+}
+export function createSkinningStats(): SkinningStats {
+  return {
+    attachments: 0,
+    vertices: 0,
+    rigidVertices: 0,
+    weightedVertices: 0,
+    vertexTransforms: 0,
+    bindMatrixProducts: 0,
+  };
+}
+
 /**
  * Weighted skinning (Phase 5, DESIGN.md §4.3 step 5 — runs AFTER FK/IK).
  *
@@ -22,6 +42,7 @@ export function computeAttachmentVertices(
   slotBoneIndex: number,
   wm: Float32Array,
   state: AttachmentPoseState,
+  stats?: SkinningStats,
 ): void {
   // Regions carry their quad in `vertices`; meshes, bounding boxes and
   // clipping polygons all live in `meshVertices`.
@@ -33,7 +54,12 @@ export function computeAttachmentVertices(
     sm = state.skinMatrices;
   if (attachment.boneBindings && (!bm || !sm))
     throw new Error('Bound mesh pose must be allocated from its skeleton.');
+  if (stats) {
+    stats.attachments++;
+    stats.vertices += verts.length / 2;
+  }
   if (bm && sm) {
+    if (stats) stats.bindMatrixProducts += wm.length / 6;
     for (let o = 0; o < wm.length; o += 6) {
       sm[o] = wm[o]! * bm[o]! + wm[o + 2]! * bm[o + 1]!;
       sm[o + 1] = wm[o + 1]! * bm[o]! + wm[o + 3]! * bm[o + 1]!;
@@ -46,6 +72,10 @@ export function computeAttachmentVertices(
   const weightedMatrices = sm ?? wm;
 
   if (!w) {
+    if (stats) {
+      stats.rigidVertices += verts.length / 2;
+      stats.vertexTransforms += verts.length / 2;
+    }
     const o = slotBoneIndex * 6;
     const a = wm[o]!;
     const b = wm[o + 1]!;
@@ -69,11 +99,19 @@ export function computeAttachmentVertices(
     const y = local[k + 1]! + deform[k + 1]!;
     const count = w[p++]! | 0;
     if (count === 0) {
+      if (stats) {
+        stats.rigidVertices++;
+        stats.vertexTransforms++;
+      }
       // "No influences" entry — rigid-bound to the slot's CURRENT bone (the
       // weight-paint baseline). Falls back per-vertex, not per-attachment.
       verts[k] = wm[so]! * x + wm[so + 2]! * y + wm[so + 4]!;
       verts[k + 1] = wm[so + 1]! * x + wm[so + 3]! * y + wm[so + 5]!;
       continue;
+    }
+    if (stats) {
+      stats.weightedVertices++;
+      stats.vertexTransforms += count;
     }
     let wx = 0;
     let wy = 0;
@@ -162,7 +200,15 @@ export function worldToAttachmentVertex(
  * Pipeline step 5 driver: skins every slot's ACTIVE attachment into the pose
  * cache. Inactive attachments are skipped (they are not rendered).
  */
-export function updateSkinning(skeleton: Skeleton): void {
+export function updateSkinning(skeleton: Skeleton, stats?: SkinningStats): void {
+  if (stats) {
+    stats.attachments = 0;
+    stats.vertices = 0;
+    stats.rigidVertices = 0;
+    stats.weightedVertices = 0;
+    stats.vertexTransforms = 0;
+    stats.bindMatrixProducts = 0;
+  }
   const { data, pose } = skeleton;
   const wm = pose.worldMatrices;
   for (let i = 0; i < data.slots.length; i++) {
@@ -171,6 +217,12 @@ export function updateSkinning(skeleton: Skeleton): void {
     const attachment = skeleton.attachmentById.get(attId);
     const state = pose.attachments.get(attId);
     if (!attachment || !state) continue;
-    computeAttachmentVertices(attachment, skeleton.boneIndexMap.get(data.slots[i]!.boneId)!, wm, state);
+    computeAttachmentVertices(
+      attachment,
+      skeleton.boneIndexMap.get(data.slots[i]!.boneId)!,
+      wm,
+      state,
+      stats,
+    );
   }
 }

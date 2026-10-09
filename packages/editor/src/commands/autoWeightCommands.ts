@@ -1,11 +1,10 @@
 import { createPose, solveFK } from '@limber/core';
-import type { AutoWeightInput } from '@limber/mesh';
+import { validateWeights, type AutoWeightInput } from '@limber/mesh';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
-import { applyRigSnapshot, captureRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
 
 export function rigFingerprint(engine: EditorEngine): string {
-  return JSON.stringify(captureRig(engine));
+  return JSON.stringify({ skeleton: engine.skeleton.data, animations: engine.document.animations });
 }
 
 export function prepareAutoWeights(
@@ -47,11 +46,11 @@ export function prepareAutoWeights(
   return { vertices, bones, maxInfluences };
 }
 
-/** Async results enter normal history only while their source rig is still current. */
+/** Weight-only publication validates new influences and keeps existing geometry/pose caches. */
 export class ApplyAutoWeightsCommand implements Command {
   readonly label: string;
-  private before: RigSnapshot | null = null;
-  private after: RigSnapshot | null = null;
+  private before: number[] | undefined;
+  private ready = false;
   private weights: number[];
   constructor(
     private engine: EditorEngine,
@@ -63,24 +62,36 @@ export class ApplyAutoWeightsCommand implements Command {
     this.weights = [...weights];
     this.label = operation;
   }
+  private mesh() {
+    const mesh = this.engine.skeleton.attachmentById.get(this.attachmentId);
+    if (mesh?.type !== 'mesh' || !mesh.boneBindings?.length) throw new Error('Bound mesh no longer exists.');
+    return mesh;
+  }
+  private apply(weights: number[] | undefined) {
+    const mesh = this.mesh(),
+      skeleton = this.engine.skeleton;
+    if (weights !== undefined) {
+      const bound = new Set(mesh.boneBindings!.map((binding) => skeleton.boneIndexMap.get(binding.boneId)!));
+      validateWeights(weights, mesh.meshVertices!.length / 2, skeleton.data.bones.length, bound);
+    }
+    // Unchanged topology, bindings, clips and bone order were already validated by authoring/load.
+    // This command only changes weights; rebuilding the whole rig would unnecessarily block the UI.
+    if (weights === undefined) delete mesh.weights;
+    else mesh.weights = [...weights];
+  }
   do(): void {
-    if (this.after) {
-      applyRigSnapshot(this.engine, this.after);
+    if (this.ready) {
+      this.apply(this.weights);
       return;
     }
     if (this.engine.mode !== 'setup' || rigFingerprint(this.engine) !== this.fingerprint)
       throw new Error(`${this.operation} discarded because the rig changed. Run it again.`);
-    const before = captureRig(this.engine),
-      after = prepareRigEdit(this.engine, (data) => {
-        const mesh = data.attachments.find((item) => item.id === this.attachmentId);
-        if (mesh?.type !== 'mesh' || !mesh.boneBindings) throw new Error('Bound mesh no longer exists.');
-        mesh.weights = [...this.weights];
-      });
-    applyRigSnapshot(this.engine, after);
+    const before = this.mesh().weights?.slice();
+    this.apply(this.weights);
     this.before = before;
-    this.after = after;
+    this.ready = true;
   }
   undo(): void {
-    if (this.before) applyRigSnapshot(this.engine, this.before);
+    if (this.ready) this.apply(this.before);
   }
 }

@@ -8,22 +8,23 @@ export interface PruneOptions {
   threshold?: number;
 }
 
-export function decodeWeights(
+function readWeights(
   weights: readonly number[],
   vertexCount: number,
   boneCount: number,
-  normalized = false,
-): Influence[][] {
+  normalized: boolean,
+  rows?: Influence[][],
+  allowedBones?: ReadonlySet<number>,
+): void {
   if (!Number.isInteger(vertexCount) || vertexCount < 0 || !Number.isInteger(boneCount) || boneCount < 0)
     throw new Error('Invalid weight dimensions.');
-  const rows: Influence[][] = [];
+  const seen = normalized ? new Uint32Array(boneCount) : null;
   let cursor = 0;
   for (let vertex = 0; vertex < vertexCount; vertex++) {
     const count = weights[cursor++];
     if (!Number.isInteger(count) || count! < 0 || cursor + count! * 2 > weights.length)
       throw new Error('Malformed weights: missing or truncated vertex entry.');
-    const row: Influence[] = [],
-      seen = new Set<number>();
+    const row: Influence[] | undefined = rows ? [] : undefined;
     let sum = 0;
     for (let i = 0; i < count!; i++) {
       const boneIndex = weights[cursor++]!,
@@ -31,16 +32,30 @@ export function decodeWeights(
       if (!Number.isInteger(boneIndex) || boneIndex < 0 || boneIndex >= boneCount)
         throw new Error('Weight bone index out of range.');
       if (!Number.isFinite(weight) || weight < 0) throw new Error('Weights must be finite and nonnegative.');
-      if (normalized && seen.has(boneIndex)) throw new Error('Duplicate bone influence in vertex weights.');
-      seen.add(boneIndex);
+      if (seen) {
+        if (seen[boneIndex] === vertex + 1) throw new Error('Duplicate bone influence in vertex weights.');
+        seen[boneIndex] = vertex + 1;
+      }
+      if (allowedBones && !allowedBones.has(boneIndex))
+        throw new Error('Weight bone is not bound to this mesh.');
       sum += weight;
-      row.push({ boneIndex, weight });
+      row?.push({ boneIndex, weight });
     }
     if (normalized && count! > 0 && (!Number.isFinite(sum) || Math.abs(sum - 1) > 1e-5))
       throw new Error('Vertex weights must sum to one.');
-    rows.push(row);
+    if (rows) rows.push(row!);
   }
   if (cursor !== weights.length) throw new Error('Malformed weights: unexpected trailing vertex data.');
+}
+
+export function decodeWeights(
+  weights: readonly number[],
+  vertexCount: number,
+  boneCount: number,
+  normalized = false,
+): Influence[][] {
+  const rows: Influence[][] = [];
+  readWeights(weights, vertexCount, boneCount, normalized, rows);
   return rows;
 }
 export function encodeWeights(rows: readonly (readonly Influence[])[]): number[] {
@@ -55,10 +70,11 @@ export function validateWeights(
   weights: readonly number[] | undefined,
   vertexCount: number,
   boneCount: number,
+  allowedBones?: ReadonlySet<number>,
 ): void {
   if (weights === undefined) return;
   if (!Array.isArray(weights)) throw new Error('Weights must be an array.');
-  decodeWeights(weights, vertexCount, boneCount, true);
+  readWeights(weights, vertexCount, boneCount, true, undefined, allowedBones);
 }
 
 /** Stable ties use bone index; scale first so finite large weights cannot overflow their sum. */
