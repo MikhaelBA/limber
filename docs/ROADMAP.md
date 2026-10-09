@@ -87,6 +87,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] IK reflected/sheared/degenerate cases, pole and softness semantics/tests (ADR 0019).
 - [x] Transform constraint model, solver, history, mixed order and controls (ADR 0020).
 - [x] Path constraint model, deterministic path sampling, controls and progression keys (ADR 0021).
+- [x] Portable damped-spring kernel and bounded 120Hz clock with numerical goldens (ADR 0022).
 - [ ] Fixed-step secondary motion after its solver contract is stable.
 - [x] Serialized IK ordering UI and representative hand/foot Pin browser fixture.
 - [ ] Combined ordering, remaining solver fixtures and full Phase 7 CI gate.

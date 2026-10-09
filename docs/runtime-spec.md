@@ -139,3 +139,13 @@ be reused by independent chains. Removing a path removes its followers; removing
 referenced bone removes affected constraints. Controls and their tracks remain when
 only a constraint/path is removed. Source 1–7 identifiers advance to 8, with absent
 arrays meaning no paths. The optional compatibility exporter rejects native paths.
+
+## Secondary-motion kernel (Phase 7E1)
+
+Core exposes `advanceDampedSpring` and `FixedStepClock` with the numerical contract
+in ADR 0022. The spring exactly integrates a constant-target damped oscillator over
+a validated bounded step. The clock provides 120Hz step counts with a 100ms accepted
+delta cap, retained fractional time and discarded-stall diagnostics. These utilities
+do not yet alter the player/editor clock or add source physics data. Integration must
+resample animation and primary constraints at each fixed step before advancing the
+spring; passing one display-frame target to several spring steps is insufficient.

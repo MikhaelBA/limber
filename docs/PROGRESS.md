@@ -594,3 +594,29 @@ The next increment first proves the portable spring/clock contract before adding
 source fields or changing playback. Sol 6.1 / High remains suitable; no unresolved
 user decision blocks this work. Phases 8–12 remain outstanding and Phase 13 remains
 conditional on validation.
+
+## 10 October 2026 Phase 7E1 portable secondary-motion foundations
+
+Specified the fixed-step angular spring/inertia contract in ADR 0022 before changing
+playback. The implemented portable kernel uses the exact constant-target damped
+oscillator solution for under/critical/overdamping, with a stable critical limit and
+small-argument sinc expansion. It validates inputs/result before mutating reusable
+state; equilibrium and zero steps preserve exact values. The 120Hz accumulator
+retains fractional time, caps accepted delta at 100ms/12 steps and exposes dropped
+stall seconds. Nonfinite/negative deltas contribute no time. Neither utility allocates
+per step, owns renderer APIs or changes saved source schema 8.
+
+Eleven new tests use independent analytical/exponential-root goldens, fine RK4
+integration, constant-target subdivision around critical damping and frequency
+extremes, undamped energy conservation, settling and atomic rejection. Clock coverage
+compares 10/60/120/144/240/1000 display subdivisions, fractional/stall/reset semantics
+and ten thousand nonintegral frames. All 435 tests in 59 files, lint/boundaries,
+formatting, TypeScript and package/editor builds passed. The unchanged authoring
+workflow already passed all twenty browser suites in the preceding path increment.
+Remote verification follows push; this kernel milestone is not a completed secondary
+motion feature or Phase 7 gate.
+
+Next: source secondary constraints, sampled fixed-step playback in editor/runtime,
+semantic presets/Advanced controls, reset/scrub/events, native/history/browser parity
+and a combined profiled constraint fixture. Sol 6.1 / High remains suitable. The
+overall roadmap remains active through Phase 12; commercial Phase 13 is conditional.
