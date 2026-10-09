@@ -1,0 +1,15 @@
+# Fox Adventurer: image-generation prompts
+
+Generated using the built-in Image Generation tool, with transparent backgrounds.
+The generated PNGs are preserved unchanged. Layers sample rectangular UV areas
+of these atlases; no generated pixels were painted, recolored, or retouched in code.
+
+## Original atlas — fox-atlas.png
+
+Create a professional 2D skeletal-animation CHARACTER PARTS TEXTURE ATLAS for one cute fox adventurer, warm orange fur, cream muzzle, oversized expressive amber eyes, teal tunic and rust-red scarf, dark brown gloves and boots, polished hand-painted game art with crisp clean silhouettes, gentle cel shading, front view orthographic, no perspective. TRANSPARENT background. Square canvas. EXACTLY 16 separate detached sprites arranged in an evenly spaced 4-column by 4-row grid. Each sprite entirely inside its own square cell with generous transparent padding; no touching, overlap, labels, letters, grid lines, shadows on background, or extra items. Row1 left to right: fox HEAD including both ears and complete face but no neck/body; TORSO wearing teal tunic only shoulders-to-waist without head arms or legs; HIP/WAIST belt-and-shorts section only; long flowing rust-red SCARF tail/cape cloth alone vertically dangling. Row2 left to right: character's LEFT UPPER ARM teal short sleeve and orange fur ending at elbow; LEFT FOREARM orange fur only elbow-to-wrist; RIGHT UPPER ARM matching mirrored teal sleeve and orange fur; RIGHT FOREARM matching mirrored orange fur. Row3 left to right: LEFT GLOVED HAND; RIGHT GLOVED HAND; LEFT THIGH with dark teal shorts and orange fur knee; RIGHT THIGH matching. Row4 left to right: LEFT SHIN orange fur knee-to-ankle; RIGHT SHIN matching; LEFT BROWN BOOT; RIGHT BROWN BOOT. All limb segments point straight DOWN, their top joint centered at upper end and lower joint at bottom; rounded overlap caps at both ends for seamless assembly. Hands point down relaxed. Boots face slightly outward with toes near bottom. Head centered front view symmetrical. Torso and hips front view symmetric. Each cell contains precisely the specified body part and nothing else. Atlas must be suitable to reconstruct a complete upright friendly fox by repositioning these 16 detached layered sprites.
+
+## Costume variant — fox-atlas-golden.png
+
+Input: fox-atlas.png.
+
+Edit only the costume colors of the provided transparent fox character-parts atlas. Preserve EXACTLY the same square canvas dimensions, sprite positions, sprite outlines, spacing, alpha transparency, proportions, face, fur, shading, 4-by-4 layout and all 16 parts. This is a texture variant that will reuse the exact same skeletal mesh and UVs. Change teal tunic, sleeves and shorts fabric to deep plum-purple fabric; change rust-red scarf to luminous golden-yellow cloth. Keep fox orange-and-cream fur and brown gloves, boots and belts exactly as before. Keep every part in its precise original position and size. No new elements, text, backgrounds or grid. Transparent background. Only the specified costume palette changes.

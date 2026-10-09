@@ -6,6 +6,10 @@ The current plan is [docs/ROADMAP.md](docs/ROADMAP.md), with milestone evidence 
 
 Run `npm run check` for the foundation checks and `npm run test:e2e` for managed browser tests.
 
+Open the self-contained [Fox Adventurer sample](examples/fox-adventurer/Fox-Adventurer.bbbproj)
+to try layered sprites, bound meshes, cloth Deform, skins and hand IK.
+[Sample guide and previews](examples/fox-adventurer/README.md).
+
 ## Historical Limber documentation
 
 The status below predates the BoneByBone roadmap. It is retained as implementation history, not current gate status.

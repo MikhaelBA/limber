@@ -1,0 +1,72 @@
+{
+  "nativeRoundTrip": "passed",
+  "embeddedTextures": "2 PNGs, exact originals, 1254 × 1254",
+  "bindPose": "16 layers preserve authored setup geometry",
+  "totalFrames": 2160,
+  "maxIKError": 0.00000876816537305512,
+  "results": [
+    {
+      "skin": "Teal / red scarf",
+      "animation": "Idle",
+      "frames": 288,
+      "maxClothChange": 4.553901672363281,
+      "events": []
+    },
+    {
+      "skin": "Teal / red scarf",
+      "animation": "Wave (IK)",
+      "frames": 288,
+      "maxClothChange": 6.000000000000001,
+      "events": ["hello", "hello"]
+    },
+    {
+      "skin": "Teal / red scarf",
+      "animation": "March",
+      "frames": 144,
+      "maxClothChange": 7,
+      "events": ["footstep", "footstep", "footstep", "footstep"]
+    },
+    {
+      "skin": "Teal / red scarf",
+      "animation": "Cloth demo",
+      "frames": 360,
+      "maxClothChange": 14.171348571777344,
+      "events": []
+    },
+    {
+      "skin": "Plum / gold scarf",
+      "animation": "Idle",
+      "frames": 288,
+      "maxClothChange": 4.553901672363281,
+      "events": []
+    },
+    {
+      "skin": "Plum / gold scarf",
+      "animation": "Wave (IK)",
+      "frames": 288,
+      "maxClothChange": 6.000000000000001,
+      "events": ["hello", "hello"]
+    },
+    {
+      "skin": "Plum / gold scarf",
+      "animation": "March",
+      "frames": 144,
+      "maxClothChange": 7,
+      "events": ["footstep", "footstep", "footstep", "footstep"]
+    },
+    {
+      "skin": "Plum / gold scarf",
+      "animation": "Cloth demo",
+      "frames": 360,
+      "maxClothChange": 14.171348571777344,
+      "events": []
+    }
+  ],
+  "browser": {
+    "open": "passed",
+    "playback": "4 animations × 2 skins",
+    "meshAndWeightsInspector": "passed; 35-vertex scarf mesh selected",
+    "saveAndReopen": "passed",
+    "pageErrors": []
+  }
+}

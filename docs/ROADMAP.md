@@ -89,3 +89,13 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [ ] Path constraint model, deterministic path sampling and controls.
 - [ ] Fixed-step secondary motion after its solver contract is stable.
 - [ ] Serialized ordering UI, representative browser fixtures and Phase 7 CI gate.
+
+## Layered character sample (10 October 2026)
+
+- [x] Generate transparent fox parts and a costume variant with Image Generation.
+- [x] Deliver a self-contained native project with 16 layers, weights, shared meshes and skins.
+- [x] Author four clips, cloth Deform, existing hand IK, markers and events.
+- [x] Verify native round trip, bind pose, 2160 runtime frames and actual editor Save/Open.
+- [x] Provide original atlases, generation prompts, reproducible scripts and previews.
+
+This sample exercises completed features and existing IK. It does not close any Phase 7 task.

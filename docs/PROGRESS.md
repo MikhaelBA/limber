@@ -396,3 +396,25 @@ active. CI also records software-graphics frame gaps separately; hardware GPU pe
 claimed. All Phase 6 feature and acceptance checklist items are complete. Phase 7 starts with the
 constraint contract, atomic authoring and Pin Hand/Foot; Sol 6.1 / High remains the recommendation
 for the first increment. Its expanded task checklist is in ROADMAP.md.
+
+## 10 October 2026 layered Fox Adventurer sample
+
+Added `examples/fox-adventurer/Fox-Adventurer.bbbproj`: two unchanged transparent
+Image Generation atlases embedded in native schema 6, 16 independent sprite layers,
+19 bones, a 30-vertex weighted tunic, a 35-vertex weighted scarf, frozen bind matrices
+and shared-geometry costume variants. Both skins have independent Deform tracks.
+Idle, Wave (IK), March and Cloth demo include Bezier easing, hello/footstep events,
+hand socket/spawn markers, a body hurtbox and a ground-contact point.
+
+Verification uses real core/runtime sources: exact native JSON round trip, embedded
+PNG identity/dimensions, bind-pose preservation and 2160 frames across all eight
+skin/animation combinations. All outputs remain finite, cloth moves, events fire and
+the right-hand IK endpoint stays within 0.002 pixels of its reachable target.
+Real Chromium verifies Open with two restored textures, playback, skin switching,
+mesh/weights inspector selection, Save and reopen without page errors. Original
+atlases, prompts, preview images, validation results and rebuild/test scripts are
+included; README links the downloadable project and its Persian usage guide.
+
+No application source changed. March is a stylized in-place motion. This sample
+uses the existing positive-scale IK solver and does not implement Phase 7 physics,
+robust affine IK, Pin Hand/Foot or path/transform constraints.
