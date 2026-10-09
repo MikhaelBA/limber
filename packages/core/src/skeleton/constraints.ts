@@ -74,8 +74,14 @@ export function validateIKConstraints(data: SkeletonData): void {
       throw new Error(`IK constraint "${c.id}" bend direction must be 1 or -1.`);
     if (c.poleVectorId !== null && !bones.has(c.poleVectorId))
       throw new Error(`IK constraint "${c.id}" references unknown poleVectorId "${c.poleVectorId}".`);
-    if (c.poleVectorId !== null || c.softness !== 0)
-      throw new Error(`IK constraint "${c.id}": pole targets and nonzero softness are not supported yet.`);
+    if (c.poleVectorId !== null && affected(c.bones[0]!, c.poleVectorId))
+      throw new Error(
+        `IK constraint "${c.id}" pole cannot be inside its controlled subtree (feedback cycle).`,
+      );
+    if (!Number.isFinite(c.softness) || c.softness < 0 || !Number.isFinite(Math.fround(c.softness)))
+      throw new Error(`IK constraint "${c.id}" softness must be finite and nonnegative.`);
+    if (c.bones.length === 1 && (c.poleVectorId !== null || c.softness !== 0))
+      throw new Error(`IK constraint "${c.id}" pole/softness require a two-bone chain.`);
   }
   const constraints = data.ikConstraints;
   const edges: number[][] = constraints.map(() => []),
@@ -86,7 +92,13 @@ export function validateIKConstraints(data: SkeletonData): void {
       if (writer === reader) continue;
       const c = constraints[reader]!,
         parent = bones.get(c.bones[0]!)!.parentId;
-      if (affected(root, c.targetId) || (parent !== null && affected(root, parent))) {
+      // Rotation changes descendants' positions, but leaves the writer root's
+      // own origin intact. Parent reads also need its changing linear basis.
+      if (
+        (root !== c.targetId && affected(root, c.targetId)) ||
+        (c.poleVectorId !== null && root !== c.poleVectorId && affected(root, c.poleVectorId)) ||
+        (parent !== null && affected(root, parent))
+      ) {
         edges[writer]!.push(reader);
         indegree[reader]!++;
       }
@@ -101,7 +113,7 @@ export function validateIKConstraints(data: SkeletonData): void {
     for (const reader of edges[writer]!)
       if (constraints[writer]!.order >= constraints[reader]!.order)
         throw new Error(
-          `IK constraint "${constraints[reader]!.id}" must run after "${constraints[writer]!.id}" (target/parent dependency).`,
+          `IK constraint "${constraints[reader]!.id}" must run after "${constraints[writer]!.id}" (target/pole/parent dependency).`,
         );
 }
 

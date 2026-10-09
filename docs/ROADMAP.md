@@ -12,7 +12,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed |
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
-| 7     | Robust IK, transform/path constraints and secondary motion           | Partial; pins/order implemented |
+| 7     | Robust IK, transform/path constraints and secondary motion           | Partial; affine IK implemented  |
 | 8     | Logic, typed parameters, state machine and bindings                  | Pending                         |
 | 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas     |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
@@ -84,7 +84,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 
 - [x] Constraint evaluation/order contract and input/setup numeric validation (ADR 0018).
 - [x] Atomic IK authoring and beginner Pin Hand/Foot action for ordinary setup limbs.
-- [ ] IK reflected/sheared/degenerate cases, pole and softness semantics/tests.
+- [x] IK reflected/sheared/degenerate cases, pole and softness semantics/tests (ADR 0019).
 - [ ] Transform constraint model, solver, history and controls.
 - [ ] Path constraint model, deterministic path sampling and controls.
 - [ ] Fixed-step secondary motion after its solver contract is stable.

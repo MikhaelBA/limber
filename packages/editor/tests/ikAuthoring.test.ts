@@ -58,6 +58,59 @@ const pose = (engine: EditorEngine) => ({
 });
 
 describe('semantic pins and transactional IK', () => {
+  it.each([
+    { scaleX: 1.8, scaleY: 0.7, shearX: 0.2 },
+    { scaleX: -1.3, scaleY: 0.8, rotation: 0.4 },
+    { scaleX: 1.2, scaleY: -1.4, shearY: -0.3 },
+  ])('pins affine limbs without a setup jump and holds the wrist on body movement: %j', (parent) => {
+    const engine = limb(),
+      history = new HistoryManager();
+    Object.assign(engine.skeleton.data.bones[0]!.setupPose, parent);
+    Object.assign(engine.skeleton.data.bones[1]!.setupPose, { scaleX: 1.4, scaleY: 0.8, shearX: 0.2 });
+    Object.assign(engine.skeleton.data.bones[2]!.setupPose, { scaleX: -0.9, shearY: 0.15 });
+    engine.skeleton.rebuild();
+    engine.tick(0);
+    const point = position(engine, 'hand'),
+      before = structuredClone(engine.document);
+    const pin = new PinLimbCommand(engine, 'hand', 'hand');
+    history.execute(pin);
+    engine.tick(0);
+    position(engine, 'hand').forEach((v, i) => expect(v).toBeCloseTo(point[i]!, 3));
+    const after = structuredClone(engine.document);
+    history.undo();
+    expect(engine.document).toEqual(before);
+    history.redo();
+    expect(engine.document).toEqual(after);
+    const body = engine.skeleton.data.bones.find((b) => b.id === 'body')!;
+    body.setupPose.x += 2;
+    body.setupPose.y += 1;
+    engine.skeleton.rebuild();
+    engine.tick(0);
+    position(engine, 'hand').forEach((v, i) => expect(v).toBeCloseTo(point[i]!, 3));
+  });
+  it('edits pole/softness atomically and preserves them through exact history and native reopen', () => {
+    const engine = limb(),
+      history = new HistoryManager();
+    const pin = new PinLimbCommand(engine, 'hand', 'hand');
+    history.execute(pin);
+    const before = structuredClone(engine.document);
+    history.execute(new SetIKPropsCommand(engine, pin.constraintId, { poleVectorId: 'body', softness: 12 }));
+    const after = structuredClone(engine.document);
+    history.undo();
+    expect(engine.document).toEqual(before);
+    history.redo();
+    expect(engine.document).toEqual(after);
+    expect(deserializeProject(serializeProject(engine.project))).toEqual(engine.project);
+    for (const patch of [
+      { poleVectorId: 'lower' },
+      { poleVectorId: 'missing' },
+      { softness: -1 },
+      { softness: Infinity },
+    ]) {
+      expect(() => history.execute(new SetIKPropsCommand(engine, pin.constraintId, patch))).toThrow();
+      expect(engine.document).toEqual(after);
+    }
+  });
   it('pins the wrist pivot, preserves setup bend, weights and exact undo/redo IDs', () => {
     const engine = limb(),
       history = new HistoryManager();
@@ -155,7 +208,7 @@ describe('semantic pins and transactional IK', () => {
     expect(engine.skeleton.data.ikConstraints[0]!.targetId).toBe(pin.targetBoneId);
     expect(other).toEqual(untouched);
   });
-  it('rejects malformed/duplicate/affine pins without changing the source or redo', () => {
+  it('rejects malformed/duplicate/singular pins without changing the source or redo', () => {
     const engine = limb(),
       history = new HistoryManager();
     history.execute(new PinLimbCommand(engine, 'hand', 'hand'));
@@ -171,16 +224,14 @@ describe('semantic pins and transactional IK', () => {
     const pinned = structuredClone(engine.document);
     expect(() => history.execute(new PinLimbCommand(engine, 'hand', 'hand'))).toThrow(/already has IK/);
     expect(engine.document).toEqual(pinned);
-    for (const mutation of ['offset', 'scale', 'shear', 'mirror'] as const) {
+    for (const mutation of ['offset', 'singular'] as const) {
       const e = limb(),
         d = e.skeleton.data;
       if (mutation === 'offset') d.bones[3]!.setupPose.y = 5;
-      else if (mutation === 'scale') d.bones[0]!.setupPose.scaleX = 2;
-      else if (mutation === 'shear') d.bones[0]!.setupPose.shearX = 0.1;
-      else d.bones[0]!.setupPose.scaleY = -1;
+      else d.bones[0]!.setupPose.scaleX = 0;
       e.skeleton.rebuild();
       const snapshot = structuredClone(e.document);
-      expect(() => new PinLimbCommand(e, 'hand', 'foot').do()).toThrow(/tip|scale and shear/);
+      expect(() => new PinLimbCommand(e, 'hand', 'foot').do()).toThrow(/tip|nonzero scale/);
       expect(e.document).toEqual(snapshot);
     }
   });

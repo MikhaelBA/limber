@@ -15,9 +15,9 @@ is seconds; EditorEngine.tick accepts milliseconds. A frame delta is capped at 1
 legacy playback policy, not a fixed-step physics contract. Physics needs a separate deterministic policy.
 
 Numeric parity tolerance: 1e-4 absolute for transforms and vertices unless a fixture specifies otherwise.
-Known IK limitations: softness/pole-vector solving is absent; nonzero softness and pole targets
-are rejected explicitly. Shear and mirrored chains need additional solver coverage; semantic pins
-currently reject those setup chains. Never advertise unimplemented solver fields as supported runtime behavior.
+IK supports signed/nonuniform scales, shear, world-space poles and soft reach as specified in
+ADR 0019. Singular parents hold the sampled pose; unreachable targets project radially in the
+chain parent's space. Softness eases extension without stretching authored lengths/scales.
 
 ## Planned independent runtime format
 
@@ -81,14 +81,15 @@ refreshing FK after each constraint. There is no iterative feedback or per-frame
 IK IDs and nonnegative integer orders are unique. Chains have one bone or a direct parent/child
 pair; strength is finite in [0,1] and bend is ±1. Setup fields/lengths and derived setup world
 matrices must fit finite Float32 pose storage. Finite zero-length/zero-scale bones remain valid
-source data. Targets inside a controlled subtree, dependency cycles and a reader ordered before
-its target/chain-parent writer fail import and structural publication. Overlapping independent
-writers execute sequentially; later constraints win. ADR 0018 details the dependency contract.
+source data. Targets/poles inside a controlled subtree, dependency cycles and a reader ordered before
+its target/pole/chain-parent writer fail import and structural publication. Overlapping independent
+writers execute sequentially; later constraints win. ADRs 0018/0019 detail the dependency contract.
 
 Pin Hand/Foot selects the endpoint bone and controls its parent/grandparent limb. Its pivot must
 sit at the parent's +X tip. The new target is parentless in rig space, keeping the pin independent
 of body motion while reachable. Position is pinned, not endpoint orientation. Initial bend keeps
 the setup side; a collinear limb prefers away from its body. Pins are ordinary existing bone/IK
 fields in schema 6, authored through one Setup-only command with stable undo/redo IDs. Their
-targets can receive ordinary bone animation keys in Animate. Current pins require unit-scale,
-unsheared, unreflected aligned setup limbs; affine IK and unsupported pole/softness are Phase 7B.
+targets can receive ordinary bone animation keys in Animate. Pins require aligned setup limbs.
+Phase 7B supports invertible reflected/scaled/sheared limbs and parents;
+collapsed pins reject atomically. Pole/softness fields are supported with ADR 0019 semantics.

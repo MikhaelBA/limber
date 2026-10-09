@@ -41,6 +41,7 @@ try {
     'scene-ui.mjs',
     'rig-authoring.mjs',
     'character-pins.mjs',
+    'affine-pins.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

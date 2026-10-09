@@ -63,7 +63,7 @@ export function IKControls({ boneId }: { boneId: string }) {
         <p className="text-[10px] text-neutral-500">Switch to Setup to edit constraints.</p>
       )}
       {data.ikConstraints
-        .filter((c) => c.bones.includes(boneId) || c.targetId === boneId)
+        .filter((c) => c.bones.includes(boneId) || c.targetId === boneId || c.poleVectorId === boneId)
         .map((c) => {
           const index = data.ikConstraints.indexOf(c);
           const chain = c.bones.map((id) => byId.get(id)?.name ?? '?').join(' → ');
@@ -133,6 +133,54 @@ export function IKControls({ boneId }: { boneId: string }) {
                       ))}
                   </select>
                 </label>
+                {c.bones.length === 2 && (
+                  <>
+                    <label className="mt-1 flex items-center gap-1">
+                      Pole
+                      <select
+                        aria-label="IK pole"
+                        value={c.poleVectorId ?? ''}
+                        className="min-w-0 flex-1 rounded bg-neutral-800 px-1 py-0.5"
+                        onChange={(e) =>
+                          run(new SetIKPropsCommand(engine, c.id, { poleVectorId: e.target.value || null }))
+                        }
+                      >
+                        <option value="">None — use bend side</option>
+                        {data.bones
+                          .filter((b) => outside(b.id))
+                          .map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label className="mt-1 flex items-center gap-1">
+                      Softness
+                      <input
+                        aria-label="IK softness"
+                        key={`${c.id}:soft:${c.softness}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        defaultValue={c.softness}
+                        className="w-20 rounded bg-neutral-800 px-1 py-0.5"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        onBlur={(e) => {
+                          const softness = parseFloat(e.currentTarget.value);
+                          if (softness !== c.softness) run(new SetIKPropsCommand(engine, c.id, { softness }));
+                          e.currentTarget.value = String(c.softness);
+                        }}
+                      />
+                    </label>
+                    <p className="mt-1 text-[10px] text-neutral-500">
+                      Pole chooses the elbow side. Softness eases full extension in parent-space units; 0
+                      reaches exactly.
+                    </p>
+                  </>
+                )}
                 <div className="mt-1 flex items-center gap-2">
                   Order: {c.order}
                   <button

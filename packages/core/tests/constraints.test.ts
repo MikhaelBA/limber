@@ -35,6 +35,35 @@ function valid(): SkeletonData {
 }
 
 describe('constraint publication contract', () => {
+  it('validates pole dependencies and permits independent root-origin reads', () => {
+    const data = makeSkeletonData([makeBone('a', null), makeBone('b', null, { x: 100 })]);
+    data.ikConstraints = [ik('a-ik', ['a'], 'b'), ik('b-ik', ['b'], 'a', 1)];
+    data.bones.forEach((bone) => {
+      bone.length = 20;
+    });
+    const sk = new Skeleton(data);
+    solveFK(sk.data, sk.boneIndexMap, sk.pose);
+    solveConstraints(sk);
+    expect(sk.pose.worldMatrices[0]).toBeCloseTo(1, 5);
+    expect(sk.pose.worldMatrices[6]).toBeCloseTo(-1, 5);
+    const poles = makeSkeletonData([
+      makeBone('a', null),
+      makeBone('lower', 'a', { x: 30 }),
+      makeBone('b', null),
+      makeBone('b-lower', 'b', { x: 10 }),
+      makeBone('pole', 'b', { x: 20 }),
+      makeBone('target', null, { x: 30, y: 20 }),
+    ]);
+    poles.ikConstraints = [
+      { ...ik('reader', ['a', 'lower'], 'target'), poleVectorId: 'pole' },
+      ik('writer', ['b', 'b-lower'], 'target', 1),
+    ];
+    expect(() => new Skeleton(poles)).toThrow(/must run after/);
+    poles.ikConstraints[0]!.order = 2;
+    expect(() => new Skeleton(poles)).not.toThrow();
+    poles.ikConstraints.find((c) => c.id === 'writer')!.poleVectorId = 'lower';
+    expect(() => new Skeleton(poles)).toThrow(/dependency cycle/);
+  });
   it.each([
     { mix: NaN },
     { mix: Infinity },
@@ -46,9 +75,10 @@ describe('constraint publication contract', () => {
     { order: -1 },
     { order: 0.5 },
     { order: Number.MAX_SAFE_INTEGER + 1 },
-    { softness: 3 },
+    { softness: -1 },
     { softness: NaN },
-    { poleVectorId: 'target' },
+    { softness: Infinity },
+    { poleVectorId: 'end' },
   ])('rejects unsupported/invalid parameters before runtime construction: %j', (patch) => {
     const data = valid();
     Object.assign(data.ikConstraints[0]!, patch);

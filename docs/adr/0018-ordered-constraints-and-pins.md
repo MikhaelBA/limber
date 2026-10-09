@@ -1,6 +1,7 @@
 # ADR 0018: Ordered constraints and semantic limb pins
 
-Status: accepted for Phase 7A. Affine IK, pole and softness solving remain Phase 7B.
+Status: accepted for Phase 7A; ADR 0019 extends the affine/pole/softness and
+position-dependency portions in Phase 7B. Initial restrictions below are historical.
 
 Use one renderer-independent constraint entry point after FK and before skinning.
 Currently it dispatches ordered IK and refreshes FK after each solve; later solver

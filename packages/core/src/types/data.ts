@@ -42,7 +42,7 @@ export interface IKConstraintData {
   bendDirection: 1 | -1;
   /** 0..1 — constraint influence. */
   mix: number;
-  /** Degrees of slack before full stretch (keep 0 in v1). */
+  /** Nonnegative soft-approach distance in chain-parent units (two-bone IK). */
   softness: number;
   /** Solve order among all constraints (ascending). */
   order: number;

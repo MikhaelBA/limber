@@ -141,26 +141,24 @@ export class PinLimbCommand extends AtomicIKCommand {
       Math.abs(endpoint.setupPose.y) > tolerance
     )
       throw new Error('Place the hand/foot pivot at the lower limb tip (+X), with a nonzero aligned limb.');
-    for (
-      let current: BoneData | undefined = lower;
-      current;
-      current = current.parentId ? byId.get(current.parentId) : undefined
-    ) {
-      const p = current.setupPose;
-      if (
-        Math.abs(p.scaleX - 1) > 1e-6 ||
-        Math.abs(p.scaleY - 1) > 1e-6 ||
-        Math.abs(p.shearX) > 1e-6 ||
-        Math.abs(p.shearY) > 1e-6
-      )
-        throw new Error(
-          'Reset limb/parent scale and shear before pinning. Affine pins are not supported yet.',
-        );
-    }
     const wm = this.engine.solveSetupWorlds(),
       u = this.engine.skeleton.boneIndexMap.get(upper.id)! * 6;
     const l = this.engine.skeleton.boneIndexMap.get(lower.id)! * 6;
     const e = this.engine.skeleton.boneIndexMap.get(endpoint.id)! * 6;
+    // Pins promise an independently movable endpoint, requiring an invertible
+    // chain and parent. Advanced IK may still author deterministic collapsed rigs.
+    for (const id of [upper.id, lower.id, upper.parentId]) {
+      if (id === null) continue;
+      const o = this.engine.skeleton.boneIndexMap.get(id)! * 6;
+      const norm = Math.max(
+        Math.abs(wm[o]!),
+        Math.abs(wm[o + 1]!),
+        Math.abs(wm[o + 2]!),
+        Math.abs(wm[o + 3]!),
+      );
+      if (Math.abs(wm[o]! * wm[o + 3]! - wm[o + 1]! * wm[o + 2]!) <= norm * norm * 1e-12)
+        throw new Error('Cannot pin a collapsed or near-singular limb/parent. Restore a nonzero scale.');
+    }
     let cross =
       (wm[e + 4]! - wm[u + 4]!) * (wm[l + 5]! - wm[u + 5]!) -
       (wm[e + 5]! - wm[u + 5]!) * (wm[l + 4]! - wm[u + 4]!);
@@ -209,6 +207,8 @@ export interface IKPropsPatch {
   bendDirection?: 1 | -1;
   targetId?: string;
   order?: number;
+  poleVectorId?: string | null;
+  softness?: number;
 }
 export class SetIKPropsCommand extends AtomicIKCommand {
   readonly label = 'Edit IK';
@@ -224,7 +224,7 @@ export class SetIKPropsCommand extends AtomicIKCommand {
   protected edit(data: SkeletonData): void {
     const c = data.ikConstraints.find((c) => c.id === this.constraintId);
     if (!c) throw new Error('IK constraint no longer exists.');
-    for (const key of ['mix', 'bendDirection', 'targetId', 'order'] as const)
+    for (const key of ['mix', 'bendDirection', 'targetId', 'order', 'poleVectorId', 'softness'] as const)
       if (this.patch[key] !== undefined) Object.assign(c, { [key]: this.patch[key] });
   }
 }

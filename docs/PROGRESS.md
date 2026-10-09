@@ -461,3 +461,44 @@ Previous sample CI 37992186939 passed Test & Build and both deployments. Docker 
 on Docker Hub's 429 download limit; rerunning that failed job hit the same registry
 limit on the Node image. This is recorded separately from code/test verification;
 the Phase 7A run subsequently built and published Docker successfully.
+
+## 10 October 2026 Phase 7B affine IK, poles and soft reach
+
+Replaced angle-only/world-length IK with a solver derived from the exact FK
+convention. It inverts the chain parent and solves the radius/direction of an
+offset ellipse; conformal chains retain an analytic circle path. Bounded
+half-angle quartics isolate all branches and extrema without per-frame allocation.
+Signed/nonuniform scales, shear and arbitrary child offsets are supported. The
+world-space bend side remains consistent under reflection; a live independent
+pole chooses the side, with a collinear pole falling back to serialized bend.
+
+ADR 0019 defines radial projection of unreachable targets in parent coordinates,
+exponential soft reach in parent units, shortest-arc local mix, zero/collapsed
+geometry reductions and singular-parent hold behavior. Softness never stretches
+authored lengths/scales. Pole and softness editing is atomic and Setup-only,
+with native roundtrip/history coverage. Own-subtree poles fail publication;
+pole dependencies participate in serialized priority and cycle validation.
+Position-only dependencies now correctly exclude another writer's own root
+origin, while chain-parent reads still include its changing basis.
+
+Pins accept invertible reflected/scaled/sheared limbs and parents, preserve the
+setup endpoint and hold it through reachable body motion. Collapsed pins still
+fail before mutation. Endpoint alignment remains required. No persistent field
+was added; existing schema-6 pole/softness fields now have specified behavior.
+One-bone pole/nonzero-softness authoring rejects explicitly; stretch is not a
+supported feature.
+
+All 388 unit tests, lint/boundaries, formatting, TypeScript and package/editor
+builds passed locally. Numerical coverage includes 400 deterministic FK-generated
+affine targets (endpoint error below 0.0003 units), mirrored world bend/poles,
+unreachable extrema, finite degeneracies, soft-reach goldens, quartic tangencies
+and native/runtime parity. The complete eighteen-suite browser regression passed,
+including affine pins, body motion, pole/softness controls, atomic invalid edits,
+exact undo/redo and Save/Open. Standard/Heavy CPU update/render-submit p95 was
+1.30/2.50ms; exact weighted transform counts remained 10000/40004. Heavy worker
+publication was 39.7ms. SwiftShader frame gaps remain separate software-graphics
+evidence, not a hardware-independent 60fps claim. Remote CI follows the push.
+
+Phase 7 still needs transform/path constraints, specified fixed-step secondary
+motion and the combined acceptance gate. Sol 6.1 / High remains suitable for
+transform constraint implementation; no model change is required.
