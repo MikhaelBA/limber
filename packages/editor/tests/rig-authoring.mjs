@@ -67,7 +67,7 @@ try {
   await field('x', '40');
   await field('width', '80');
   const authored = await save();
-  assert.equal(authored.schemaVersion, 5);
+  assert.equal(authored.schemaVersion, 6);
   assert.equal(authored.artboards[0].nodes[0].skeleton.markers.length, 3);
   await field('width', '-2');
   await page.locator('footer').getByText(/dimensions must be positive/).waitFor();

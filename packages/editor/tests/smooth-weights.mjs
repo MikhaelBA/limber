@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { installHeldWorkers } from '../../../tools/held-worker-harness.mjs';
 
 const source = JSON.parse(readFileSync('fixtures/bbbproj-v5-bind-mesh.json', 'utf8'));
+source.schemaVersion = 6;
 source.artboards[0].nodes[0].skeleton.attachments[0].weights = [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1];
 source.artboards[0].nodes[0].animations[0].timelines.push({ kind: 'deform', attachmentId: 'mesh', keyframes: [{ time: 0, offsets: Array(8).fill(2), curve: { type: 'linear' } }] });
 const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });

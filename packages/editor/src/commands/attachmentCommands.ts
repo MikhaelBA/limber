@@ -2,6 +2,7 @@ import type { AttachmentData } from '@limber/core';
 import { uuid } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
+import { captureRig, prepareRigEdit, applyRigSnapshot, type RigSnapshot } from './rigEdits';
 
 /** Where a slot's visible attachment assignment is written. */
 export type AttachmentTarget = 'default' | 'skin';
@@ -298,103 +299,37 @@ export class SetClipEndSlotCommand implements Command {
   }
 }
 
-/** Everything referencing an attachment must be captured for a clean undo. */
-interface RemoveAttachmentSnapshots {
-  attachment: AttachmentData;
-  /** Slots whose defaultAttachmentId pointed here. */
-  defaultSlots: string[];
-  /** skins' entries pointing here (skin name -> slot ids). */
-  skinEntries: { skinName: string; slotIds: string[] }[];
-  /** slotAttachment keyframes holding this id (timeline index + keyframe indices). */
-  keyframes: { animName: string; timelineIndex: number; kfIndices: number[]; timeline: unknown }[];
-}
-
-/**
- * Removes an attachment and every reference: slots' defaultAttachmentId, skin
- * entries (validation requires known attachment ids), and slotAttachment
- * keyframes whose attachmentId pointed here.
- */
+/** Removes an instance atomically; a geometry owner must be detached from its followers first. */
 export class RemoveAttachmentCommand implements Command {
   readonly label: string;
-  private snaps: RemoveAttachmentSnapshots | null = null;
-
-  constructor(
-    private engine: EditorEngine,
-    readonly attachmentId: string,
-  ) {
-    const a = engine.skeleton.data.attachments.find((x) => x.id === attachmentId);
-    if (!a) throw new Error(`RemoveAttachmentCommand: attachment "${attachmentId}" not found.`);
-    this.label = `Delete Attachment ${a.name}`;
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
+  constructor(private engine: EditorEngine, readonly attachmentId: string) {
+    const attachment = engine.skeleton.attachmentById.get(attachmentId);
+    if (!attachment) throw new Error('Attachment no longer exists.');
+    this.label = `Delete Attachment ${attachment.name}`;
   }
-
   do(): void {
-    const data = this.engine.skeleton.data;
-    const attachment = data.attachments.find((a) => a.id === this.attachmentId);
-    if (!attachment) return;
-
-    const defaultSlots = data.slots.filter((s) => s.defaultAttachmentId === this.attachmentId).map((s) => s.id);
-    const skinEntries = data.skins
-      .map((skin) => ({
-        skinName: skin.name,
-        slotIds: Object.entries(skin.attachments)
-          .filter(([, id]) => id === this.attachmentId)
-          .map(([slotId]) => slotId),
-      }))
-      .filter((e) => e.slotIds.length > 0);
-    const keyframes: RemoveAttachmentSnapshots['keyframes'] = [];
-    for (const anim of this.engine.document.animations) {
-      anim.timelines.forEach((tl, timelineIndex) => {
-        if (tl.kind !== 'slotAttachment') return;
-        const kfIndices = tl.keyframes.map((kf, i) => (kf.attachmentId === this.attachmentId ? i : -1)).filter((i) => i >= 0);
-        if (kfIndices.length > 0) keyframes.push({ animName: anim.name, timelineIndex, kfIndices, timeline: structuredClone(tl) });
-      });
-    }
-    this.snaps = { attachment: structuredClone(attachment), defaultSlots, skinEntries, keyframes };
-
-    for (const slotId of defaultSlots) {
-      data.slots.find((s) => s.id === slotId)!.defaultAttachmentId = null;
-    }
-    for (const { skinName, slotIds } of skinEntries) {
-      const skin = data.skins.find((s) => s.name === skinName)!;
-      for (const slotId of slotIds) delete skin.attachments[slotId];
-    }
-    for (const anim of this.engine.document.animations) {
-      for (const tl of [...anim.timelines]) {
-        if (tl.kind !== 'slotAttachment') continue;
-        const before = tl.keyframes.length;
-        tl.keyframes = tl.keyframes.filter((kf) => kf.attachmentId !== this.attachmentId);
-        if (tl.keyframes.length !== before && tl.keyframes.length === 0) {
-          anim.timelines.splice(anim.timelines.indexOf(tl), 1);
-        }
+    if (this.after) { applyRigSnapshot(this.engine, this.after); return; }
+    const before = captureRig(this.engine);
+    const after = prepareRigEdit(this.engine, (data, animations) => {
+      if (data.attachments.some((item) => item.meshSourceId === this.attachmentId))
+        throw new Error('Detach shared meshes before deleting their geometry source.');
+      for (const slot of data.slots) if (slot.defaultAttachmentId === this.attachmentId) slot.defaultAttachmentId = null;
+      for (const skin of data.skins) for (const [slotId, id] of Object.entries(skin.attachments))
+        if (id === this.attachmentId) delete skin.attachments[slotId];
+      for (const animation of animations) {
+        animation.timelines = animation.timelines.filter((track) => track.kind !== 'deform' || track.attachmentId !== this.attachmentId);
+        for (const track of animation.timelines) if (track.kind === 'slotAttachment')
+          track.keyframes = track.keyframes.filter((key) => key.attachmentId !== this.attachmentId);
+        animation.timelines = animation.timelines.filter((track) => track.kind !== 'slotAttachment' || track.keyframes.length > 0);
       }
-    }
-    data.attachments = data.attachments.filter((a) => a.id !== this.attachmentId);
-    this.engine.skeleton.rebuild();
+      data.attachments = data.attachments.filter((item) => item.id !== this.attachmentId);
+    });
+    applyRigSnapshot(this.engine, after);
+    this.before = before; this.after = after;
   }
-
-  undo(): void {
-    if (!this.snaps) return;
-    const data = this.engine.skeleton.data;
-    data.attachments.push(structuredClone(this.snaps.attachment));
-    for (const slotId of this.snaps.defaultSlots) {
-      data.slots.find((s) => s.id === slotId)!.defaultAttachmentId = this.attachmentId;
-    }
-    for (const { skinName, slotIds } of this.snaps.skinEntries) {
-      const skin = data.skins.find((s) => s.name === skinName)!;
-      for (const slotId of slotIds) skin.attachments[slotId] = this.attachmentId;
-    }
-    for (const { animName, timelineIndex, timeline } of this.snaps.keyframes) {
-      const anim = this.engine.document.animations.find((a) => a.name === animName);
-      if (!anim) continue;
-      if (timelineIndex < anim.timelines.length && anim.timelines[timelineIndex]!.kind === 'slotAttachment') {
-        anim.timelines[timelineIndex] = structuredClone(timeline) as never;
-      } else {
-        anim.timelines.splice(Math.min(timelineIndex, anim.timelines.length), 0, structuredClone(timeline) as never);
-      }
-    }
-    this.snaps = null;
-    this.engine.skeleton.rebuild();
-  }
+  undo(): void { if (this.before) applyRigSnapshot(this.engine, this.before); }
 }
 
 /**

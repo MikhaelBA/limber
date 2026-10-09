@@ -4,6 +4,7 @@ import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
 import { topologicalSortBones } from './topologicalSort';
 import { validateMarkers } from './markers';
+import { resolveMeshLinks } from './meshLinks';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -117,6 +118,7 @@ export class Skeleton {
    * No validation — callers decide when to run validate().
    */
   private sortAndBakeMaps(): void {
+    resolveMeshLinks(this.data);
     const sorted = topologicalSortBones(this.data.bones);
     this.data.bones.length = 0;
     this.data.bones.push(...sorted);

@@ -1,5 +1,6 @@
 import type { Animation, Curve } from '../types/animation';
 import type { SkeletonData } from '../types/data';
+import { meshGeometryOwner } from '../skeleton/meshLinks';
 
 const finiteFloat = (value: number): boolean => Number.isFinite(value) && Number.isFinite(Math.fround(value));
 
@@ -16,7 +17,8 @@ export function validateDeformTimelines(data: SkeletonData, animations: readonly
         throw new Error(`Invalid Deform in "${animation.name}": ${reason}`);
       };
       const attachment = attachments.get(timeline.attachmentId);
-      const local = attachment?.type === 'region' ? attachment.vertices : attachment?.meshVertices;
+      const geometry = attachment && meshGeometryOwner(attachment, attachments);
+      const local = geometry?.type === 'region' ? geometry.vertices : geometry?.meshVertices;
       if (!local?.length) fail('attachment has no vertex geometry.');
       if (targets.has(timeline.attachmentId)) fail('duplicate attachment track.');
       targets.add(timeline.attachmentId);

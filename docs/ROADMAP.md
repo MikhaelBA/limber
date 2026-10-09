@@ -3,22 +3,22 @@
 The product specification is the target. Limber functionality is retained and its milestone numbering
 is historical. A partial implementation never implies the corresponding product gate is complete.
 
-| Phase | Scope                                                                | Status                              |
-| ----- | -------------------------------------------------------------------- | ----------------------------------- |
-| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed     |
-| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed     |
-| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed     |
-| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed     |
-| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed     |
-| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed     |
-| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Weight/topology safety; in progress |
-| 7     | Robust IK, transform/path constraints and secondary motion           | Partial legacy IK                   |
-| 8     | Logic, typed parameters, state machine and bindings                  | Pending                             |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas         |
-| 10    | Unity importer, world and UGUI runtime                               | Pending                             |
-| 11    | Cocos Creator integration and parity                                 | Pending                             |
-| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                             |
-| 13    | Commercial services only when validated                              | Pending                             |
+| Phase | Scope                                                                | Status                                          |
+| ----- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed                 |
+| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed                 |
+| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed                 |
+| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed                 |
+| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed                 |
+| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed                 |
+| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Workers/shared meshes; performance gate pending |
+| 7     | Robust IK, transform/path constraints and secondary motion           | Partial legacy IK                               |
+| 8     | Logic, typed parameters, state machine and bindings                  | Pending                                         |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas                     |
+| 10    | Unity importer, world and UGUI runtime                               | Pending                                         |
+| 11    | Cocos Creator integration and parity                                 | Pending                                         |
+| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                                         |
+| 13    | Commercial services only when validated                              | Pending                                         |
 
 ## Reporting protocol
 
@@ -77,5 +77,5 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Auto grid mesh worker with progress, cancellation and stale-result isolation.
 - [x] Weight smoothing worker with normalized influences and atomic history.
 - [x] Weight-only publication cost reduction and optional skinning work counters.
-- [ ] Linked/shared meshes with independent instance bindings/deform semantics.
+- [x] Linked/shared meshes with independent instance bindings/deform semantics.
 - [ ] Standard/Heavy fixture costs, responsive worker workflow and full Phase 6 CI gate.

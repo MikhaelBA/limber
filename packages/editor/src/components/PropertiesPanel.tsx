@@ -1,4 +1,5 @@
 import { MeshWeightsPanel } from './MeshWeightsPanel';
+import { SharedMeshControls } from './SharedMeshControls';
 import { AutoMeshControls } from './AutoMeshControls';
 import { useEffect, useRef, useState } from 'react';
 import { SetKeyframeCommand, KeySlotColorCommand, type BonePropertyName } from '../commands/animationCommands';
@@ -318,6 +319,7 @@ export function PropertiesPanel() {
             </p>
           )}
           {shownAtt?.type === 'mesh' && <MeshWeightsPanel key={shownAtt.id} attachmentId={shownAtt.id} />}
+          {shownAtt?.type === 'mesh' && <SharedMeshControls key={`shared-${shownAtt.id}`} attachmentId={shownAtt.id} />}
           {shownAtt && (shownAtt.type === 'boundingBox' || shownAtt.type === 'clipping') && shownAtt.meshVertices && (
             <>
               <p className="text-[10px] text-neutral-500">

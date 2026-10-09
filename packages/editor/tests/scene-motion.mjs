@@ -53,7 +53,7 @@ try {
   let project = await save(),
     board = project.artboards[1],
     clip = board.clips[0];
-  assert.equal(project.schemaVersion, 5);
+  assert.equal(project.schemaVersion, 6);
   assert.equal(clip.tracks.length, 2);
   assert.equal(clip.tracks[0].keys.length, 2);
   assert.equal(clip.tracks[1].keys.length, 2);

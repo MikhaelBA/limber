@@ -1,0 +1,266 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 6,
+  "projectId": "bind-mesh-project",
+  "name": "Bind pose reference",
+  "assetManifest": {},
+  "editor": {
+    "activeArtboardId": "character",
+    "activeRigId": "rig"
+  },
+  "artboards": [
+    {
+      "id": "character",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "rig",
+          "name": "Bind pose rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "root",
+                "name": "root",
+                "parentId": null,
+                "length": 50,
+                "setupPose": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tip",
+                "name": "tip",
+                "parentId": null,
+                "length": 50,
+                "setupPose": {
+                  "x": 120,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [
+              {
+                "id": "slot",
+                "name": "bind test mesh",
+                "boneId": "root",
+                "defaultAttachmentId": "mesh",
+                "color": 4294967295
+              },
+              {
+                "id": "variant-slot",
+                "name": "variant slot",
+                "boneId": "root",
+                "defaultAttachmentId": "variant",
+                "color": 4294967295
+              }
+            ],
+            "attachments": [
+              {
+                "id": "mesh",
+                "name": "mesh",
+                "type": "mesh",
+                "textureId": "",
+                "meshVertices": [
+                  -50,
+                  80,
+                  50,
+                  80,
+                  50,
+                  240,
+                  -50,
+                  240
+                ],
+                "meshUVs": [
+                  0,
+                  0,
+                  1,
+                  0,
+                  1,
+                  1,
+                  0,
+                  1
+                ],
+                "meshTriangles": [
+                  0,
+                  1,
+                  2,
+                  0,
+                  2,
+                  3
+                ],
+                "meshHull": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "weights": [
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "boneBindings": [
+                  {
+                    "boneId": "root",
+                    "matrix": [
+                      1,
+                      0,
+                      0,
+                      1,
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "boneId": "tip",
+                    "matrix": [
+                      1,
+                      0,
+                      0,
+                      1,
+                      -120,
+                      0
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "variant",
+                "name": "independent variant",
+                "type": "mesh",
+                "textureId": "",
+                "meshSourceId": "mesh",
+                "weights": [
+                  1,
+                  0,
+                  1,
+                  1,
+                  0,
+                  1,
+                  1,
+                  0,
+                  1,
+                  1,
+                  0,
+                  1
+                ],
+                "boneBindings": [
+                  {
+                    "boneId": "root",
+                    "matrix": [
+                      1,
+                      0,
+                      0,
+                      1,
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "ikConstraints": [],
+            "skins": [],
+            "activeSkin": ""
+          },
+          "animations": [
+            {
+              "name": "slide",
+              "duration": 1,
+              "loop": false,
+              "timelines": [
+                {
+                  "kind": "boneProperty",
+                  "boneId": "tip",
+                  "property": "x",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "value": 120,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    },
+                    {
+                      "time": 1,
+                      "value": 180,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "deform",
+                  "attachmentId": "variant",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "offsets": null,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    },
+                    {
+                      "time": 1,
+                      "offsets": [
+                        0,
+                        20,
+                        0,
+                        20,
+                        0,
+                        20,
+                        0,
+                        20
+                      ],
+                      "curve": {
+                        "type": "linear"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -19,3 +19,8 @@ when failing. Seed 0xbbb001 is the default. Planned benchmark sizes follow PRODU
 `bbbproj-v4-markers.json` is an immutable native source fixture with a two-bone wave animation, a hand socket and a rectangular body hurtbox. The rig browser suite verifies marker authoring, failed-edit isolation, exact history/save/reopen and deterministic sampled socket positions without mutating the fixture or setup pose.
 
 `bbbproj-v5-bind-mesh.json` is the native bind-pose reference: a quad at [-50,80] through [50,240] has full influence on a bone whose setup X is 120, with frozen bind translation -120. The initial world quad equals the authored quad; at t=0.5 the bone's X=150 moves every vertex +30. Runtime numeric tests compare the full eight-coordinate arrays. The browser suite verifies binding selection, exact history/save/reopen, half-time sampling and cursor/deform alignment.
+
+`bbbproj-v6-shared-mesh.json` contains one owned quad and an instance sharing its geometry. The
+owner follows the moving tip through its frozen Bind; the instance follows root with its own weights
+and a vertical Deform. At t=0.5 their complete world-coordinate arrays differ by the expected +30 X
+and +10 Y. Tests verify one serialized geometry, independent pose caches and full numeric output.

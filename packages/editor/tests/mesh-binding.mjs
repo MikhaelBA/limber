@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const source = JSON.parse(readFileSync('fixtures/bbbproj-v5-bind-mesh.json', 'utf8'));
+source.schemaVersion = 6;
 const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

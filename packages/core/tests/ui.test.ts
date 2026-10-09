@@ -23,7 +23,7 @@ describe('responsive game UI contracts', () => {
   it('round-trips the immutable reward popup fixture across schema-3 UI primitives', () => {
     const source = readFileSync(new URL('../../../fixtures/bbbproj-v3-reward.json', import.meta.url), 'utf8');
     const project = deserializeProject(source);
-    expect(project).toEqual({ ...JSON.parse(source), schemaVersion: 5 });
+    expect(project).toEqual({ ...JSON.parse(source), schemaVersion: 6 });
     expect(deserializeProject(serializeProject(project))).toEqual(project);
   });
   it('fits the same centered popup and anchored action inside four safe rectangles', () => {

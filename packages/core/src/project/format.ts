@@ -2,6 +2,7 @@ import { SCENE_PROPERTIES } from './motion';
 import { validateUIInsets, validateUINode, validateUIProject } from './uiValidation';
 import { deserializeDocument } from '../serialization/serialize';
 import { Skeleton } from '../skeleton/Skeleton';
+import { meshJSONReplacer } from '../skeleton/meshLinks';
 import { PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, projectFromLegacy, type BoneByBoneProject } from './model';
 
 export class ProjectFormatError extends Error {
@@ -227,7 +228,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
 
 export function serializeProject(project: BoneByBoneProject): string {
   validateProject(project);
-  return JSON.stringify(project, null, 2);
+  return JSON.stringify(project, meshJSONReplacer, 2);
 }
 
 export function deserializeProject(json: string, legacyName = 'Imported project'): BoneByBoneProject {
@@ -241,7 +242,7 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
   const project =
     candidate.format === undefined ? projectFromLegacy(deserializeDocument(json), legacyName) : candidate;
   // Missing clips/layout/components preserve their historical empty/absolute defaults.
-  if (project.schemaVersion === 1 || project.schemaVersion === 2 || project.schemaVersion === 3 || project.schemaVersion === 4)
+  if (project.schemaVersion === 1 || project.schemaVersion === 2 || project.schemaVersion === 3 || project.schemaVersion === 4 || project.schemaVersion === 5)
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);
   return project;

@@ -323,3 +323,29 @@ previous identical error to satisfy the next asynchronous import assertion. The 
 and awaits each import status and paces its rapid tiny snapshot downloads. Local reproduction
 passed before and after; the timeout alone does not prove which timing condition caused the
 remote failure. A fresh CI run must confirm this gate before Phase 6 is called complete.
+
+## 9 October 2026 Phase 6H repaired gate published
+
+Commit `5053247`; CI run 37976413952 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6I shared mesh variants
+
+Native schema 6 now stores one geometry owner and same-rig mesh references. Each instance owns
+its texture, weights, frozen Bind and Deform; creation copies animation once, then edits independently.
+Setup vertex edits propagate to followers. Topology count edits update all weight rows and invalidate
+all affected Deform tracks atomically. Detach makes geometry independent. Source deletion with
+followers fails without source/history changes; instance deletion removes its own tracks and restores
+exact order on undo. The UI supports creation, texture selection, detach and guarded deletion.
+ADR 0016 documents the storage/evaluation contract and explicit Spine export limitation.
+
+Full-coordinate runtime goldens, native serialization and malformed-reference tests cover the core.
+Authoring tests cover aliases, independent paint/rebind/texture, both topology operations, skin
+assignment, exact undo/redo and rejected-operation redo preservation. The browser workflow passes
+shared creation, setup editing, independent animated Deform, detach, source-delete guard, native
+roundtrip and malformed import isolation. Full local regression checks and remote CI follow. The
+remaining Phase 6 deliverable is complete Standard/Heavy playback and workflow performance evidence.
+
+Phase 6I validation: all 335 unit tests, TypeScript, lint/boundaries, formatting and both builds
+passed. All fifteen browser suites passed, including scene/RTL goldens; the shared-mesh workflow
+also passed against production assets. The schema-advancement regression initially found two
+browser assertions still expecting schema 5; they now expect schema 6. Remote CI follows.

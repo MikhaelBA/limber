@@ -16,6 +16,7 @@ export { packAtlas, buildAtlasText, uniqueTexturePaths } from './serialization/a
 export type { AtlasImageInput, AtlasLayout, AtlasPlacement, PackAtlasOptions } from './serialization/atlasPack';
 export * from './skeleton/skinning';
 export * from './skeleton/markers';
+export * from './skeleton/meshLinks';
 
 // Animation
 export * from './animation/bezier';

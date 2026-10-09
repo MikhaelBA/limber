@@ -2,6 +2,7 @@ import { FORMAT_VERSION } from '../types/data';
 import type { EditorDocument, ExportedDocument } from '../types/document';
 import { runMigrations, type Migration } from './migrations';
 import { validateDeformTimelines } from '../animation/validateDeforms';
+import { meshJSONReplacer } from '../skeleton/meshLinks';
 
 /**
  * migrations[i] upgrades a document from version i+1 to i+2.
@@ -14,7 +15,7 @@ const CURRENT_MIGRATIONS: readonly Migration[] = [
 
 export function serializeDocument(doc: EditorDocument): string {
   const exported: ExportedDocument = { version: FORMAT_VERSION, ...doc };
-  return JSON.stringify(exported, null, 2);
+  return JSON.stringify(exported, meshJSONReplacer, 2);
 }
 
 export function deserializeDocument(json: string): EditorDocument {

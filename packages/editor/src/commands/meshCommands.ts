@@ -2,7 +2,7 @@ import { paintInfluence, validateHull, validateMeshTopology } from '@limber/mesh
 import { triangulateMesh } from '@limber/mesh/triangulate';
 export { triangulateMesh } from '@limber/mesh/triangulate';
 import type { AttachmentData, SkeletonData, Animation } from '@limber/core';
-import { uuid } from '@limber/core';
+import { uuid, meshGeometryOwner, resolveMeshLinks } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { regionOf, type AttachmentTarget } from './attachmentCommands';
@@ -254,7 +254,7 @@ export function vertexWeightOf(
  * Creates a grid mesh attachment (no weights — rigid to the slot's bone until
  * painted) and assigns it to the slot, default or active-skin target.
  */
-abstract class MeshEditCommand implements Command {
+export abstract class MeshEditCommand implements Command {
   abstract readonly label: string;
   private before: RigSnapshot | null = null;
   private after: RigSnapshot | null = null;
@@ -368,7 +368,10 @@ export class CreateHullMeshCommand extends MeshEditCommand {
 function editablePolygon(data: SkeletonData, id: string): AttachmentData {
   const mesh = data.attachments.find((item) => item.id === id);
   if (!mesh?.meshVertices) throw new Error('Editable mesh no longer exists.');
-  return mesh;
+  return meshGeometryOwner(mesh, new Map(data.attachments.map((item) => [item.id, item])));
+}
+function geometryInstances(data: SkeletonData, owner: AttachmentData): AttachmentData[] {
+  return data.attachments.filter((item) => item.id === owner.id || item.meshSourceId === owner.id);
 }
 function clearDeforms(animations: Animation[], id: string): void {
   for (const animation of animations)
@@ -401,9 +404,12 @@ export class AddMeshVertexCommand extends MeshEditCommand {
     mesh.meshHull = meshBoundary(mesh);
     mesh.meshVertices!.push(this.x, this.y);
     mesh.meshUVs?.push(uv.u, uv.v);
-    mesh.weights?.push(0);
+    for (const instance of geometryInstances(data, mesh)) {
+      instance.weights?.push(0);
+      clearDeforms(animations, instance.id);
+    }
     retriangulate(mesh);
-    clearDeforms(animations, this.attachmentId);
+    resolveMeshLinks(data, true);
   }
 }
 export class RemoveMeshVertexCommand extends MeshEditCommand {
@@ -424,16 +430,19 @@ export class RemoveMeshVertexCommand extends MeshEditCommand {
     mesh.meshHull = meshBoundary(mesh);
     mesh.meshVertices!.splice(i * 2, 2);
     mesh.meshUVs?.splice(i * 2, 2);
-    if (mesh.weights) {
-      const entry = weightEntryAt(mesh.weights, i)!;
-      mesh.weights.splice(entry.start, 1 + entry.count * 2);
+    for (const instance of geometryInstances(data, mesh)) {
+      if (instance.weights) {
+        const entry = weightEntryAt(instance.weights, i)!;
+        instance.weights.splice(entry.start, 1 + entry.count * 2);
+      }
+      clearDeforms(animations, instance.id);
     }
     mesh.meshHull = mesh.meshHull
       .filter((index) => index !== i)
       .map((index) => (index > i ? index - 1 : index));
     if (mesh.meshHull.length < 3) throw new Error('The hull must retain at least three vertices.');
     retriangulate(mesh);
-    clearDeforms(animations, this.attachmentId);
+    resolveMeshLinks(data, true);
   }
 }
 
@@ -457,7 +466,7 @@ export class SetMeshVerticesCommand implements Command {
       // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`SetMeshVerticesCommand: mesh "${this.attachmentId}" not found.`);
     }
-    return a;
+    return meshGeometryOwner(a, this.engine.skeleton.attachmentById);
   }
 
   get changed(): boolean {
@@ -488,6 +497,7 @@ export class SetMeshVerticesCommand implements Command {
       });
     else validateHull(candidate, mesh.meshHull);
     mesh.meshVertices = candidate;
+    resolveMeshLinks(this.engine.skeleton.data, true);
   }
 
   commit(): void {
@@ -496,10 +506,12 @@ export class SetMeshVerticesCommand implements Command {
 
   do(): void {
     if (this.after) this.mesh().meshVertices = [...this.after];
+    resolveMeshLinks(this.engine.skeleton.data, true);
   }
 
   undo(): void {
     if (this.before) this.mesh().meshVertices = [...this.before];
+    resolveMeshLinks(this.engine.skeleton.data, true);
   }
 }
 

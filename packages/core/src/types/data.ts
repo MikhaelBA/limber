@@ -73,6 +73,11 @@ export interface AttachmentData {
   uvs?: number[];
 
   // --- Mesh ---
+  /** Native schema 6: share geometry with an owned mesh in this rig (no link chains).
+   * The geometry arrays below are derived aliases in memory and omitted from native JSON.
+   * Weights, boneBindings, texture and Deform tracks remain independent per attachment.
+   */
+  meshSourceId?: string;
   /** Flat local-space positions. */
   meshVertices?: number[];
   /** Triangulation output — indices into meshVertices. */

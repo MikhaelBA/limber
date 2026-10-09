@@ -60,3 +60,13 @@ Setup meshes require finite distinct vertices, matched UVs and a nondegenerate m
 Indexed weight rows cover every vertex exactly once. Nonempty rows require unique integer bone indices in range, finite nonnegative weights and a sum within 1e-5 of one. Missing weights or count-zero rows use the current slot bone. Invalid source rows fail load; runtime skinning is not a repair step. Existing valid legacy weighted coordinates remain unchanged in this milestone.
 
 The standalone mesh algorithms normalize using overflow-safe scaling. Prune uses descending weight, ascending bone index for ties, a normalized threshold and maximum influence count; remaining values renormalize to one. Positive input always retains at least its strongest influence. Paint changes one bone while retaining all other proportions, including when the selected bone is the slot bone. Setup Normalize/Prune preserves animation/deform tracks and restores exact source on undo/redo.
+
+## Shared mesh instances (source schema 6)
+
+`meshSourceId` references one owned same-rig mesh. Geometry arrays are baked aliases in memory
+and omitted from linked attachments in native JSON. Texture, weights, Bind and Deform remain
+independent; creation copies authored Deform once, without live inheritance. Setup geometry edits
+propagate to all followers; vertex-count changes update all influence rows and clear affected Deform
+tracks in one atomic history step. Detach makes geometry independent. Source deletion requires
+detaching followers. Missing/cyclic/chained/conflicting sources fail load before project replacement.
+ADR 0016 specifies the contract and current Spine adapter limitation.
