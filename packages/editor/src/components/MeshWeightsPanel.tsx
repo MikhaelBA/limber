@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NormalizeMeshWeightsCommand } from '../commands/weightCommands';
 import { BindMeshCommand } from '../commands/bindMeshCommand';
+import { AutoWeightsControls } from './AutoWeightsControls';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -81,10 +82,14 @@ export function MeshWeightsPanel({ attachmentId }: { attachmentId: string }) {
           step="1"
           className="min-w-0 w-14 rounded bg-neutral-800 px-1"
           value={limit}
-          disabled={!weighted}
           onChange={(event) => setLimit(event.target.value)}
         />
       </label>
+      <AutoWeightsControls
+        attachmentId={attachmentId}
+        slotId={slotId}
+        maxInfluences={limit.trim() ? Number(limit) : NaN}
+      />
       <div className="flex gap-2">
         <button disabled={!weighted} className="rounded bg-neutral-700 px-2 py-1" onClick={() => run(false)}>
           Normalize weights

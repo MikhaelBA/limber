@@ -73,6 +73,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Mesh topology validation and transactional edits; concave triangulation.
 - [x] Deform input validation and deterministic curve sampling.
 - [x] Explicit bone binding and bind-pose-preserving skinning.
-- [ ] Auto mesh/weights worker jobs with progress, cancellation and stale-result isolation.
+- [x] Auto weights worker with progress, hard cancellation and stale-result isolation.
+- [ ] Auto mesh worker with progress, cancellation and stale-result isolation.
+- [ ] Weight smoothing with normalized influences and atomic history.
 - [ ] Linked/shared meshes with independent instance bindings/deform semantics.
 - [ ] Standard/Heavy fixture costs, responsive worker workflow and full Phase 6 CI gate.

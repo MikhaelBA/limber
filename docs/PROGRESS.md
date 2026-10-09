@@ -219,3 +219,31 @@ Native schema 5 stores stable-ID affine bone bindings captured from setup FK. Th
 Weighted cursor editing now inverts the vertex's blended transform, so setup/deform drags follow the cursor rather than incorrectly using only the slot bone. Singular blends report an editing error without publishing invalid coordinates. Bind selection/import failures preserve source and redo. Spine export explicitly rejects native bindings until its adapter supports those semantics; native save and runtime evaluation retain them.
 
 The user removed backward file compatibility as an acceptance requirement. This policy is recorded in architecture.md; new contracts take precedence without adding compatibility work. Full local checks passed with 297 unit tests, TypeScript, lint/boundaries and both builds. All eleven browser suites passed, including exact bind history/roundtrip, half-time pose and weighted deform/cursor alignment. The scene golden remains 0.000% different (100-image CPU p95 0.80ms). Remote CI is pending. Auto mesh/weights workers, linked/shared meshes and measured Standard/Heavy costs remain Phase 6 work.
+
+## 9 October 2026 Phase 6D published
+
+Commit `8a3cb3c`; CI run 37942941693 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6E automatic weights
+
+Bound meshes now expose Auto weights with an influence limit, progress and cancellation. A portable
+deterministic nearest-segment inverse-square heuristic computes normalized weights in a dedicated
+module Worker. Cancellation terminates computation; changing mode/unmounting also aborts. Results
+publish in one atomic history command only if their project, rig, mode and complete source fingerprint
+remain current. Bindings and Deform tracks remain intact; stale/invalid/cancelled work preserves source
+and redo. ADR 0012 records the heuristic and publication contract.
+
+Seeded geometry, zero-length/coincident bones, stable ties, numeric overflow, worker cleanup and
+source/history isolation have unit coverage. Browser evidence uses real workers on 60 bones/2500
+vertices and 120 bones/10000 vertices; only final delivery is held for deterministic race tests. The first
+local run measured 75ms Standard and 336ms Heavy computation, with rendering active and maximum
+frame gaps of 33.4ms during computation. These are geometry-only worker measurements; full
+Standard/Heavy playback and main-thread publication costs remain pending. A fixture initially had
+no clip, so entering Animate legitimately created a default clip and invalidated the test's source
+assertion; the fixture now has an idle clip. No product behavior was changed for that test.
+
+Full local checks passed with 306 unit tests, TypeScript, lint/boundaries, formatting and both builds.
+All twelve browser suites passed; the scene golden remains 0.000% different (100-image CPU p95
+0.70ms). The full run measured 65ms Standard and 393ms Heavy computation. Remote CI is pending.
+Auto mesh workers, smoothing, linked/shared meshes and the complete Phase 6 performance gate
+remain unfinished.

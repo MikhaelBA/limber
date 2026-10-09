@@ -1,0 +1,84 @@
+import { createPose, solveFK } from '@limber/core';
+import type { AutoWeightInput } from '@limber/mesh';
+import type { EditorEngine } from '../engine/EditorEngine';
+import type { Command } from '../history/history';
+import { applyRigSnapshot, captureRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
+
+export function rigFingerprint(engine: EditorEngine): string {
+  return JSON.stringify(captureRig(engine));
+}
+
+export function prepareAutoWeights(
+  engine: EditorEngine,
+  attachmentId: string,
+  slotId: string,
+  maxInfluences: number,
+): AutoWeightInput {
+  if (engine.mode !== 'setup') throw new Error('Switch to Setup for auto weights.');
+  const data = engine.skeleton.data,
+    mesh = engine.skeleton.attachmentById.get(attachmentId);
+  const slot = data.slots.find((item) => item.id === slotId);
+  if (!slot || mesh?.type !== 'mesh' || !mesh.boneBindings?.length)
+    throw new Error('Bind the mesh bones before computing auto weights.');
+  if (!Number.isInteger(maxInfluences) || maxInfluences < 1)
+    throw new Error('Auto weights need a positive integer influence limit.');
+  const pose = createPose(data);
+  solveFK(data, engine.skeleton.boneIndexMap, pose);
+  const wm = pose.worldMatrices,
+    o = engine.skeleton.boneIndexMap.get(slot.boneId)! * 6;
+  const vertices: number[] = [];
+  for (let k = 0; k < mesh.meshVertices!.length; k += 2) {
+    const x = mesh.meshVertices![k]!,
+      y = mesh.meshVertices![k + 1]!;
+    vertices.push(wm[o]! * x + wm[o + 2]! * y + wm[o + 4]!, wm[o + 1]! * x + wm[o + 3]! * y + wm[o + 5]!);
+  }
+  const bones = mesh.boneBindings.map((binding) => {
+    const boneIndex = engine.skeleton.boneIndexMap.get(binding.boneId)!,
+      bone = data.bones[boneIndex]!,
+      offset = boneIndex * 6;
+    return {
+      boneIndex,
+      x0: wm[offset + 4]!,
+      y0: wm[offset + 5]!,
+      x1: wm[offset + 4]! + bone.length * wm[offset]!,
+      y1: wm[offset + 5]! + bone.length * wm[offset + 1]!,
+    };
+  });
+  return { vertices, bones, maxInfluences };
+}
+
+/** Async results enter normal history only while their source rig is still current. */
+export class ApplyAutoWeightsCommand implements Command {
+  readonly label = 'Auto Weights';
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
+  private weights: number[];
+  constructor(
+    private engine: EditorEngine,
+    private attachmentId: string,
+    weights: readonly number[],
+    private fingerprint: string,
+  ) {
+    this.weights = [...weights];
+  }
+  do(): void {
+    if (this.after) {
+      applyRigSnapshot(this.engine, this.after);
+      return;
+    }
+    if (this.engine.mode !== 'setup' || rigFingerprint(this.engine) !== this.fingerprint)
+      throw new Error('Auto weights discarded because the rig changed. Run it again.');
+    const before = captureRig(this.engine),
+      after = prepareRigEdit(this.engine, (data) => {
+        const mesh = data.attachments.find((item) => item.id === this.attachmentId);
+        if (mesh?.type !== 'mesh' || !mesh.boneBindings) throw new Error('Bound mesh no longer exists.');
+        mesh.weights = [...this.weights];
+      });
+    applyRigSnapshot(this.engine, after);
+    this.before = before;
+    this.after = after;
+  }
+  undo(): void {
+    if (this.before) applyRigSnapshot(this.engine, this.before);
+  }
+}
