@@ -22,12 +22,10 @@ try {
     animations: [{ name: 'idle', duration: 1, loop: true, timelines: [] }], assetManifest: {} };
   let lastDownload = 0;
   const open = async (project) => {
-    // File reading is asynchronous. Clear the previous status so a repeated error cannot
-    // satisfy the next import assertion before its File.text() has finished.
-    await page.evaluate(async () => {
-      const { useEditorStore } = await import('/src/store/editorStore.ts');
-      useEditorStore.getState().setStatus('Opening weight fixture');
-    });
+    // Every later import follows a saved snapshot. Await its distinct status so a
+    // repeated error cannot satisfy the next assertion before File.text() finishes.
+    // Use the real UI rather than a dev-server-only source-module import.
+    if (lastDownload > 0) await page.locator('footer').getByText(/^Project saved/).waitFor();
     await page.locator('input[type=file]').setInputFiles({ name: 'weights.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
     await page.locator('footer').getByText(/Opened weights.json|Open failed:/).waitFor();
   };

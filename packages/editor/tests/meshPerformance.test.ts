@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { playbackFixture } from '../../../tools/mesh-fixtures.mjs';
 import { activeRigDocument, createSkinningStats, deserializeProject, serializeProject } from '@limber/core';
-import { RuntimePlayer } from '@limber/runtime';
+import { RuntimePlayer } from '../../runtime/src';
 import { EditorEngine } from '../src/engine/EditorEngine';
 
 describe('representative mesh playback fixtures', () => {

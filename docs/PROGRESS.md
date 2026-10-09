@@ -376,3 +376,12 @@ profile workflow also passed: Standard/Heavy CPU update/render-submit p95 1.70/3
 with rendering and inspector interaction active. SwiftShader actual frame-gap p95 was 27.6/61.0ms;
 CPU budget passage is not a hardware-independent 60fps GPU claim. docs/performance/phase6-mesh.md
 contains the full scope and limits. No Phase 6 feature task remains; the final remote CI gate follows.
+
+## 9 October 2026 Phase 6J clean-checkout gate repair
+
+Commit `9060ea2` was pushed, but run 37981384749 stopped at TypeScript: the new preview/runtime
+parity test imported @limber/runtime before its dist existed on a clean checkout. It now imports
+the runtime source, matching existing fixture tests. Typecheck passes with runtime/dist temporarily
+absent, and both parity cases pass. The paced weight browser helper also now awaits real UI status
+instead of importing a Vite-only store module; its complete workflow passes against production.
+The feature implementation and numerical budget are unchanged. A fresh full CI run follows.
