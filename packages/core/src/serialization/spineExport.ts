@@ -4,6 +4,7 @@ import type { EditorDocument } from '../types/document';
 import { createPose } from '../skeleton/pose';
 import { solveFK } from '../skeleton/FKSolver';
 import { Skeleton } from '../skeleton/Skeleton';
+import { validateDeformTimelines } from '../animation/validateDeforms';
 
 /**
  * Spine-runtime JSON export (skeleton format 4.1).
@@ -39,6 +40,7 @@ interface Json {
 }
 
 export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
+  validateDeformTimelines(doc.skeleton, doc.animations);
   if (doc.skeleton.markers?.length) {
     const warning = 'Spine export omits BoneByBone markers; keep the native .bbbproj for sockets and hit areas.';
     if (!warnings) throw new Error(warning);

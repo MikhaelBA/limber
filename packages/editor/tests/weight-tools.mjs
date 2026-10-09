@@ -61,6 +61,28 @@ try {
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'Prune weights', exact: true }).isDisabled(), true);
   assert.deepEqual(await save(), pruned);
+  const animated = structuredClone(pruned);
+  animated.artboards[0].nodes[0].animations[0].timelines.push({ kind: 'deform', attachmentId: 'mesh', keyframes: [
+    { time: 0, offsets: null, curve: { type: 'bezier', c1: 1 / 3, c2: 0, c3: 2 / 3, c4: 0 } },
+    { time: 1, offsets: [8, 0, 8, 0, 8, 0, 8, 0], curve: { type: 'linear' } },
+  ] });
+  await open(animated);
+  await page.getByRole('button', { name: 'Animate', exact: true }).click();
+  await page.locator('.cursor-ew-resize').first().click({ position: { x: 50, y: 12 } });
+  await page.waitForFunction(() => Math.abs(window.__slotMesh0?.[0] - 71) < 0.01);
+  assert.deepEqual(await save(), animated, 'Bezier sampling preserves authored source');
+  for (const corrupt of [
+    (track) => { track.keyframes[1].offsets.pop(); },
+    (track) => { track.keyframes[1].offsets[0] = 1e40; },
+    (track) => { track.keyframes[1].time = 0; },
+    (track) => { track.keyframes[0].curve.c1 = -1; },
+  ]) {
+    const invalid = structuredClone(animated);
+    corrupt(invalid.artboards[0].nodes[0].animations[0].timelines[0]);
+    await open(invalid);
+    await page.locator('footer').getByText(/Invalid Deform/).waitFor();
+    assert.deepEqual(await save(), animated, 'malformed Deform import retains active project');
+  }
   assert.deepEqual(errors, []);
   await page.screenshot({ path: 'packages/editor/.smoke/mesh-weights.png' });
   console.log('PASS: weight pruning, sampled vertices, atomic invalid edits/import, exact history, native roundtrip and setup isolation');

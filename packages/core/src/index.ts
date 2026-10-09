@@ -22,6 +22,7 @@ export * from './animation/bezier';
 export * from './animation/keyframes';
 export * from './animation/applyTimeline';
 export * from './animation/AnimationState';
+export * from './animation/validateDeforms';
 
 // Serialization
 export * from './serialization/serialize';

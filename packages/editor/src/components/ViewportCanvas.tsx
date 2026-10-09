@@ -1046,7 +1046,7 @@ function wireViewport(
         deformDragCmd.open();
         dragVertex = v;
         inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        deformDragCmd.update(v, scratchPoint.x, scratchPoint.y);
+        try { deformDragCmd.update(v, scratchPoint.x, scratchPoint.y); } catch (error) { st.setStatus((error as Error).message); }
       } else {
         meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
         meshDragCmd.open();
@@ -1214,7 +1214,7 @@ function wireViewport(
       const ed = editableMesh();
       if (ed) {
         inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
+        try { deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y); } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
       }
       return;
     }

@@ -71,7 +71,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 
 - [x] Portable mesh algorithms, strict influence validation, deterministic normalize/prune.
 - [x] Mesh topology validation and transactional edits; concave triangulation.
-- [ ] Deform input validation and deterministic curve sampling.
+- [x] Deform input validation and deterministic curve sampling.
 - [ ] Explicit bone binding and bind-pose-preserving skinning, with legacy compatibility.
 - [ ] Auto mesh/weights worker jobs with progress, cancellation and stale-result isolation.
 - [ ] Linked/shared meshes with independent instance bindings/deform semantics.

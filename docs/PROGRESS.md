@@ -195,3 +195,15 @@ Grid/hull creation and vertex insertion/removal prepare geometry, weights and af
 Validation is for setup topology: animated deformation may legitimately fold triangles. The supported topology is one simple disk; holes and disconnected components are rejected explicitly. The triangulator is a separate mesh entry point so runtime validation does not import cdt2d. Bind-pose skinning, full Deform input validation, worker responsiveness, linked meshes and measured Standard/Heavy costs remain unfinished.
 
 Full local checks passed with 283 unit tests, TypeScript, lint/boundaries and both builds. All ten browser suites passed, including concave hull creation with exact area, rejected setup drag and malformed native geometry import isolation. The existing scene golden is unchanged (0.000%; 100-image CPU p95 0.90ms). Remote CI remains pending; this is a Phase 6 increment, not the complete Deform Alpha gate.
+
+## 9 October 2026 Phase 6B published
+
+Commit `c751258`; CI run 37910782693 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6C Deform validation and curve sampling
+
+Deform validation is shared by native/legacy import, direct RuntimePlayer construction, structural rig edits and Spine export. Tracks require existing vertex geometry, unique attachment targets, strictly increasing finite nonnegative key times, null setup offsets or complete finite coordinate arrays, and supported finite curves. Cubic time controls stay in [0,1]; Y overshoot remains supported. Conservative segment bounds reject values that would overflow the Float32 deformation cache. Invalid sources fail before replacing the current project.
+
+Deform sampling now evaluates the authored Bezier easing instead of treating every non-stepped key as linear. Null setup interpolation, overshoot and crossfade are covered by numeric tests. Drag commands and curve edits validate candidates before publication, preserve the last valid preview and exact undo/redo, and report failures in the viewport. An old export-only test supplied a partial quad offset array; it now supplies all four coordinate pairs explicitly.
+
+Full local checks passed with 289 unit tests, TypeScript, lint/boundaries and both builds. All ten browser suites passed, including a cubic halfway vertex measurement and malformed Deform import isolation. The scene golden remains 0.000% different (100-image CPU p95 0.80ms). Remote CI is pending. Bone binding, workers, linked/shared meshes and Standard/Heavy measurement remain unfinished Phase 6 deliverables.

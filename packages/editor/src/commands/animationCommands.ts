@@ -11,7 +11,7 @@ import type {
   NumberKeyframe,
   SlotColorTimeline,
 } from '@limber/core';
-import { defaultCurve } from '@limber/core';
+import { defaultCurve, validateDeformTimelines } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 
@@ -702,6 +702,10 @@ export function upsertDeformKeyframe(
   time: number,
   offsets: number[] | null,
 ): void {
+  if (!Number.isFinite(time) || time < 0 || (offsets !== null &&
+      (!Array.isArray(offsets) || offsets.length < 6 || offsets.length % 2 !== 0 || offsets.some((value) => !Number.isFinite(value) || !Number.isFinite(Math.fround(value)))))) {
+    throw new Error('Invalid Deform key: use finite nonnegative time and finite coordinate pairs.');
+  }
   let tl = findDeformTimeline(anim, attachmentId);
   if (!tl) {
     tl = { kind: 'deform', attachmentId, keyframes: [] };
@@ -710,10 +714,10 @@ export function upsertDeformKeyframe(
   const kfs = tl.keyframes;
   const at = kfs.findIndex((kf) => Math.abs(kf.time - time) < 1e-6);
   if (at >= 0) {
-    kfs[at]!.offsets = offsets;
+    kfs[at]!.offsets = offsets === null ? null : [...offsets];
     return;
   }
-  const kf: DeformKeyframe = { time, offsets, curve: defaultCurve() };
+  const kf: DeformKeyframe = { time, offsets: offsets === null ? null : [...offsets], curve: defaultCurve() };
   const insert = kfs.findIndex((k) => k.time > time);
   if (insert === -1) kfs.push(kf);
   else kfs.splice(insert, 0, kf);
@@ -749,11 +753,17 @@ export class AutoKeyDeformCommand implements Command {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
     if (!a || a.type !== 'mesh' || !a.meshVertices || !this.base) return;
     const i = vertexIndex * 2;
-    if (i + 1 >= this.base.length) return;
+    if (!Number.isInteger(vertexIndex) || vertexIndex < 0 || i + 1 >= this.base.length ||
+        ![localX, localY].every((value) => Number.isFinite(value) && Number.isFinite(Math.fround(value)))) {
+      throw new Error('Invalid Deform vertex or position.');
+    }
     const offsets = [...this.base];
     offsets[i] = localX - a.meshVertices[i]!;
     offsets[i + 1] = localY - a.meshVertices[i + 1]!;
     const anim = requireAnimation(this.engine);
+    const draft = { ...anim, timelines: structuredClone(anim.timelines.filter((timeline) => timeline.kind === 'deform' && timeline.attachmentId === this.attachmentId)) };
+    upsertDeformKeyframe(draft, this.attachmentId, this.engine.currentTime, offsets);
+    validateDeformTimelines(this.engine.skeleton.data, [draft]);
     upsertDeformKeyframe(anim, this.attachmentId, this.engine.currentTime, offsets);
     refreshDuration(anim);
   }
@@ -944,6 +954,13 @@ export class SetKeyframeCurveCommand implements Command {
   do(): void {
     const kf = this.find();
     if (!kf) return;
+    if (this.sel.kind === 'deform') {
+      const animation = requireAnimation(this.engine);
+      const track = structuredClone(findDeformTimeline(animation, this.sel.attachmentId)!);
+      const key = track.keyframes.find((item) => Math.abs(item.time - this.sel.time) < 1e-6)!;
+      key.curve = structuredClone(this.curve);
+      validateDeformTimelines(this.engine.skeleton.data, [{ ...animation, timelines: [track] }]);
+    }
     if (this.before === null) this.before = { ...kf.curve };
     kf.curve = structuredClone(this.curve);
   }

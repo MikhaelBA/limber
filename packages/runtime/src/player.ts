@@ -6,6 +6,7 @@ import {
   solveFK,
   solveIK,
   updateSkinning,
+  validateDeformTimelines,
 } from '@limber/core';
 
 export interface RuntimePlayerOptions {
@@ -59,6 +60,7 @@ export class RuntimePlayer {
     doc: ExportedDocument | { skeleton: ExportedDocument['skeleton']; animations: ExportedDocument['animations'] },
     opts: RuntimePlayerOptions = {},
   ) {
+    validateDeformTimelines(doc.skeleton, doc.animations);
     this.skeleton = new Skeleton(doc.skeleton);
     this.animations = doc.animations;
     this.loopDefault = opts.loopDefault ?? true;

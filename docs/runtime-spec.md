@@ -51,6 +51,8 @@ Human guides and mirrors author setup data only. Guides add a new hierarchy usin
 
 ## Mesh influence validation and editing
 
+Deform tracks target existing vertex geometry once per clip. Key times are finite, nonnegative and strictly increasing; offsets are either null (zero setup offsets) or a complete finite coordinate array. Curves are linear, stepped or cubic Bezier with finite controls and X controls in [0,1]. Cubic Y overshoot is supported; conservative segment bounds must fit the Float32 pose cache. Import, direct RuntimePlayer construction, structural publication and export validate these inputs. Missing/prefix offsets are rejected explicitly rather than silently padded. Sampling applies the outgoing curve before crossfade blending; animated triangle folding remains valid.
+
 Setup meshes require finite distinct vertices, matched UVs and a nondegenerate manifold triangle disk covering one simple boundary exactly. Invalid geometry fails load before replacing the active project. Missing meshHull on existing geometry is inferred from boundary edges without rewriting source. New concave triangulation includes interior faces only. Topology changes invalidate affected Deform tracks atomically with exact undo; position-only setup edits retain tracks. Animated mesh folding remains allowed. See ADR 0010 for numeric tolerance, unsupported topology and performance limits.
 
 Indexed weight rows cover every vertex exactly once. Nonempty rows require unique integer bone indices in range, finite nonnegative weights and a sum within 1e-5 of one. Missing weights or count-zero rows use the current slot bone. Invalid source rows fail load; runtime skinning is not a repair step. Existing valid legacy weighted coordinates remain unchanged in this milestone.

@@ -31,6 +31,13 @@ function makeExportedDocument(): ExportedDocument {
 }
 
 describe('RuntimePlayer (Phase 1 stub)', () => {
+  it('rejects malformed Deform data even when the JSON loader is bypassed', () => {
+    const doc = makeExportedDocument();
+    doc.animations.push({ name: 'bad', duration: 1, loop: false, timelines: [{ kind: 'deform', attachmentId: 'missing', keyframes: [] }] });
+    const before = structuredClone(doc);
+    expect(() => new RuntimePlayer(doc)).toThrow(/Invalid Deform/);
+    expect(doc).toEqual(before);
+  });
   it('end-to-end: serialize → deserialize → construct → FK-solved world transforms', () => {
     // The full Phase 1 pipeline: a document saved by the editor loads into the
     // runtime and produces correct world matrices at the setup pose.

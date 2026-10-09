@@ -19,7 +19,7 @@ import {
   vertexWeightOf,
   weightEntryAt,
 } from '../src/commands/meshCommands';
-import { AutoKeyDeformCommand, DeleteDeformKeyframeCommand, upsertDeformKeyframe } from '../src/commands/animationCommands';
+import { AutoKeyDeformCommand, DeleteDeformKeyframeCommand, SetKeyframeCurveCommand, upsertDeformKeyframe } from '../src/commands/animationCommands';
 import { AddSlotCommand } from '../src/commands/slotCommands';
 import { AddBoneCommand } from '../src/commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../src/commands/attachmentCommands';
@@ -444,6 +444,38 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
 });
 
 describe('AutoKeyDeformCommand', () => {
+  it('validates curve edits before publication and preserves redo after rejection', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, null);
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 1, new Array(18).fill(8));
+    const selection = { kind: 'deform' as const, attachmentId: meshId, time: 0 };
+    const history = new HistoryManager(), before = structuredClone(engine.project);
+    history.execute(new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: 0.3, c2: 2, c3: 0.7, c4: 2 }));
+    const after = structuredClone(engine.project);
+    history.undo(); expect(engine.project).toEqual(before);
+    expect(() => history.execute(new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: -1 }))).toThrow(/Invalid Deform/);
+    expect(engine.project).toEqual(before); expect(history.canRedo).toBe(true);
+    history.redo(); expect(engine.project).toEqual(after);
+  });
+
+  it('rejects invalid drags and key times before changing tracks, then undoes the last valid preview', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    const before = structuredClone(engine.project);
+    const cmd = new AutoKeyDeformCommand(engine, meshId); cmd.open();
+    cmd.update(4, 3, 2);
+    const preview = structuredClone(engine.project);
+    for (const [index, x, y] of [[-1, 0, 0], [0.5, 0, 0], [99, 0, 0], [4, NaN, 0], [4, 1e40, 0]]) {
+      expect(() => cmd.update(index!, x!, y!)).toThrow(/Invalid Deform/);
+      expect(engine.project).toEqual(preview);
+    }
+    for (const time of [-1, NaN, Infinity]) {
+      expect(() => upsertDeformKeyframe(engine.currentAnimation!, meshId, time, null)).toThrow(/Invalid Deform/);
+      expect(engine.project).toEqual(preview);
+    }
+    cmd.commit(); cmd.undo(); expect(engine.project).toEqual(before);
+    cmd.do(); expect(engine.project).toEqual(preview);
+  });
+
   it('keys offsets vs the setup mesh at the playhead; undo removes the timeline', () => {
     const { engine, meshId } = setupAnimatedMesh();
     const cmd = new AutoKeyDeformCommand(engine, meshId);

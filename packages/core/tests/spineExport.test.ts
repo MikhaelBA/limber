@@ -233,7 +233,7 @@ describe('exportSpineJson', () => {
           {
             kind: 'deform',
             attachmentId: 'r1', // regions can carry deform too in our model — exported the same
-            keyframes: [{ time: 0.3, offsets: [1, -2, 3, 4], curve: { type: 'linear' } }],
+            keyframes: [{ time: 0.3, offsets: [1, -2, 3, 4, 0, 0, 0, 0], curve: { type: 'linear' } }],
           },
         ],
       },
@@ -241,7 +241,7 @@ describe('exportSpineJson', () => {
     const json = JSON.parse(exportSpineJson(d));
     const kf = json.animations.anim.deform.default.slotA.head[0];
     expect(kf.time).toBe(0.3);
-    expect(kf.vertices).toEqual([1, 2, 3, -4]);
+    expect(kf.vertices).toEqual([1, 2, 3, -4, 0, 0, 0, 0]);
   });
 
   it('collects event definitions and exports event keyframes', () => {

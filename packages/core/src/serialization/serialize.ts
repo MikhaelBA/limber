@@ -1,6 +1,7 @@
 import { FORMAT_VERSION } from '../types/data';
 import type { EditorDocument, ExportedDocument } from '../types/document';
 import { runMigrations, type Migration } from './migrations';
+import { validateDeformTimelines } from '../animation/validateDeforms';
 
 /**
  * migrations[i] upgrades a document from version i+1 to i+2.
@@ -41,6 +42,8 @@ export function deserializeDocument(json: string): EditorDocument {
   assertCoarseShape(migrated);
 
   const { version: _version, ...doc } = migrated;
+  const typed = doc as unknown as EditorDocument;
+  validateDeformTimelines(typed.skeleton, typed.animations);
   return doc as unknown as EditorDocument;
 }
 

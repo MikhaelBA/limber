@@ -2,6 +2,7 @@ import type { Skeleton } from '../skeleton/Skeleton';
 import type { EventFrame } from '../types/events';
 import type { Timeline } from '../types/animation';
 import { findKeyframeIndex, interpolateNumber, lerpColor } from './keyframes';
+import { solveBezier } from './bezier';
 
 /**
  * Applies one timeline at track-time with blending weight `alpha`
@@ -108,10 +109,11 @@ export function applyTimeline(
       // between a null key and an offset key pulls vertices back to setup.
       const o0 = kf0.offsets;
       const o1 = kf1 ? kf1.offsets : o0;
-      const t =
+        const linearT =
         !kf1 || kf1.time <= kf0.time || kf0.curve.type === 'stepped'
           ? 0
           : (time - kf0.time) / (kf1.time - kf0.time);
+        const t = kf0.curve.type === 'bezier' ? solveBezier(kf0.curve, linearT) : linearT;
       const out = state.deform;
       for (let k = 0; k < out.length; k++) {
         const a = o0 ? (o0[k] ?? 0) : 0;

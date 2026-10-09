@@ -1,4 +1,4 @@
-import { Skeleton, type Animation, type SkeletonData } from '@limber/core';
+import { Skeleton, validateDeformTimelines, type Animation, type SkeletonData } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 
 export interface RigSnapshot {
@@ -13,6 +13,7 @@ export function captureRig(engine: EditorEngine): RigSnapshot {
 /** Structural edits must also preserve references outside the Skeleton wrapper. */
 function validateRigReferences(snapshot: RigSnapshot): void {
   const { skeleton: data, animations } = snapshot;
+  validateDeformTimelines(data, animations);
   const bones = new Set(data.bones.map((bone) => bone.id));
   const slots = new Set(data.slots.map((slot) => slot.id));
   const attachments = new Set(data.attachments.map((attachment) => attachment.id));
