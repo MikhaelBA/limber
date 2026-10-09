@@ -447,7 +447,9 @@ strength/order editing, target keys and failed-import isolation. The complete
 seventeen-suite browser regression passed. Standard/Heavy CPU update/render-submit
 p95 was 2.30/4.10ms; exact weighted transform counts stayed 10000/40004. Heavy worker
 publication was 45.2ms. Software-graphics frame gaps are reported separately, not
-advertised as hardware-independent 60fps. Remote CI follows the push.
+advertised as hardware-independent 60fps. Code commit `b84134d` passed the complete
+remote CI run 37996700991: Test & Build (including browser regression), Docker,
+VPS deployment and GitHub Pages deployment all succeeded.
 
 Remaining Phase 7 work: robust reflected/scaled/sheared IK and degeneracy semantics,
 pole and softness, transform/path constraints, fixed-step secondary motion and the
@@ -457,4 +459,5 @@ was added; schema 6 remains current. Sol 6.1 / High remains suitable for the nex
 
 Previous sample CI 37992186939 passed Test & Build and both deployments. Docker failed
 on Docker Hub's 429 download limit; rerunning that failed job hit the same registry
-limit on the Node image. This is recorded separately from code/test verification.
+limit on the Node image. This is recorded separately from code/test verification;
+the Phase 7A run subsequently built and published Docker successfully.
