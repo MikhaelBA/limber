@@ -1,3 +1,4 @@
+import { paintInfluence } from '@limber/mesh';
 import cdt2d from 'cdt2d';
 import type { AttachmentData, SkeletonData } from '@limber/core';
 import { uuid } from '@limber/core';
@@ -194,7 +195,7 @@ export function weightEntryAt(w: number[], vertexIndex: number): { start: number
 
 /**
  * Rewrites one vertex's weights to blend `t` toward `boneIndex` (0..1),
- * the remainder staying on the slot's bone. A vertex with weight 1 on the
+ * preserving the relative distribution of other influences. A vertex with weight 1 on the
  * slot bone is exactly the "no weights" rigid case, expressed explicitly.
  */
 export function setVertexWeight(
@@ -206,20 +207,18 @@ export function setVertexWeight(
 ): number[] {
   const entry = weightEntryAt(weights, vertexIndex);
   if (!entry) return weights;
-  const clamped = Math.min(1, Math.max(0, t));
-  // Full weight (or painting the slot's own bone) collapses to one rigid entry.
-  const replacement =
-    boneIndex === slotBoneIndex || clamped >= 1
-      ? [1, boneIndex, 1]
-      : [2, slotBoneIndex, 1 - clamped, boneIndex, clamped];
+  const row = Array.from({ length: entry.count }, (_, i) => ({ boneIndex: weights[entry.start + 1 + i * 2]!, weight: weights[entry.start + 2 + i * 2]! }));
+  const painted = paintInfluence(row, boneIndex, t, slotBoneIndex);
+  const replacement = [painted.length, ...painted.flatMap((item) => [item.boneIndex, item.weight])];
   return [...weights.slice(0, entry.start), ...replacement, ...weights.slice(entry.start + 1 + entry.count * 2)];
 }
 
 /** Weight (0..1) a vertex gives to `boneIndex` — 0 when unweighted/absent. */
-export function vertexWeightOf(w: number[] | undefined, vertexIndex: number, boneIndex: number): number {
-  if (!w) return 0;
+export function vertexWeightOf(w: number[] | undefined, vertexIndex: number, boneIndex: number, fallbackBoneIndex?: number): number {
+  if (!w) return boneIndex === fallbackBoneIndex ? 1 : 0;
   const entry = weightEntryAt(w, vertexIndex);
   if (!entry) return 0;
+  if (entry.count === 0) return boneIndex === fallbackBoneIndex ? 1 : 0;
   let p = entry.start + 1;
   for (let e = 0; e < entry.count; e++) {
     if ((w[p]! | 0) === boneIndex) return w[p + 1]!;
@@ -640,15 +639,18 @@ export class PaintWeightsCommand implements Command {
    */
   update(vertexIndex: number, boneIndex: number, slotBoneIndex: number, amount: number, mode: BrushMode = 'add'): void {
     const a = this.mesh();
+    if (!Number.isInteger(vertexIndex) || vertexIndex < 0 || vertexIndex >= a.meshVertices!.length / 2 ||
+        ![boneIndex, slotBoneIndex].every((index) => Number.isInteger(index) && index >= 0 && index < this.engine.skeleton.data.bones.length) ||
+        !Number.isFinite(amount)) throw new Error('Invalid weight brush input.');
     const weights = a.weights ?? this.baseline();
-    const current = vertexWeightOf(weights, vertexIndex, boneIndex);
+    const current = vertexWeightOf(weights, vertexIndex, boneIndex, slotBoneIndex);
     let next = current;
     if (mode === 'set') next = Math.max(current, Math.min(1, amount));
     else if (mode === 'smooth') {
       const nbrs = this.adjacency?.[vertexIndex] ?? [];
       if (nbrs.length > 0) {
         let sum = 0;
-        for (const n of nbrs) sum += vertexWeightOf(weights, n, boneIndex);
+        for (const n of nbrs) sum += vertexWeightOf(weights, n, boneIndex, slotBoneIndex);
         next = current + ((sum / nbrs.length - current) * Math.min(1, amount));
       }
     } else next = current + amount;

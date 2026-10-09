@@ -5,8 +5,9 @@ curves, IK, skins, events, texture imports, autosave and optional Spine export d
 
 ## Boundaries
 
+- `packages/mesh`: renderer-independent mesh/influence algorithms; no core, editor or runtime dependency.
 - `packages/core`: portable model, transforms, animation, constraints, skinning and serialization.
-  No React, Pixi, editor or external runtime dependency. Enforced by `npm run check:boundaries`.
+  May use mesh algorithms; no React, Pixi, editor or external runtime dependency. Enforced by `npm run check:boundaries`.
 - `packages/editor`: React shell, command history, UI state, browser persistence and rendering adapter.
   Persistent changes use commands; pointer drags commit once. Frame evaluation stays outside React state.
 - `packages/runtime`: evaluator consuming core data; no editor dependency. The legacy wireframe helper

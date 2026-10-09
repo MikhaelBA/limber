@@ -48,3 +48,9 @@ Optional skeleton markers have unique IDs, names, same-rig bone references and l
 Spine export cannot represent these native semantics and reports their omission; it leaves the native source untouched. The portable evaluator is available from core, but the `.bbb` compiler and Unity/Cocos socket APIs remain later milestones.
 
 Human guides and mirrors author setup data only. Guides add a new hierarchy using rig units and positive Y down; their named bones remain ordinary editable bones. Mirror applies a vertical reflection `[-1, 0, 0, 1, 2*axisX, 0]` to each selected setup world matrix, then derives local transforms relative to copied or existing parents. Marker local transforms/geometry stay unchanged while their references move to the copied bones. Each insertion is one atomic undo step and does not duplicate artwork, weight bindings, constraints or animation tracks.
+
+## Mesh influence validation and editing
+
+Indexed weight rows cover every vertex exactly once. Nonempty rows require unique integer bone indices in range, finite nonnegative weights and a sum within 1e-5 of one. Missing weights or count-zero rows use the current slot bone. Invalid source rows fail load; runtime skinning is not a repair step. Existing valid legacy weighted coordinates remain unchanged in this milestone.
+
+The standalone mesh algorithms normalize using overflow-safe scaling. Prune uses descending weight, ascending bone index for ties, a normalized threshold and maximum influence count; remaining values renormalize to one. Positive input always retains at least its strongest influence. Paint changes one bone while retaining all other proportions, including when the selected bone is the slot bone. Setup Normalize/Prune preserves animation/deform tracks and restores exact source on undo/redo.

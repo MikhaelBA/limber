@@ -37,10 +37,13 @@ function check(directory, allowedPackages) {
     visit(source);
   }
 }
-check(resolve(root, 'packages/core/src'), ['core']);
+check(resolve(root, 'packages/mesh/src'), ['mesh']);
+check(resolve(root, 'packages/core/src'), ['core', 'mesh']);
 check(resolve(root, 'packages/runtime/src'), ['core', 'runtime']);
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;
 } else
-  console.log('Architecture boundaries passed: core and runtime do not depend on editor, React or Pixi.');
+  console.log(
+    'Architecture boundaries passed: mesh, core and runtime do not depend on editor, React or Pixi.',
+  );

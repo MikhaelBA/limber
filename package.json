@@ -15,7 +15,7 @@
     "typecheck": "tsc -p packages/editor",
     "docker:build": "docker build -t limber:latest .",
     "docker:run": "docker run --rm -p 8080:80 limber:latest",
-    "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\"",
+    "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/mesh/dist','packages/core/dist','packages/runtime/dist'])fs.rmSync(d,{recursive:true,force:true});\"",
     "lint": "eslint packages --ext .ts,.tsx && npm run check:boundaries",
     "check:boundaries": "node tools/check-boundaries.mjs",
     "format": "prettier --write docs tools fixtures/README.md eslint.config.mjs .prettierrc.json",

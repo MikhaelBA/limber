@@ -8,12 +8,5 @@
     "outDir": "dist",
     "types": []
   },
-  "include": [
-    "src"
-  ],
-  "references": [
-    {
-      "path": "../mesh"
-    }
-  ]
+  "include": ["src"]
 }

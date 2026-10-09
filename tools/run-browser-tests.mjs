@@ -40,6 +40,7 @@ try {
     'scene-motion.mjs',
     'scene-ui.mjs',
     'rig-authoring.mjs',
+    'weight-tools.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {

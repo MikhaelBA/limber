@@ -1,3 +1,4 @@
+import { MeshWeightsPanel } from './MeshWeightsPanel';
 import { useEffect, useRef, useState } from 'react';
 import { SetKeyframeCommand, KeySlotColorCommand, type BonePropertyName } from '../commands/animationCommands';
 import {
@@ -314,6 +315,7 @@ export function PropertiesPanel() {
               ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
             </p>
           )}
+          {shownAtt?.type === 'mesh' && <MeshWeightsPanel attachmentId={shownAtt.id} />}
           {shownAtt && (shownAtt.type === 'boundingBox' || shownAtt.type === 'clipping') && shownAtt.meshVertices && (
             <>
               <p className="text-[10px] text-neutral-500">

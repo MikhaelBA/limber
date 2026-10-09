@@ -15,7 +15,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-resizable-panels": "^2.1.7",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "@limber/mesh": "*"
   },
   "devDependencies": {
     "@esotericsoftware/spine-core": "4.2.120",

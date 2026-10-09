@@ -196,7 +196,7 @@ describe('resetPose (pipeline step 1)', () => {
 describe('Skeleton.rebuild (structural edits)', () => {
   it('installs snapshot-owned weight indices atomically while retaining wrapper references', () => {
     const sk = new Skeleton(makeSkeletonData([makeBone('root', null), makeBone('child', 'root')]));
-    sk.data.attachments.push(makeAttachment('att', [1, 1, 1]));
+    sk.data.attachments.push(makeAttachment('att', [1, 1, 1, 0, 0, 0]));
     sk.rebuild();
     const data = sk.data;
     const pose = sk.pose;
@@ -205,14 +205,14 @@ describe('Skeleton.rebuild (structural edits)', () => {
     const next = structuredClone(data);
     next.bones.shift();
     next.bones[0]!.parentId = null;
-    next.attachments[0]!.weights = [1, 0, 1];
+    next.attachments[0]!.weights = [1, 0, 1, 0, 0, 0];
     sk.replaceData(next);
-    expect(sk.data.attachments[0]!.weights).toEqual([1, 0, 1]);
+    expect(sk.data.attachments[0]!.weights).toEqual([1, 0, 1, 0, 0, 0]);
     sk.replaceData(before);
     expect(sk.data).toEqual(before);
     const unsorted = structuredClone(before);
     unsorted.bones.reverse();
-    unsorted.attachments[0]!.weights = [1, 0, 1]; // Child occupies incoming index 0.
+    unsorted.attachments[0]!.weights = [1, 0, 1, 0, 0, 0]; // Child occupies incoming index 0.
     sk.replaceData(unsorted);
     expect(sk.data).toEqual(before);
     expect(sk.data).toBe(data);
@@ -258,22 +258,22 @@ describe('Skeleton.rebuild (structural edits)', () => {
 
   it('re-maps attachment weight bone indices to the new index space', () => {
     const data = makeSkeletonData([makeBone('root', null), makeBone('child', 'root')]);
-    const att = makeAttachment('meshAtt', [2, 0, 0.7, 1, 0.3]); // vertex: root 0.7 + child 0.3
+    const att = makeAttachment('meshAtt', [2, 0, 0.7, 1, 0.3, 0, 0, 0]); // vertex: root 0.7 + child 0.3
     data.attachments.push(att);
     const sk = new Skeleton(data);
-    expect(sk.data.attachments[0]!.weights).toEqual([2, 0, 0.7, 1, 0.3]);
+    expect(sk.data.attachments[0]!.weights).toEqual([2, 0, 0.7, 1, 0.3, 0, 0, 0]);
 
     // Insert a new root — every existing index shifts by one.
     data.bones.unshift(makeBone('newRoot', null));
     sk.rebuild();
 
     // Same bones (root now index 1, child now index 2), same weights.
-    expect(sk.data.attachments[0]!.weights).toEqual([2, 1, 0.7, 2, 0.3]);
+    expect(sk.data.attachments[0]!.weights).toEqual([2, 1, 0.7, 2, 0.3, 0, 0, 0]);
   });
 
   it('re-maps weights to the same bone even when the sort reorders siblings', () => {
     const data = makeSkeletonData([makeBone('a', null), makeBone('b', null)]);
-    const att = makeAttachment('att', [1, 1, 1]); // rigid to bone 'b' (index 1)
+    const att = makeAttachment('att', [1, 1, 1, 0, 0, 0]); // rigid to bone 'b' (index 1)
     data.attachments.push(att);
     const sk = new Skeleton(data);
 
@@ -282,12 +282,12 @@ describe('Skeleton.rebuild (structural edits)', () => {
     sk.rebuild();
 
     expect(sk.data.bones.map((b) => b.id)).toEqual(['b']);
-    expect(sk.data.attachments[0]!.weights).toEqual([1, 0, 1]);
+    expect(sk.data.attachments[0]!.weights).toEqual([1, 0, 1, 0, 0, 0]);
   });
 
   it('throws when weights reference a bone that was removed', () => {
     const data = makeSkeletonData([makeBone('a', null), makeBone('b', 'a')]);
-    data.attachments.push(makeAttachment('att', [1, 0, 1])); // bound to 'a'
+    data.attachments.push(makeAttachment('att', [1, 0, 1, 0, 0, 0])); // bound to 'a'
     const sk = new Skeleton(data);
 
     // Reparent b to root and remove 'a' — the weighted bone disappears.

@@ -86,9 +86,10 @@ describe('weight helpers', () => {
     // Full weight collapses to a single rigid entry.
     const w2 = setVertexWeight(w1, 0, 1, 1, 0);
     expect(w2).toEqual([1, 1, 1, 0, 0]);
-    // Painting the SLOT's own bone collapses to rigid at any strength.
+    // Painting the slot bone retains the other bone's remaining share.
     const w3 = setVertexWeight(w1, 0, 0, 0.9, 0);
-    expect(w3).toEqual([1, 0, 1, 0, 0]);
+    expect(vertexWeightOf(w3, 0, 0)).toBeCloseTo(0.9, 12);
+    expect(vertexWeightOf(w3, 0, 1)).toBeCloseTo(0.1, 12);
   });
 
   it('vertexWeightOf reads the influence of a given bone (0 when absent)', () => {
@@ -188,6 +189,9 @@ describe('PaintWeightsCommand', () => {
 
   it('set mode raises weights to the dab amount (never lowers)', () => {
     const { engine, slotId } = setupSlot();
+    const second = structuredClone(engine.skeleton.data.bones[0]!);
+    second.id = 'brush-target'; second.name = 'brush target';
+    engine.skeleton.data.bones.push(second); engine.skeleton.rebuild();
     const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
     add.do();
     const cmd = new PaintWeightsCommand(engine, add.attachmentId);
@@ -200,6 +204,9 @@ describe('PaintWeightsCommand', () => {
 
   it('smooth mode relaxes toward the neighbor average', () => {
     const { engine, slotId } = setupSlot();
+    const second = structuredClone(engine.skeleton.data.bones[0]!);
+    second.id = 'brush-target'; second.name = 'brush target';
+    engine.skeleton.data.bones.push(second); engine.skeleton.rebuild();
     const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
     add.do();
     const mesh = engine.skeleton.data.attachments[0]!;

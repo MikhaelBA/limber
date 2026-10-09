@@ -60,7 +60,7 @@ describe('computeAttachmentVertices', () => {
 
   it('weighted: uneven weights lean toward the heavier bone', () => {
     // Vertex (0,0): 25% a, 75% b -> x = 0.25*0 + 0.75*100 = 75.
-    const att = regionAttachment({ weights: [2, 0, 0.25, 1, 0.75] });
+    const att = regionAttachment({ weights: [2, 0, 0.25, 1, 0.75, 0, 0, 0] });
     const data = makeData([att]);
     const skeleton = new Skeleton(data);
     solveFK(data, skeleton.boneIndexMap, skeleton.pose);
@@ -73,7 +73,7 @@ describe('computeAttachmentVertices', () => {
     // v0 has a [0] entry (no influences); v1 is 50/50 a/b. Bone a sits at the
     // origin, b at x=100 — the [0] vertex must follow a, NOT collapse to (0,0)
     // when the slot bone is translated.
-    const att = regionAttachment({ weights: [0, 2, 0, 0.5, 1, 0.5] });
+    const att = regionAttachment({ weights: [0, 2, 0, 0.5, 1, 0.5, 0, 0] });
     const data = makeData([att]);
     const skeleton = new Skeleton(data);
     skeleton.pose.bones[0]!.local.x = 40;

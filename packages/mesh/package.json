@@ -1,0 +1,13 @@
+{
+  "name": "@limber/mesh",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable mesh geometry and influence algorithms, independent of the renderer.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

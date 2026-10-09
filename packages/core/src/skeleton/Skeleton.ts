@@ -1,3 +1,4 @@
+import { validateWeights } from '@limber/mesh';
 import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/data';
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
@@ -257,25 +258,7 @@ export class Skeleton {
 }
 
 function validateAttachmentWeights(attachment: AttachmentData, boneCount: number): void {
-  const w = attachment.weights;
-  if (!w) return;
-  let p = 0;
-  while (p < w.length) {
-    const count = w[p++]!;
-    if (!Number.isInteger(count) || count < 0) {
-      throw new Error(`Attachment "${attachment.name}" has malformed weights.`);
-    }
-    for (let k = 0; k < count; k++) {
-      if (p + 1 >= w.length) {
-        throw new Error(`Attachment "${attachment.name}" has malformed weights (truncated).`);
-      }
-      const boneIndex = w[p++]!;
-      p++; // weight — value not validated here.
-      if (boneIndex < 0 || boneIndex >= boneCount) {
-        throw new Error(
-          `Attachment "${attachment.name}" weights reference bone index ${boneIndex} out of range [0, ${boneCount}).`,
-        );
-      }
-    }
-  }
+  const vertices = attachment.type === 'region' ? attachment.vertices : attachment.meshVertices;
+  try { validateWeights(attachment.weights, (vertices?.length ?? 0) / 2, boneCount); }
+  catch (error) { throw new Error(`Attachment "${attachment.name}" has malformed weights: ${(error as Error).message}`); }
 }

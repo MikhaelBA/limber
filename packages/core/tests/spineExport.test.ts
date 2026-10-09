@@ -110,7 +110,7 @@ describe('exportSpineJson', () => {
         meshUVs: [0.5, 0.5, 0, 0, 1, 0, 1, 1, 0, 1],
         meshHull: [1, 2, 3, 4],
         // Vertex 0 (old index): 50% bone a (index 0), 50% bone b (index 1).
-        weights: [2, 0, 0.5, 1, 0.5, 0, 0, 0, 0, 0],
+        weights: [2, 0, 0.5, 1, 0.5, 0, 0, 0, 0],
       },
     ];
     d.skeleton.slots[0]!.defaultAttachmentId = 'm1';
