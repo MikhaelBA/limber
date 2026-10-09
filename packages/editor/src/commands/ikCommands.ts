@@ -1,130 +1,206 @@
-import type { BoneData, IKConstraintData } from '@limber/core';
-import { uuid } from '@limber/core';
+import { uuid, type BoneData, type IKConstraintData, type SkeletonData } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { inverseTransformPoint } from '../math/matrix';
+import { applyRigSnapshot, captureRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
 
-/**
- * Creates an IK constraint controlling `boneId` (plus its parent — the classic
- * 2-bone chain; a root bone gets a 1-bone chain) AND a target bone placed at
- * the chain tip's current SETUP world position, parented into the chain root's
- * parent so it lives in the same space. One undo removes both.
- */
-export class AddIKConstraintCommand implements Command {
-  readonly constraintId = uuid();
-  readonly targetBoneId = uuid();
-  private _label = 'Add IK';
-  private named = false;
-  private readonly constraint: IKConstraintData;
-  private readonly chain: string[];
-  private targetBone: BoneData | null = null;
-
-  constructor(
-    private engine: EditorEngine,
-    readonly boneId: string,
-  ) {
-    const data = engine.skeleton.data;
-    const end = data.bones.find((b) => b.id === boneId);
-    if (!end) throw new Error(`AddIKConstraintCommand: bone "${boneId}" not found.`);
-    this.chain = end.parentId ? [end.parentId, boneId] : [boneId];
-    this.constraint = {
-      id: this.constraintId,
-      bones: [...this.chain],
-      targetId: this.targetBoneId,
-      poleVectorId: null,
-      bendDirection: 1,
-      mix: 1,
-      softness: 0,
-      order: 0, // Assigned (max+1) at first do().
-    };
-  }
-
-  get label(): string {
-    return this._label;
-  }
-
+/** IK authoring validates a detached rig; failure preserves data, pose and redo. */
+abstract class AtomicIKCommand implements Command {
+  abstract readonly label: string;
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
+  constructor(protected engine: EditorEngine) {}
+  protected abstract edit(data: SkeletonData): void;
   do(): void {
-    const data = this.engine.skeleton.data;
-    if (!this.named) {
-      const end = data.bones.find((b) => b.id === this.boneId)!;
-      const base = `${end.name}-ik`;
-      const names = new Set(data.bones.map((b) => b.name));
-      let unique = base;
-      let i = 2;
-      while (names.has(unique)) unique = base + i++;
-      this.constraint.order = data.ikConstraints.reduce((m, c) => Math.max(m, c.order), -1) + 1;
-      this._label = `Add IK ${base}`;
-      this.named = true;
-      this.makeTargetBone(unique);
+    if (this.after) {
+      applyRigSnapshot(this.engine, this.after);
+      return;
     }
-    data.bones.push(this.targetBone!);
-    data.ikConstraints.push(this.constraint);
-    this.engine.skeleton.rebuild();
+    if (this.engine.mode !== 'setup') throw new Error('Switch to Setup to edit IK constraints.');
+    const before = captureRig(this.engine);
+    const after = prepareRigEdit(this.engine, (data) => this.edit(data));
+    applyRigSnapshot(this.engine, after);
+    this.before = before;
+    this.after = after;
   }
-
   undo(): void {
-    const data = this.engine.skeleton.data;
-    data.bones = data.bones.filter((b) => b.id !== this.targetBoneId);
-    data.ikConstraints = data.ikConstraints.filter((c) => c.id !== this.constraintId);
-    this.engine.skeleton.rebuild();
-  }
-
-  /** Target at the chain tip's SETUP world position, in the chain root's parent space. */
-  private makeTargetBone(name: string): void {
-    const sk = this.engine.skeleton;
-    const data = sk.data;
-    const end = data.bones.find((b) => b.id === this.boneId)!;
-    const endIdx = sk.boneIndexMap.get(this.boneId)!;
-    const worlds = this.engine.solveSetupWorlds();
-    const o = endIdx * 6;
-    const tipX = worlds[o]! * end.length + worlds[o + 4]!;
-    const tipY = worlds[o + 1]! * end.length + worlds[o + 5]!;
-    const parentId = data.bones.find((b) => b.id === this.chain[0])?.parentId ?? null;
-    let x = tipX;
-    let y = tipY;
-    if (parentId !== null) {
-      const out = { x: 0, y: 0 };
-      inverseTransformPoint(worlds, sk.boneIndexMap.get(parentId)!, tipX, tipY, out);
-      x = out.x;
-      y = out.y;
-    }
-    this.targetBone = {
-      id: this.targetBoneId,
-      name,
-      parentId,
-      length: 8, // A small gizmo stub — the target is a handle, not a limb.
-      setupPose: { x, y, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
-    };
+    if (this.before) applyRigSnapshot(this.engine, this.before);
   }
 }
 
-/** Removes one IK constraint (the target bone stays — it may be keyed/used). */
-export class RemoveIKConstraintCommand implements Command {
-  readonly label = 'Delete IK';
-  private snap: IKConstraintData | null = null;
+function uniqueName(data: SkeletonData, base: string): string {
+  const names = new Set(data.bones.map((bone) => bone.name));
+  let name = base,
+    suffix = 2;
+  while (names.has(name)) name = base + suffix++;
+  return name;
+}
+function targetBone(
+  engine: EditorEngine,
+  id: string,
+  name: string,
+  endId: string,
+  parentId: string | null,
+  tip: boolean,
+): BoneData {
+  const bone = engine.skeleton.data.bones.find((b) => b.id === endId);
+  if (!bone) throw new Error('The selected IK bone no longer exists.');
+  const wm = engine.solveSetupWorlds(),
+    o = engine.skeleton.boneIndexMap.get(endId)! * 6;
+  const reach = tip ? bone.length : 0;
+  let x = wm[o]! * reach + wm[o + 4]!,
+    y = wm[o + 1]! * reach + wm[o + 5]!;
+  if (parentId !== null) {
+    const p = engine.skeleton.boneIndexMap.get(parentId)! * 6;
+    const det = wm[p]! * wm[p + 3]! - wm[p + 1]! * wm[p + 2]!;
+    if (!Number.isFinite(det) || Math.abs(det) < 1e-12)
+      throw new Error('Cannot create an IK target under a zero-scale parent.');
+    const out = { x: 0, y: 0 };
+    inverseTransformPoint(wm, p / 6, x, y, out);
+    x = out.x;
+    y = out.y;
+  }
+  return {
+    id,
+    name,
+    parentId,
+    length: 8,
+    setupPose: { x, y, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
+  };
+}
+function constraint(
+  data: SkeletonData,
+  id: string,
+  chain: string[],
+  targetId: string,
+  bendDirection: 1 | -1 = 1,
+): IKConstraintData {
+  return {
+    id,
+    bones: chain,
+    targetId,
+    poleVectorId: null,
+    bendDirection,
+    mix: 1,
+    softness: 0,
+    order: data.ikConstraints.reduce((max, c) => Math.max(max, c.order), -1) + 1,
+  };
+}
 
+/** Advanced IK: selected lower bone + parent, with a target at the selected tip. */
+export class AddIKConstraintCommand extends AtomicIKCommand {
+  readonly label = 'Add IK';
+  readonly constraintId = uuid();
+  readonly targetBoneId = uuid();
   constructor(
-    private engine: EditorEngine,
+    engine: EditorEngine,
+    readonly boneId: string,
+  ) {
+    super(engine);
+  }
+  protected edit(data: SkeletonData): void {
+    const end = data.bones.find((b) => b.id === this.boneId);
+    if (!end) throw new Error('The selected IK bone no longer exists.');
+    const chain = end.parentId ? [end.parentId, end.id] : [end.id];
+    const parentId = data.bones.find((b) => b.id === chain[0])!.parentId;
+    data.bones.push(
+      targetBone(this.engine, this.targetBoneId, uniqueName(data, end.name + '-ik'), end.id, parentId, true),
+    );
+    data.ikConstraints.push(constraint(data, this.constraintId, chain, this.targetBoneId));
+  }
+}
+
+/** Pins the selected hand/foot pivot by controlling its two ancestor limb bones. */
+export class PinLimbCommand extends AtomicIKCommand {
+  readonly constraintId = uuid();
+  readonly targetBoneId = uuid();
+  readonly label: string;
+  constructor(
+    engine: EditorEngine,
+    readonly endpointId: string,
+    readonly kind: 'hand' | 'foot',
+  ) {
+    super(engine);
+    this.label = kind === 'hand' ? 'Pin Hand' : 'Pin Foot';
+  }
+  protected edit(data: SkeletonData): void {
+    const byId = new Map(data.bones.map((b) => [b.id, b]));
+    const endpoint = byId.get(this.endpointId);
+    const lower = endpoint?.parentId ? byId.get(endpoint.parentId) : undefined;
+    const upper = lower?.parentId ? byId.get(lower.parentId) : undefined;
+    if (!endpoint || !lower || !upper)
+      throw new Error('Select a hand/foot bone with two limb bones above it.');
+    if (data.ikConstraints.some((c) => c.bones.includes(upper.id) || c.bones.includes(lower.id)))
+      throw new Error('This limb already has IK. Edit its target or delete its constraint before pinning.');
+    const tolerance = Math.max(1, lower.length) * 1e-5;
+    if (
+      lower.length <= 1e-6 ||
+      lower.setupPose.x <= 1e-6 ||
+      Math.abs(lower.setupPose.y) > tolerance ||
+      Math.abs(endpoint.setupPose.x - lower.length) > tolerance ||
+      Math.abs(endpoint.setupPose.y) > tolerance
+    )
+      throw new Error('Place the hand/foot pivot at the lower limb tip (+X), with a nonzero aligned limb.');
+    for (
+      let current: BoneData | undefined = lower;
+      current;
+      current = current.parentId ? byId.get(current.parentId) : undefined
+    ) {
+      const p = current.setupPose;
+      if (
+        Math.abs(p.scaleX - 1) > 1e-6 ||
+        Math.abs(p.scaleY - 1) > 1e-6 ||
+        Math.abs(p.shearX) > 1e-6 ||
+        Math.abs(p.shearY) > 1e-6
+      )
+        throw new Error(
+          'Reset limb/parent scale and shear before pinning. Affine pins are not supported yet.',
+        );
+    }
+    const wm = this.engine.solveSetupWorlds(),
+      u = this.engine.skeleton.boneIndexMap.get(upper.id)! * 6;
+    const l = this.engine.skeleton.boneIndexMap.get(lower.id)! * 6;
+    const e = this.engine.skeleton.boneIndexMap.get(endpoint.id)! * 6;
+    let cross =
+      (wm[e + 4]! - wm[u + 4]!) * (wm[l + 5]! - wm[u + 5]!) -
+      (wm[e + 5]! - wm[u + 5]!) * (wm[l + 4]! - wm[u + 4]!);
+    // A straight setup has no elbow side. Prefer away from the body without
+    // guessing anatomical roles from bone names or relying on a screen axis.
+    if (Math.abs(cross) < 1e-6 && upper.parentId) {
+      const p = this.engine.skeleton.boneIndexMap.get(upper.parentId)! * 6;
+      cross =
+        (wm[e + 4]! - wm[u + 4]!) * (wm[u + 5]! - wm[p + 5]!) -
+        (wm[e + 5]! - wm[u + 5]!) * (wm[u + 4]! - wm[p + 4]!);
+    }
+    data.bones.push(
+      targetBone(
+        this.engine,
+        this.targetBoneId,
+        uniqueName(data, `${this.label} ${endpoint.name}`),
+        endpoint.id,
+        null,
+        false,
+      ),
+    );
+    data.ikConstraints.push(
+      constraint(data, this.constraintId, [upper.id, lower.id], this.targetBoneId, cross < -1e-6 ? -1 : 1),
+    );
+  }
+}
+
+/** Removing IK keeps its target: artwork, markers and tracks may still use it. */
+export class RemoveIKConstraintCommand extends AtomicIKCommand {
+  readonly label = 'Delete IK';
+  constructor(
+    engine: EditorEngine,
     readonly constraintId: string,
   ) {
-    const c = engine.skeleton.data.ikConstraints.find((x) => x.id === constraintId);
-    if (!c) throw new Error(`RemoveIKConstraintCommand: constraint "${constraintId}" not found.`);
+    super(engine);
   }
-
-  do(): void {
-    const data = this.engine.skeleton.data;
-    const c = data.ikConstraints.find((x) => x.id === this.constraintId);
-    if (!c) return;
-    this.snap = { ...c, bones: [...c.bones] };
-    data.ikConstraints = data.ikConstraints.filter((x) => x.id !== this.constraintId);
-    this.engine.skeleton.rebuild();
-  }
-
-  undo(): void {
-    if (!this.snap) return;
-    this.engine.skeleton.data.ikConstraints.push({ ...this.snap, bones: [...this.snap.bones] });
-    this.snap = null;
-    this.engine.skeleton.rebuild();
+  protected edit(data: SkeletonData): void {
+    if (!data.ikConstraints.some((c) => c.id === this.constraintId))
+      throw new Error('IK constraint no longer exists.');
+    data.ikConstraints = data.ikConstraints.filter((c) => c.id !== this.constraintId);
   }
 }
 
@@ -132,44 +208,43 @@ export interface IKPropsPatch {
   mix?: number;
   bendDirection?: 1 | -1;
   targetId?: string;
+  order?: number;
 }
-
-/** Edits mix / bendDirection / target of one IK constraint (undoable). */
-export class SetIKPropsCommand implements Command {
+export class SetIKPropsCommand extends AtomicIKCommand {
   readonly label = 'Edit IK';
-  private readonly before: Required<Pick<IKConstraintData, 'mix' | 'bendDirection' | 'targetId'>>;
-  private readonly after: Required<Pick<IKConstraintData, 'mix' | 'bendDirection' | 'targetId'>>;
-
+  private readonly patch: IKPropsPatch;
   constructor(
-    private engine: EditorEngine,
+    engine: EditorEngine,
     readonly constraintId: string,
     patch: IKPropsPatch,
   ) {
-    const c = engine.skeleton.data.ikConstraints.find((x) => x.id === constraintId);
-    if (!c) throw new Error(`SetIKPropsCommand: constraint "${constraintId}" not found.`);
-    this.before = { mix: c.mix, bendDirection: c.bendDirection, targetId: c.targetId };
-    this.after = {
-      mix: patch.mix !== undefined ? Math.min(1, Math.max(0, patch.mix)) : c.mix,
-      bendDirection: patch.bendDirection ?? c.bendDirection,
-      targetId: patch.targetId ?? c.targetId,
-    };
+    super(engine);
+    this.patch = { ...patch };
   }
-
-  do(): void {
-    this.apply(this.after);
+  protected edit(data: SkeletonData): void {
+    const c = data.ikConstraints.find((c) => c.id === this.constraintId);
+    if (!c) throw new Error('IK constraint no longer exists.');
+    for (const key of ['mix', 'bendDirection', 'targetId', 'order'] as const)
+      if (this.patch[key] !== undefined) Object.assign(c, { [key]: this.patch[key] });
   }
+}
 
-  undo(): void {
-    this.apply(this.before);
+/** Swap adjacent serialized priorities; dependency validation can reject the move. */
+export class MoveIKConstraintCommand extends AtomicIKCommand {
+  readonly label = 'Reorder IK';
+  constructor(
+    engine: EditorEngine,
+    readonly constraintId: string,
+    readonly direction: -1 | 1,
+  ) {
+    super(engine);
   }
-
-  private apply(v: Required<Pick<IKConstraintData, 'mix' | 'bendDirection' | 'targetId'>>): void {
-    const c = this.engine.skeleton.data.ikConstraints.find((x) => x.id === this.constraintId);
-    if (!c) return;
-    const structural = v.targetId !== c.targetId;
-    c.mix = v.mix;
-    c.bendDirection = v.bendDirection;
-    c.targetId = v.targetId;
-    if (structural) this.engine.skeleton.rebuild();
+  protected edit(data: SkeletonData): void {
+    const list = data.ikConstraints,
+      index = list.findIndex((c) => c.id === this.constraintId);
+    if (index < 0) throw new Error('IK constraint no longer exists.');
+    const other = list[index + this.direction];
+    if (!other) throw new Error('IK constraint is already at the end of the order.');
+    [list[index]!.order, other.order] = [other.order, list[index]!.order];
   }
 }

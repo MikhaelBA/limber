@@ -42,7 +42,7 @@ export interface Point {
 export function solveFK(
   data: SkeletonData,
   boneIndexMap: Map<string, number>,
-  pose: SkeletonPose,
+  pose: Pick<SkeletonPose, 'bones' | 'worldMatrices'>,
 ): void {
   const wm = pose.worldMatrices;
   for (let i = 0; i < data.bones.length; i++) {

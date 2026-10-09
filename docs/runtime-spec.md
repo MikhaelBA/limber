@@ -15,8 +15,9 @@ is seconds; EditorEngine.tick accepts milliseconds. A frame delta is capped at 1
 legacy playback policy, not a fixed-step physics contract. Physics needs a separate deterministic policy.
 
 Numeric parity tolerance: 1e-4 absolute for transforms and vertices unless a fixture specifies otherwise.
-Known IK limitations: softness/pole-vector solving is absent; shear and mirrored chains need additional
-coverage. Never advertise unimplemented solver fields as supported runtime behavior.
+Known IK limitations: softness/pole-vector solving is absent; nonzero softness and pole targets
+are rejected explicitly. Shear and mirrored chains need additional solver coverage; semantic pins
+currently reject those setup chains. Never advertise unimplemented solver fields as supported runtime behavior.
 
 ## Planned independent runtime format
 
@@ -70,3 +71,24 @@ propagate to all followers; vertex-count changes update all influence rows and c
 tracks in one atomic history step. Detach makes geometry independent. Source deletion requires
 detaching followers. Missing/cyclic/chained/conflicting sources fail load before project replacement.
 ADR 0016 specifies the contract and current Spine adapter limitation.
+
+## Ordered constraints and limb pins (Phase 7A)
+
+`solveConstraints` is the shared stage used by character preview, scene preview, onion skin
+and RuntimePlayer after FK and before skinning. It currently dispatches IK in serialized order,
+refreshing FK after each constraint. There is no iterative feedback or per-frame graph analysis.
+
+IK IDs and nonnegative integer orders are unique. Chains have one bone or a direct parent/child
+pair; strength is finite in [0,1] and bend is ±1. Setup fields/lengths and derived setup world
+matrices must fit finite Float32 pose storage. Finite zero-length/zero-scale bones remain valid
+source data. Targets inside a controlled subtree, dependency cycles and a reader ordered before
+its target/chain-parent writer fail import and structural publication. Overlapping independent
+writers execute sequentially; later constraints win. ADR 0018 details the dependency contract.
+
+Pin Hand/Foot selects the endpoint bone and controls its parent/grandparent limb. Its pivot must
+sit at the parent's +X tip. The new target is parentless in rig space, keeping the pin independent
+of body motion while reachable. Position is pinned, not endpoint orientation. Initial bend keeps
+the setup side; a collinear limb prefers away from its body. Pins are ordinary existing bone/IK
+fields in schema 6, authored through one Setup-only command with stable undo/redo IDs. Their
+targets can receive ordinary bone animation keys in Animate. Current pins require unit-scale,
+unsheared, unreflected aligned setup limbs; affine IK and unsupported pole/softness are Phase 7B.

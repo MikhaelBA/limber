@@ -21,7 +21,7 @@ import {
   type RegionParams,
 } from '../commands/attachmentCommands';
 import { AddMeshCommand } from '../commands/meshCommands';
-import { AddIKConstraintCommand, RemoveIKConstraintCommand, SetIKPropsCommand } from '../commands/ikCommands';
+import { IKControls } from './IKControls';
 import {
   RemoveSlotCommand,
   SetSlotBlendCommand,
@@ -487,71 +487,7 @@ export function PropertiesPanel() {
             </select>
           </label>
 
-          {/* IK constraints this bone participates in (chain or target). */}
-          {data.ikConstraints
-            .filter((c) => c.bones.includes(bone.id) || c.targetId === bone.id)
-            .map((c) => {
-              const chainLabel = c.bones.map((id) => data.bones.find((b) => b.id === id)?.name ?? '?').join('→');
-              return (
-                <div key={c.id} className="mt-1 rounded bg-neutral-800/40 p-1.5">
-                  <div className="mb-1 flex items-center gap-1 text-[11px] text-amber-300/90">
-                    ⚙ IK {chainLabel} ⇢ {data.bones.find((b) => b.id === c.targetId)?.name ?? '?'}
-                    <button
-                      className="ml-auto rounded px-1 text-xs text-red-300 hover:bg-neutral-700"
-                      title="Delete IK constraint (target bone stays)"
-                      onClick={() => execute(new RemoveIKConstraintCommand(engine, c.id))}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                  <NumberField
-                    label="mix"
-                    value={Math.round(c.mix * 100) / 100}
-                    onCommit={(v) => execute(new SetIKPropsCommand(engine, c.id, { mix: Math.min(1, Math.max(0, v)) }))}
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-xs text-neutral-400">bend</span>
-                    <button
-                      className="rounded bg-neutral-800 px-2 py-0.5 text-xs text-neutral-200 hover:bg-neutral-700"
-                      title="Flip the elbow side"
-                      onClick={() =>
-                        execute(new SetIKPropsCommand(engine, c.id, { bendDirection: c.bendDirection === 1 ? -1 : 1 }))
-                      }
-                    >
-                      {c.bendDirection === 1 ? '↷ cw' : '↶ ccw'}
-                    </button>
-                  </div>
-                  <label className="mt-1 flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-xs text-neutral-400">target</span>
-                    <select
-                      value={c.targetId}
-                      onChange={(e) => execute(new SetIKPropsCommand(engine, c.id, { targetId: e.target.value }))}
-                      className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    >
-                      {data.bones
-                        .filter((b) => !c.bones.includes(b.id))
-                        .map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                </div>
-              );
-            })}
-          {data.ikConstraints.length === 0 && (
-            <button
-              className="mt-1 self-start rounded bg-neutral-800 px-2 py-0.5 text-xs text-amber-200 hover:bg-neutral-700"
-              title="Create an IK constraint controlling this bone (plus its parent) with a new target bone at its tip"
-              onClick={() => {
-                const cmd = new AddIKConstraintCommand(engine, bone.id);
-                execute(cmd);
-              }}
-            >
-              ＋ Add IK
-            </button>
-          )}
+          <IKControls boneId={bone.id} />
         </div>
       )}
 

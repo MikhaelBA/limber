@@ -40,6 +40,7 @@ try {
     'scene-motion.mjs',
     'scene-ui.mjs',
     'rig-authoring.mjs',
+    'character-pins.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

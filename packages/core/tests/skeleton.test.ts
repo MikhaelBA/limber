@@ -112,11 +112,11 @@ describe('Skeleton construction & validation', () => {
   });
 
   it('sorts ikConstraints by order', () => {
-    const data = makeSkeletonData([makeBone('a', null), makeBone('b', 'a')]);
+    const data = makeSkeletonData([makeBone('a', null), makeBone('b', 'a'), makeBone('target', null)]);
     const mk = (id: string, order: number): IKConstraintData => ({
       id,
       bones: ['a'],
-      targetId: 'b',
+      targetId: 'target',
       poleVectorId: null,
       bendDirection: 1,
       mix: 1,

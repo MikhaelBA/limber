@@ -323,6 +323,7 @@ await page.getByRole('button', { name: /Setup/ }).click();
 await page.waitForTimeout(300);
 await rootBoneRow.click();
 await page.waitForTimeout(200);
+await page.getByText('Advanced creation', { exact: true }).click();
 await page.getByRole('button', { name: '＋ Add IK' }).click();
 await page.waitForTimeout(300);
 const ikRow = page.locator('span', { hasText: /^⚙ root ⇢ root-ik$/ }).first();

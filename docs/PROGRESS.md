@@ -418,3 +418,43 @@ included; README links the downloadable project and its Persian usage guide.
 No application source changed. March is a stylized in-place motion. This sample
 uses the existing positive-scale IK solver and does not implement Phase 7 physics,
 robust affine IK, Pin Hand/Foot or path/transform constraints.
+
+## 10 October 2026 Phase 7A constraint publication and semantic pins
+
+Added the shared renderer-independent constraint stage to character/scene preview,
+onion skin and RuntimePlayer. ADR 0018 specifies serialized priority, subtree
+target/parent dependencies, cycle rejection and sequential overlapping writers.
+Constraint IDs/orders, strength/bend, setup fields and derived setup world matrices
+are validated before publication. Unsupported pole/nonzero-softness fields now
+fail explicitly rather than silently doing nothing.
+
+IK add/edit/remove/reorder now use detached, validated snapshots. Failure preserves
+source, pose, weight index space and redo; history stays attached to its original
+rig after navigation. Setup-only Pin Hand/Foot controls the selected endpoint's
+parent/grandparent limb and creates an independent rig-space target in one undo
+step. Target bones still accept ordinary animation keys. The inspector separates
+artist strength/bend controls from advanced target/order controls. Collinear limbs
+prefer bending away from the body; target conflicts and unsupported setup limbs
+produce status messages without mutation.
+
+All 367 unit tests, lint/boundaries, formatting, TypeScript and package/editor builds
+passed locally. New cases cover ordered moving targets, cycles, invalid parameters,
+overflow, pin/body independence, bind weights, exact undo/redo and rig navigation.
+Two older IK fixtures pointed at their own controlled bones; they now use independent
+targets while retaining their ordering/export assertions. A real-browser workflow
+uses the generated fox's embedded textures, skins, hand/foot markers, body motion,
+strength/order editing, target keys and failed-import isolation. The complete
+seventeen-suite browser regression passed. Standard/Heavy CPU update/render-submit
+p95 was 2.30/4.10ms; exact weighted transform counts stayed 10000/40004. Heavy worker
+publication was 45.2ms. Software-graphics frame gaps are reported separately, not
+advertised as hardware-independent 60fps. Remote CI follows the push.
+
+Remaining Phase 7 work: robust reflected/scaled/sheared IK and degeneracy semantics,
+pole and softness, transform/path constraints, fixed-step secondary motion and the
+combined final gate. This increment's Pin actions explicitly require unit-scale,
+unsheared/unreflected aligned limbs and pin position only. No source-format field
+was added; schema 6 remains current. Sol 6.1 / High remains suitable for the next increment.
+
+Previous sample CI 37992186939 passed Test & Build and both deployments. Docker failed
+on Docker Hub's 429 download limit; rerunning that failed job hit the same registry
+limit on the Node image. This is recorded separately from code/test verification.

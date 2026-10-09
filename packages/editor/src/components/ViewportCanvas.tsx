@@ -7,7 +7,7 @@ import {
   resetPose,
   Skeleton,
   solveFK,
-  solveIK,
+  solveConstraints,
   updateSkinning,
   worldToAttachmentVertex,
   createSkinningStats,
@@ -399,7 +399,7 @@ function wireViewport(
       for (const tl of anim.timelines) applyTimeline(tl, gs, t, t, 1, null, anim.name);
     }
     solveFK(data, gs.boneIndexMap, gs.pose);
-    if (data.ikConstraints.length > 0) solveIK(data, gs.boneIndexMap, gs.pose);
+    solveConstraints(gs);
     updateSkinning(gs);
   };
 

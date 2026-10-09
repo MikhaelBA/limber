@@ -134,10 +134,11 @@ describe('exportSpineJson', () => {
 
   it('exports ik constraints with generated names', () => {
     const d = doc();
+    d.skeleton.bones.push(bone('target', null, { x: 50, y: 10 }));
     d.skeleton.ikConstraints.push({
       id: 'ik-uuid-1',
       bones: ['a', 'b'],
-      targetId: 'b',
+      targetId: 'target',
       poleVectorId: null,
       bendDirection: -1,
       mix: 0.5,
@@ -145,7 +146,7 @@ describe('exportSpineJson', () => {
       order: 0,
     });
     const json = JSON.parse(exportSpineJson(d));
-    expect(json.ik[0]).toMatchObject({ name: 'ik1', bones: ['a', 'b'], target: 'b', bendDirection: -1, mix: 0.5 });
+    expect(json.ik[0]).toMatchObject({ name: 'ik1', bones: ['a', 'b'], target: 'target', bendDirection: -1, mix: 0.5 });
   });
 
   it('merges per-property timelines into packed OFFSET tracks with flipped values and curves', () => {

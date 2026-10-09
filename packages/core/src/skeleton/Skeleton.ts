@@ -5,6 +5,7 @@ import { createPose, resetPose } from './pose';
 import { topologicalSortBones } from './topologicalSort';
 import { validateMarkers } from './markers';
 import { resolveMeshLinks } from './meshLinks';
+import { validateIKConstraints } from './constraints';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -174,31 +175,7 @@ export class Skeleton {
       }
     }
 
-    for (const constraint of this.data.ikConstraints) {
-      if (constraint.bones.length < 1 || constraint.bones.length > 2) {
-        throw new Error(
-          `IK constraint "${constraint.id}" must control 1 or 2 bones (got ${constraint.bones.length}).`,
-        );
-      }
-      for (const boneId of [...constraint.bones, constraint.targetId]) {
-        if (!boneIds.has(boneId)) {
-          throw new Error(`IK constraint "${constraint.id}" references unknown boneId "${boneId}".`);
-        }
-      }
-      if (constraint.bones.length === 2) {
-        const childParentId = this.data.bones.find((b) => b.id === constraint.bones[1])?.parentId;
-        if (childParentId !== constraint.bones[0]) {
-          throw new Error(
-            `IK constraint "${constraint.id}": the second bone must be a direct child of the first.`,
-          );
-        }
-      }
-      if (constraint.poleVectorId !== null && !boneIds.has(constraint.poleVectorId)) {
-        throw new Error(
-          `IK constraint "${constraint.id}" references unknown poleVectorId "${constraint.poleVectorId}".`,
-        );
-      }
-    }
+    validateIKConstraints(this.data);
 
     const skinNames = new Set(this.data.skins.map((skin) => skin.name));
     if (skinNames.size !== this.data.skins.length || skinNames.has('')) {

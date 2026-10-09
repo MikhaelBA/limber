@@ -4,7 +4,7 @@ import {
   Skeleton,
   resetPose,
   solveFK,
-  solveIK,
+  solveConstraints,
   updateSkinning,
   validateDeformTimelines,
 } from '@limber/core';
@@ -80,9 +80,7 @@ export class RuntimePlayer {
       for (const cb of this.listeners) cb(e);
     }
     solveFK(data, this.skeleton.boneIndexMap, this.skeleton.pose);
-    if (data.ikConstraints.length > 0) {
-      solveIK(data, this.skeleton.boneIndexMap, this.skeleton.pose);
-    }
+    solveConstraints(this.skeleton);
     updateSkinning(this.skeleton);
   }
 

@@ -6,7 +6,7 @@ import {
   scenePoint,
   Skeleton,
   solveFK,
-  solveIK,
+  solveConstraints,
   updateSkinning,
   expandUIComponents,
   nineSliceGrid,
@@ -138,7 +138,7 @@ function sceneDisplay(
     } else if (node.type === 'rig') {
       const skeleton = new Skeleton(node.skeleton);
       solveFK(skeleton.data, skeleton.boneIndexMap, skeleton.pose);
-      solveIK(skeleton.data, skeleton.boneIndexMap, skeleton.pose);
+      solveConstraints(skeleton);
       updateSkinning(skeleton);
       const attachments = new Map(node.skeleton.attachments.map((a) => [a.id, a]));
       let clip: Graphics | null = null;

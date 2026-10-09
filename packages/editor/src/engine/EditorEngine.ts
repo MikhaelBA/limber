@@ -5,7 +5,7 @@ import {
   createPose,
   resetPose,
   solveFK,
-  solveIK,
+  solveConstraints,
   updateSkinning,
   uuid,
   projectFromLegacy,
@@ -188,8 +188,7 @@ export class EditorEngine {
 
   /**
    * Per-frame pipeline (DESIGN.md §4.3, Phase 3 + Phase 5 MESH step):
-   * reset → apply animation (animate mode only) → FK → skin attachments.
-   * (IK slots in between when Phase 6 lands.)
+   * reset → apply animation (animate mode only) → FK → constraints → skin attachments.
    */
   tick(deltaMS: number, skinningStats?: SkinningStats): void {
     const dt = Math.min(deltaMS, 100) / 1000;
@@ -207,12 +206,7 @@ export class EditorEngine {
       for (const e of events) this.lastEvents.push(e);
     }
     solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
-    // IK reads the FK'd world matrices, writes LOCAL rotations and refreshes
-    // the world matrices itself (constraint order matters; solveIK is safe to
-    // call even with zero constraints).
-    if (this.skeleton.data.ikConstraints.length > 0) {
-      solveIK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
-    }
+    solveConstraints(this.skeleton);
     updateSkinning(this.skeleton, skinningStats);
     this.emitTransient('time', this.currentTime);
   }

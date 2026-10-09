@@ -25,6 +25,7 @@ export function HierarchyPanel() {
   // Subscribe ONLY to the revision — data itself is read imperatively (§5.4).
   useEditorStore((s) => s.dataRevision);
   const selected = useEditorStore((s) => s.selectedBoneId);
+  const mode = useEditorStore((s) => s.mode);
   const selectedSlot = useEditorStore((s) => s.selectedSlotId);
   const select = useEditorStore((s) => s.select);
   const selectSlot = useEditorStore((s) => s.selectSlot);
@@ -113,10 +114,12 @@ export function HierarchyPanel() {
       setStatus('Select a bone first — IK controls it (plus its parent).');
       return;
     }
-    const cmd = new AddIKConstraintCommand(engine, selected);
-    execute(cmd);
-    select(cmd.targetBoneId); // Immediately draggable — the chain follows live.
-    setStatus('IK created — drag the target bone; edit mix/bend in Properties.');
+    try {
+      const cmd = new AddIKConstraintCommand(engine, selected);
+      execute(cmd);
+      select(cmd.targetBoneId);
+      setStatus('IK created — drag the target bone; edit strength/bend in Properties.');
+    } catch (error) { setStatus((error as Error).message); }
   };
 
   return (
@@ -285,7 +288,7 @@ export function HierarchyPanel() {
           <button
             className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
             title="Add IK controlling the selected bone (+ its parent)"
-            disabled={!selected}
+            disabled={!selected || mode !== 'setup'}
             onClick={addIk}
           >
             ＋
