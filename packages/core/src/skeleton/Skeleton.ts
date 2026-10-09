@@ -6,6 +6,7 @@ import { topologicalSortBones } from './topologicalSort';
 import { validateMarkers } from './markers';
 import { resolveMeshLinks } from './meshLinks';
 import { validateConstraints, orderedConstraints, type ConstraintEntry } from './constraints';
+import { PathSampler } from './pathSampling';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -24,12 +25,15 @@ export class Skeleton {
   constraintOrder: readonly ConstraintEntry[] = [];
   /** Per-instance scratch for finite-output rollback; never serialized or frame allocated. */
   constraintWorldBackup = new Float32Array(0);
+  constraintLocalBackup = new Float64Array(0);
+  readonly pathSamplers = new Map<string,PathSampler>();
 
   constructor(data: SkeletonData) {
     this.data = data;
     this.normalize();
     this.pose = createPose(data);
     this.constraintWorldBackup = new Float32Array(this.pose.worldMatrices.length);
+    this.bakePaths();
   }
 
   /** Convenience for pipeline step 1 (DESIGN.md §4.3). */
@@ -66,6 +70,9 @@ export class Skeleton {
     Object.assign(this.pose, prepared.pose);
     this.constraintOrder = prepared.constraintOrder;
     this.constraintWorldBackup = prepared.constraintWorldBackup;
+    this.constraintLocalBackup = prepared.constraintLocalBackup;
+    this.pathSamplers.clear();
+    for (const [id,sampler] of prepared.pathSamplers) this.pathSamplers.set(id,sampler);
   }
 
   /**
@@ -94,6 +101,7 @@ export class Skeleton {
     this.sortAndBakeMaps();
     this.remapAttachmentWeights(oldIndexToId);
     this.validate();
+    this.bakePaths();
 
     // Fresh pose; carry current values over by id so the visible pose survives.
     const pose = createPose(this.data);
@@ -138,6 +146,7 @@ export class Skeleton {
     this.constraintOrder = orderedConstraints(this.data);
     if (this.data.transformConstraints)
       this.data.transformConstraints = [...this.data.transformConstraints].sort((a,b) => a.order-b.order);
+    if (this.data.pathConstraints) this.data.pathConstraints = [...this.data.pathConstraints].sort((a,b)=>a.order-b.order);
 
     this.boneIndexMap.clear();
     for (let i = 0; i < this.data.bones.length; i++) {
@@ -157,6 +166,12 @@ export class Skeleton {
   private normalize(): void {
     this.sortAndBakeMaps();
     this.validate();
+  }
+
+  private bakePaths(): void {
+    this.constraintLocalBackup = new Float64Array(this.data.bones.length*7);
+    this.pathSamplers.clear();
+    for (const path of this.data.paths??[]) this.pathSamplers.set(path.id,new PathSampler(path));
   }
 
   /** Structural validation with descriptive errors — catches corrupted documents early. */

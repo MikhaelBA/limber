@@ -43,6 +43,7 @@ try {
     'character-pins.mjs',
     'affine-pins.mjs',
     'transform-follow.mjs',
+    'path-follow.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

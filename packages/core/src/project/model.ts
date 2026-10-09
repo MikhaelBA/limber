@@ -6,7 +6,7 @@ import type { SceneClip } from './motion';
 import type { UILayout, UIComponent, UIOverrideValue, UIInsets } from './ui';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 7;
+export const PROJECT_SCHEMA_VERSION = 8;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */

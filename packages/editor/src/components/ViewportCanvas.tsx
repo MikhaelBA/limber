@@ -683,6 +683,16 @@ function wireViewport(
   world.addChild(markersG);
   const drawMarkers = () => {
     markersG.clear();
+    for (const sampler of engine.skeleton.pathSamplers.values()) {
+      const wm=engine.skeleton.pose.worldMatrices,o=engine.skeleton.boneIndexMap.get(sampler.path.boneId)!*6;
+      const points=sampler.points;
+      markersG.setStrokeStyle({width:1.5/camera.scale,color:0x47ddbb,alpha:0.8});
+      for (let i=0;i<points.length;i+=2) {
+        const x=wm[o]!*points[i]!+wm[o+2]!*points[i+1]!+wm[o+4]!,y=wm[o+1]!*points[i]!+wm[o+3]!*points[i+1]!+wm[o+5]!;
+        if(i===0)markersG.moveTo(x,y);else markersG.lineTo(x,y);
+      }
+      markersG.stroke();
+    }
     const evaluated = evaluateMarkers(engine.skeleton.data, engine.skeleton.pose, engine.skeleton.boneIndexMap);
     for (const { marker, world: matrix, outline } of evaluated) {
       const color = marker.kind === 'hitbox' ? 0xff6878 : marker.kind === 'hurtbox' ? 0x7aa8ff : 0x47ddbb;

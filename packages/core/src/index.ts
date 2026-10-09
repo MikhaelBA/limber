@@ -13,6 +13,8 @@ export * from './skeleton/FKSolver';
 export * from './skeleton/IKSolver';
 export * from './skeleton/constraints';
 export * from './skeleton/TransformSolver';
+export * from './skeleton/pathSampling';
+export * from './skeleton/PathSolver';
 export * from './math/affine';
 export { exportSpineJson } from './serialization/spineExport';
 export { packAtlas, buildAtlasText, uniqueTexturePaths } from './serialization/atlasPack';

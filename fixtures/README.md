@@ -39,3 +39,10 @@ parent, four independent follow mixes, a composed target offset, markers and ind
 one order namespace. Runtime tests add a target X track and assert the half-strength world motion;
 the browser suite verifies creation without a setup jump, offsets/local space, mixed reordering,
 exact history and failed-import isolation. Historical schema fixtures remain unchanged.
+
+`bbbproj-v8-path-follow.json` is the real editor's schema-8 Save/Open result with a two-bone
+path chain, an independent owner and a 70% keyed progress control, point markers and independent
+IK in the same order namespace. Its straight path has tail-origin golden `(260,100)`; the core
+suite separately compares curved arc sampling with dense independent integration and verifies
+100 seeded reflected/sheared hierarchies. Browser coverage edits cubic controls, continuity,
+closure, progression keys, ordering, exact history and failed-import isolation.

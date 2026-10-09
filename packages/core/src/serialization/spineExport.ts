@@ -40,6 +40,8 @@ interface Json {
 }
 
 export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
+  if (doc.skeleton.paths?.length || doc.skeleton.pathConstraints?.length)
+    throw new Error('Native paths require BoneByBone project save; this compatibility export cannot preserve their semantics.');
   if (doc.skeleton.transformConstraints?.length)
     throw new Error('Spine export does not support native transform follow constraints. Save the native .bbbproj to retain constraints.');
   if (doc.skeleton.ikConstraints.some((c) => c.poleVectorId !== null || c.softness !== 0))

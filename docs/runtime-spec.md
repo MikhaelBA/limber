@@ -112,3 +112,30 @@ atomic, Setup-only and rig-scoped; deleting a referenced bone removes its follow
 Native source schema 7 identifies this model, with absent arrays meaning no follow constraints.
 The optional Spine adapter rejects native follow or pole/soft-reach semantics before exporting.
 The independent `.bbb` shipping schema/compiler is still a Phase 9 task.
+
+## Native path follow and source schema 8 (Phase 7D)
+
+Paths own continuous cubic Bezier segments in an owner bone's local coordinates.
+The shared ordered stage places a direct chain on measured world arc distances and
+aligns each bone's transformed +X with the tangent. Authored length, scale and shear
+remain unchanged. Translation/rotation strengths are independent; local rotation
+offsets and global serialized order are Advanced fields. Native save persists paths,
+constraints and their ordinary bone progress controls. See ADR 0021 for limits and
+the deterministic 128-interval-per-segment arc approximation.
+
+Progress is a length fraction; optional driver local X adds percentage points.
+The inspector explicitly keys driver X using the existing bone timeline command.
+Open paths clamp distances and closed paths wrap, including negative progress.
+Collapsed curves hold the sampled pose; singular parents hold the affected bone.
+Metric caches are per skeleton and only rebuild cumulative lengths when the owner's
+world basis changes. No renderer API participates in evaluation. IK, transform and
+path share dependency/cycle validation and whole-stage finite-output rollback.
+
+Authoring creates an independent owner/driver, edits joined endpoints atomically,
+extends/removes segments and closes/opens curves. The character viewport draws the
+evaluated path; curve controls currently use numeric owner-local fields. Dragging
+Bezier handles directly in the viewport is a follow-up UX improvement. Paths can
+be reused by independent chains. Removing a path removes its followers; removing a
+referenced bone removes affected constraints. Controls and their tracks remain when
+only a constraint/path is removed. Source 1–7 identifiers advance to 8, with absent
+arrays meaning no paths. The optional compatibility exporter rejects native paths.

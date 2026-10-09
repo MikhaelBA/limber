@@ -1,22 +1,35 @@
-import type { IKConstraintData, SkeletonData, Transform, TransformConstraintData } from '../types/data';
+import type {
+  IKConstraintData,
+  SkeletonData,
+  PathConstraintData,
+  TransformConstraintData,
+} from '../types/data';
 import type { Skeleton } from './Skeleton';
 import { solveIK } from './IKSolver';
 import { solveFK } from './FKSolver';
 import { solveTransformConstraint } from './TransformSolver';
 import { composeAffine } from '../math/affine';
+import { validatePaths } from './validatePaths';
+import { solvePathConstraint } from './PathSolver';
 
 export type ConstraintEntry =
-  { kind: 'ik'; data: IKConstraintData } | { kind: 'transform'; data: TransformConstraintData };
+  | { kind: 'ik'; data: IKConstraintData }
+  | { kind: 'transform'; data: TransformConstraintData }
+  | { kind: 'path'; data: PathConstraintData };
 export function orderedConstraints(data: SkeletonData): ConstraintEntry[] {
   if (data.transformConstraints !== undefined && !Array.isArray(data.transformConstraints))
     throw new Error('Transform constraints must be an array.');
+  if (data.pathConstraints !== undefined && !Array.isArray(data.pathConstraints))
+    throw new Error('Path constraints must be an array.');
   const list: ConstraintEntry[] = data.ikConstraints.map((c) => ({ kind: 'ik', data: c }));
   for (const c of data.transformConstraints ?? []) list.push({ kind: 'transform', data: c });
+  for (const c of data.pathConstraints ?? []) list.push({ kind: 'path', data: c });
   return list.sort((a, b) => a.data.order - b.data.order);
 }
 
 /** Editing/load-time validation. Bone hierarchy must already be validated/sorted. */
 export function validateConstraints(data: SkeletonData): void {
+  validatePaths(data);
   const bones = new Map(data.bones.map((bone) => [bone.id, bone]));
   const children = new Map<string, string[]>();
   for (const bone of data.bones) {
@@ -123,9 +136,42 @@ export function validateConstraints(data: SkeletonData): void {
     if (!offsetMatrix.every((value) => Number.isFinite(Math.fround(value))))
       throw new Error(`Transform constraint "${c.id}" offset exceeds finite pose precision.`);
   }
+  const paths = new Map((data.paths ?? []).map((p) => [p.id, p]));
+  for (const c of data.pathConstraints ?? []) {
+    if (typeof c.id !== 'string' || !c.id.trim() || ids.has(c.id))
+      throw new Error('Path constraint IDs must be unique across all constraints.');
+    ids.add(c.id);
+    if (!Number.isSafeInteger(c.order) || c.order < 0 || orders.has(c.order))
+      throw new Error(`Path constraint "${c.id}" needs a unique nonnegative integer order.`);
+    orders.add(c.order);
+    if (
+      !Array.isArray(c.bones) ||
+      c.bones.length < 1 ||
+      c.bones.length > 128 ||
+      c.bones.some((id) => !bones.has(id))
+    )
+      throw new Error(`Path constraint "${c.id}" needs 1–128 existing chain bones.`);
+    for (let i = 1; i < c.bones.length; i++)
+      if (bones.get(c.bones[i]!)!.parentId !== c.bones[i - 1])
+        throw new Error(`Path constraint "${c.id}" needs a direct parent/child chain.`);
+    const path = paths.get(c.pathId);
+    if (!path || affected(c.bones[0]!, path.boneId))
+      throw new Error(`Path constraint "${c.id}" needs a path outside its controlled subtree.`);
+    if (c.driverId !== null && (!bones.has(c.driverId) || affected(c.bones[0]!, c.driverId)))
+      throw new Error(`Path constraint "${c.id}" needs an independent progress driver.`);
+    for (const key of ['progress', 'spacing', 'rotationOffset'] as const)
+      if (!Number.isFinite(c[key]) || !Number.isFinite(Math.fround(c[key])))
+        throw new Error(`Path constraint "${c.id}" has invalid ${key}.`);
+    if (c.spacing < 0) throw new Error(`Path constraint "${c.id}" spacing must be nonnegative.`);
+    for (const key of ['mixTranslation', 'mixRotation'] as const)
+      if (!Number.isFinite(c[key]) || c[key] < 0 || c[key] > 1)
+        throw new Error(`Path constraint "${c.id}" ${key} must be between 0 and 1.`);
+  }
   const constraints = orderedConstraints(data);
   const rootOf = (entry: ConstraintEntry): string =>
-    entry.kind === 'ik' ? entry.data.bones[0]! : entry.data.boneId;
+    entry.kind === 'transform' ? entry.data.boneId : entry.data.bones[0]!;
+  const writesLocal = (entry: ConstraintEntry, id: string): boolean =>
+    entry.kind === 'transform' ? entry.data.boneId === id : entry.data.bones.includes(id);
   const edges: number[][] = constraints.map(() => []),
     indegree = constraints.map(() => 0);
   for (let writer = 0; writer < constraints.length; writer++) {
@@ -134,20 +180,28 @@ export function validateConstraints(data: SkeletonData): void {
     for (let reader = 0; reader < constraints.length; reader++) {
       if (writer === reader) continue;
       const reading = constraints[reader]!,
-        c = reading.data,
         parent = bones.get(rootOf(reading))!.parentId;
       // Rotation changes descendants' positions, but leaves the writer root's
       // own origin intact. Parent reads also need its changing linear basis.
       let depends: boolean;
-      if (reading.kind === 'transform' && reading.data.space === 'local') {
-        depends = writing.kind === 'ik' ? writing.data.bones.includes(c.targetId) : root === c.targetId;
+      if (reading.kind === 'path') {
+        const c = reading.data,
+          owner = paths.get(c.pathId)!.boneId;
+        depends =
+          affected(root, owner) ||
+          (parent !== null && affected(root, parent)) ||
+          (c.driverId !== null && writesLocal(writing, c.driverId));
+      } else if (reading.kind === 'transform' && reading.data.space === 'local') {
+        depends = writesLocal(writing, reading.data.targetId);
       } else if (reading.kind === 'transform') {
+        const c = reading.data;
         depends = affected(root, c.targetId) || (parent !== null && affected(root, parent));
       } else {
-        const pole = reading.data.poleVectorId;
+        const c = reading.data,
+          pole = c.poleVectorId;
         depends =
-          ((writing.kind === 'transform' || root !== c.targetId) && affected(root, c.targetId)) ||
-          (pole !== null && (writing.kind === 'transform' || root !== pole) && affected(root, pole)) ||
+          ((writing.kind !== 'ik' || root !== c.targetId) && affected(root, c.targetId)) ||
+          (pole !== null && (writing.kind !== 'ik' || root !== pole) && affected(root, pole)) ||
           (parent !== null && affected(root, parent));
       }
       if (depends) {
@@ -170,32 +224,27 @@ export function validateConstraints(data: SkeletonData): void {
 }
 
 /** Shared preview/runtime pipeline stage: FK must be current on entry. No frame allocations. */
-const firstBefore: Transform = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 };
-const secondBefore: Transform = { ...firstBefore };
-function copyTransform(to: Transform, from: Transform): void {
-  to.x = from.x;
-  to.y = from.y;
-  to.rotation = from.rotation;
-  to.scaleX = from.scaleX;
-  to.scaleY = from.scaleY;
-  to.shearX = from.shearX;
-  to.shearY = from.shearY;
-}
+const fields = ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'shearX', 'shearY'] as const;
 export function solveConstraints(skeleton: Skeleton): void {
   for (const entry of skeleton.constraintOrder) {
-    const firstId = entry.kind === 'ik' ? entry.data.bones[0]! : entry.data.boneId;
-    const secondId = entry.kind === 'ik' ? entry.data.bones[1] : undefined;
-    const first = skeleton.pose.bones[skeleton.boneIndexMap.get(firstId)!]!.local;
-    const second =
-      secondId === undefined ? undefined : skeleton.pose.bones[skeleton.boneIndexMap.get(secondId)!]!.local;
-    copyTransform(firstBefore, first);
-    if (second) copyTransform(secondBefore, second);
+    const count = entry.kind === 'transform' ? 1 : entry.data.bones.length;
+    for (let i = 0; i < count; i++) {
+      const id = entry.kind === 'transform' ? entry.data.boneId : entry.data.bones[i]!;
+      const local = skeleton.pose.bones[skeleton.boneIndexMap.get(id)!]!.local;
+      for (let k = 0; k < fields.length; k++) skeleton.constraintLocalBackup[i * 7 + k] = local[fields[k]!];
+    }
     skeleton.constraintWorldBackup.set(skeleton.pose.worldMatrices);
     if (entry.kind === 'ik') solveIK(skeleton.data, skeleton.boneIndexMap, skeleton.pose, entry.data);
-    else solveTransformConstraint(skeleton.data, skeleton.boneIndexMap, skeleton.pose, entry.data);
+    else if (entry.kind === 'transform')
+      solveTransformConstraint(skeleton.data, skeleton.boneIndexMap, skeleton.pose, entry.data);
+    else solvePathConstraint(skeleton, entry.data);
     if (!skeleton.pose.worldMatrices.every(Number.isFinite)) {
-      copyTransform(first, firstBefore);
-      if (second) copyTransform(second, secondBefore);
+      for (let i = 0; i < count; i++) {
+        const id = entry.kind === 'transform' ? entry.data.boneId : entry.data.bones[i]!;
+        const local = skeleton.pose.bones[skeleton.boneIndexMap.get(id)!]!.local;
+        for (let k = 0; k < fields.length; k++)
+          local[fields[k]!] = skeleton.constraintLocalBackup[i * 7 + k]!;
+      }
       skeleton.pose.worldMatrices.set(skeleton.constraintWorldBackup);
     }
   }

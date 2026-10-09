@@ -411,6 +411,8 @@ export class RemoveBoneCommand implements Command {
         proposed.transformConstraints = proposed.transformConstraints.filter(
           (c) => c.boneId !== this.boneId && c.targetId !== this.boneId,
         );
+      if (proposed.paths) proposed.paths=proposed.paths.filter(p=>p.boneId!==this.boneId);
+      if (proposed.pathConstraints) proposed.pathConstraints=proposed.pathConstraints.filter(c=>!c.bones.includes(this.boneId) && c.driverId!==this.boneId && proposed.paths?.some(p=>p.id===c.pathId));
       for (const slot of proposed.slots.filter((s) => s.boneId === this.boneId)) {
         if (newParentId === null) removeSlotReferences(proposed, animations, slot.id);
         else slot.boneId = newParentId;

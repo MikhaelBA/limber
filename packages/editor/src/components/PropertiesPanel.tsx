@@ -23,6 +23,7 @@ import {
 import { AddMeshCommand } from '../commands/meshCommands';
 import { IKControls } from './IKControls';
 import { TransformConstraintControls } from './TransformConstraintControls';
+import { PathConstraintControls } from './PathConstraintControls';
 import {
   RemoveSlotCommand,
   SetSlotBlendCommand,
@@ -490,6 +491,7 @@ export function PropertiesPanel() {
 
           <IKControls boneId={bone.id} />
           <TransformConstraintControls key={bone.id} boneId={bone.id} />
+          <PathConstraintControls key={`path:${bone.id}`} boneId={bone.id} />
         </div>
       )}
 

@@ -62,6 +62,32 @@ export interface TransformConstraintData {
   order: number;
 }
 
+/** Cubic Bezier in a path owner's local coordinates: start, two controls, end. */
+export type PathSegment = [number, number, number, number, number, number, number, number];
+export interface PathData {
+  id: string;
+  name: string;
+  boneId: string;
+  segments: PathSegment[];
+  closed: boolean;
+}
+export interface PathConstraintData {
+  id: string;
+  /** Direct parent/child chain, solved from root to tip. */
+  bones: string[];
+  pathId: string;
+  /** Fraction of measured world-space arc length. Open paths clamp, closed paths wrap. */
+  progress: number;
+  /** Optional ordinary animated bone; its local X adds percentage points to progress. */
+  driverId: string | null;
+  /** World-space arc distance between consecutive bone origins; no stretch. */
+  spacing: number;
+  mixTranslation: number;
+  mixRotation: number;
+  rotationOffset: number;
+  order: number;
+}
+
 export interface SlotData {
   id: string;
   name: string;
@@ -162,6 +188,8 @@ export interface SkeletonData {
   /** Sorted by `order` at load/normalization time. */
   ikConstraints: IKConstraintData[];
   transformConstraints?: TransformConstraintData[];
+  paths?: PathData[];
+  pathConstraints?: PathConstraintData[];
   skins: SkinData[];
   activeSkin: string;
 }

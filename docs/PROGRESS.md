@@ -543,9 +543,54 @@ mixed reordering, exact history, Setup isolation, compatibility-export failure
 and native Save/Open. Scene/RTL raster tolerances are unchanged. Standard/Heavy
 CPU update/render-submit p95 was 1.40/2.50ms; weighted transform counts remained
 10000/40004. Heavy worker publication was 40.5ms. SwiftShader frame gaps remain
-separate from CPU cost and do not certify hardware GPU 60fps. Remote CI follows
-the push.
+separate from CPU cost and do not certify hardware GPU 60fps. Commit `6d664f5`
+passed remote CI 38003638170: Test & Build, Docker, VPS and GitHub Pages succeeded.
 
 Phase 7 still needs path constraints, fixed-step secondary motion and the combined
 acceptance gate. Sol 6.1 / High remains suitable for the path constraint increment.
 No unresolved product decision currently prevents continuing the roadmap.
+
+## 10 October 2026 Phase 7D native spline follow and progression keys
+
+Source schema 8 adds continuous cubic paths, independent owner bones and direct
+chain constraints. The solver measures spacing in world arc units and compensates
+reflected/sheared parents and each bone's signed/sheared +X basis when following
+the tangent. Translation/rotation strengths are separate; authored length, scale
+and shear remain unchanged. Open distances clamp and closed distances wrap. Zero
+mixes, collapsed paths and singular required parents have defined holding behavior.
+IK, transform and path share identity/order/dependency validation; finite-output
+rollback now preserves every controlled chain local, using per-instance buffers.
+
+ADR 0021 specifies bounded caches, 128 intervals per segment and the approximate
+chord metric. Position/tangent evaluate the actual cubic. The saved straight-path
+fixture exposed a 0.00034-unit interpolation error; six bounded Newton refinements
+now remove that parameterization error without weakening the numeric fixture test.
+The curved length golden is compared with 20000 independent integration intervals
+(less than 0.006-unit length difference on its 200-unit curve). Arc parameterization
+remains explicitly approximate, not an exact integral claim.
+
+The Setup inspector creates/reuses curves and chooses a chain end, edits cubic
+coordinates, maintains shared endpoints atomically, extends/removes segments and
+closes/opens paths. The viewport draws the evaluated curve. Progress has an ordinary
+bone controller whose X represents percentage points; an explicit Animate button
+keys it through the existing animation command. Advanced exposes rotation offset
+and shared constraint order. Native Save/Open retains controls, curves and tracks;
+the optional compatibility exporter rejects paths. Numeric curve controls are
+implemented; direct viewport Bezier handle dragging is a later UX improvement.
+
+The real-editor schema-8 fixture contains a two-bone path, keyed progress, markers
+and independent IK. Tests cover 100 seeded affine hierarchies, joined/closed paths,
+world metric changes, runtime parity, exact history, Setup isolation and atomic
+invalid edits/imports. All 424 unit tests in 58 files, lint/boundaries, formatting,
+TypeScript and package/editor builds passed on the final code. The fresh complete
+twenty-suite browser run passed after the sampling precision fix. Standard/Heavy
+CPU update/render-submit p95 was 1.40/2.60ms; weighted transform counts remained
+10000/40004. Heavy worker publication was 40.7ms. SwiftShader frame gaps (21.2/55.5ms
+p95) remain software-graphics evidence, not hardware GPU 60fps certification. Remote
+CI follows the source commit/push; the overall Phase 7 gate is still open.
+
+Phase 7 still needs specified fixed-step secondary motion and the combined gate.
+The next increment first proves the portable spring/clock contract before adding
+source fields or changing playback. Sol 6.1 / High remains suitable; no unresolved
+user decision blocks this work. Phases 8–12 remain outstanding and Phase 13 remains
+conditional on validation.

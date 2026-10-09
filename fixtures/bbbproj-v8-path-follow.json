@@ -1,0 +1,265 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 8,
+  "projectId": "project-demo",
+  "name": "Demo",
+  "artboards": [
+    {
+      "id": "artboard-character",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "rig-character",
+          "name": "Character rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "body",
+                "name": "Body",
+                "parentId": null,
+                "length": 10,
+                "setupPose": {
+                  "x": 100,
+                  "y": 100,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tail",
+                "name": "Tail",
+                "parentId": "body",
+                "length": 30,
+                "setupPose": {
+                  "x": 20,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tip",
+                "name": "Tip",
+                "parentId": "tail",
+                "length": 30,
+                "setupPose": {
+                  "x": 30,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "other",
+                "name": "Other",
+                "parentId": null,
+                "length": 20,
+                "setupPose": {
+                  "x": 30,
+                  "y": 30,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "c847b450-3831-479a-8b36-159db4155df8",
+                "name": "Tail path",
+                "parentId": null,
+                "length": 0,
+                "setupPose": {
+                  "x": 120,
+                  "y": 100,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "cc86484c-7c76-4ff2-9465-ae216764c738",
+                "name": "Tail path progress",
+                "parentId": null,
+                "length": 0,
+                "setupPose": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "fd0c9701-c55a-4761-ab3d-bf26591e5633",
+                "name": "Other-ik",
+                "parentId": null,
+                "length": 8,
+                "setupPose": {
+                  "x": 50,
+                  "y": 30,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [],
+            "attachments": [],
+            "ikConstraints": [
+              {
+                "id": "e944cce6-4319-4c83-a840-f393c2822cf7",
+                "bones": [
+                  "other"
+                ],
+                "targetId": "fd0c9701-c55a-4761-ab3d-bf26591e5633",
+                "poleVectorId": null,
+                "bendDirection": 1,
+                "mix": 1,
+                "softness": 0,
+                "order": 0
+              }
+            ],
+            "skins": [],
+            "activeSkin": "",
+            "markers": [
+              {
+                "id": "tail",
+                "name": "tail",
+                "kind": "point",
+                "boneId": "tail",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tip",
+                "name": "tip",
+                "kind": "point",
+                "boneId": "tip",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "paths": [
+              {
+                "id": "6b93fe37-15c6-495f-baf6-871519c1b251",
+                "name": "Tail motion path",
+                "boneId": "c847b450-3831-479a-8b36-159db4155df8",
+                "closed": false,
+                "segments": [
+                  [
+                    0,
+                    0,
+                    60,
+                    0,
+                    140,
+                    0,
+                    200,
+                    0
+                  ]
+                ]
+              }
+            ],
+            "pathConstraints": [
+              {
+                "id": "f3c5f73d-f5f1-4b03-82e5-d90692482087",
+                "bones": [
+                  "tail",
+                  "tip"
+                ],
+                "pathId": "6b93fe37-15c6-495f-baf6-871519c1b251",
+                "progress": 0,
+                "driverId": "cc86484c-7c76-4ff2-9465-ae216764c738",
+                "spacing": 30,
+                "mixTranslation": 1,
+                "mixRotation": 1,
+                "rotationOffset": 0,
+                "order": 1
+              }
+            ]
+          },
+          "animations": [
+            {
+              "name": "Travel",
+              "duration": 1,
+              "loop": true,
+              "timelines": [
+                {
+                  "kind": "boneProperty",
+                  "boneId": "cc86484c-7c76-4ff2-9465-ae216764c738",
+                  "property": "x",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "value": 70,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "demo-tex": {
+      "name": "demo-limb.png",
+      "source": "embedded",
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1BreeoOwe0QAAAABJRU5ErkJggg=="
+    }
+  },
+  "editor": {
+    "activeArtboardId": "artboard-character",
+    "activeRigId": "rig-character"
+  }
+}
