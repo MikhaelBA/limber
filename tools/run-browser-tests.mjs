@@ -43,6 +43,7 @@ try {
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',
+    'auto-mesh.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {

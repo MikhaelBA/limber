@@ -247,3 +247,26 @@ All twelve browser suites passed; the scene golden remains 0.000% different (100
 0.70ms). The full run measured 65ms Standard and 393ms Heavy computation. Remote CI is pending.
 Auto mesh workers, smoothing, linked/shared meshes and the complete Phase 6 performance gate
 remain unfinished.
+
+## 9 October 2026 Phase 6E published
+
+Commit `bf58a6c`; CI run 37947209542 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6F automatic grid mesh
+
+Region properties now expose automatic grid generation with row/column counts, progress and hard
+cancellation. The portable algorithm interpolates the actual region corners and UVs, including
+reflected/sheared artwork and cropped UVs. It validates source/output topology in a dedicated Worker.
+The shared worker lifecycle handles identity, cancellation and failure cleanup for both mesh and
+weights. This is a regular lattice tool; transparent-pixel tracing is not implemented.
+
+Successful publication creates a fresh mesh while keeping the source region and its keys, assigning
+the mesh to the default slot or active skin in one exact undo/redo step. Setup mode and complete rig
+fingerprint guards reject stale results. Browser coverage includes real 10000-vertex generation,
+UV/corner preservation, save/reopen, failed subdivision redo retention, cancel/stale/mode isolation.
+Shared worker tests cover abort during construction, startup/clone errors and a throwing progress
+consumer. Full local checks passed with 314 unit tests, lint/boundaries, formatting, TypeScript and
+both builds. All thirteen browser suites passed (scene golden 0.000%, CPU p95 0.80ms). Both worker
+browser workflows also passed against the production build, including the generated worker assets.
+Remote CI is pending. Smooth weights, linked/shared meshes and the final Phase 6 performance gate
+remain unfinished.

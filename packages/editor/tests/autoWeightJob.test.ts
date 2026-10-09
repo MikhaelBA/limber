@@ -38,12 +38,12 @@ describe('isolated auto-weight worker lifecycle', () => {
     const f = fixture();
     f.worker.onmessage?.(
       new MessageEvent('message', {
-        data: { id: f.request.id + 1, kind: 'result', weights: [], durationMs: 1 },
+        data: { id: f.request.id + 1, kind: 'result', result: [], durationMs: 1 },
       }),
     );
     f.emit({ kind: 'progress', fraction: 0.5 } as AutoWeightMessage);
     expect(f.progress).toHaveBeenCalledWith(0.5);
-    f.emit({ kind: 'result', weights: [1, 0, 1], durationMs: 12 } as AutoWeightMessage);
+    f.emit({ kind: 'result', result: [1, 0, 1], durationMs: 12 } as AutoWeightMessage);
     await expect(f.job).resolves.toEqual({ weights: [1, 0, 1], durationMs: 12 });
     f.controller.abort();
     expect(f.worker.terminate).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe('isolated auto-weight worker lifecycle', () => {
     for (const message of [
       { kind: 'error', message: 'bad geometry' },
       { kind: 'progress', fraction: NaN },
-      { kind: 'result', weights: [], durationMs: -1 },
+      { kind: 'result', result: [], durationMs: -1 },
     ]) {
       const f = fixture();
       f.emit(message as AutoWeightMessage);

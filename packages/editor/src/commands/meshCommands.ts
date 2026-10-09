@@ -276,7 +276,7 @@ abstract class MeshEditCommand implements Command {
   }
 }
 
-function insertMesh(
+export function insertMesh(
   data: SkeletonData,
   slotId: string,
   target: AttachmentTarget,

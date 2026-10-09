@@ -1,13 +1,8 @@
 import { autoWeights, type AutoWeightInput } from '@limber/mesh';
 
-export interface AutoWeightRequest {
-  id: number;
-  input: AutoWeightInput;
-}
-export type AutoWeightMessage =
-  | { id: number; kind: 'progress'; fraction: number }
-  | { id: number; kind: 'result'; weights: number[]; durationMs: number }
-  | { id: number; kind: 'error'; message: string };
+import type { WorkerMessage, WorkerRequest } from '../engine/workerJob';
+export type AutoWeightRequest = WorkerRequest<AutoWeightInput>;
+export type AutoWeightMessage = WorkerMessage<number[]>;
 
 const scope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<AutoWeightRequest>) => void) | null;
@@ -17,7 +12,7 @@ scope.onmessage = ({ data: { id, input } }) => {
   const start = performance.now();
   try {
     const weights = autoWeights(input, (fraction) => scope.postMessage({ id, kind: 'progress', fraction }));
-    scope.postMessage({ id, kind: 'result', weights, durationMs: performance.now() - start });
+    scope.postMessage({ id, kind: 'result', result: weights, durationMs: performance.now() - start });
   } catch (error) {
     scope.postMessage({ id, kind: 'error', message: (error as Error).message });
   }

@@ -1,4 +1,5 @@
 import { MeshWeightsPanel } from './MeshWeightsPanel';
+import { AutoMeshControls } from './AutoMeshControls';
 import { useEffect, useRef, useState } from 'react';
 import { SetKeyframeCommand, KeySlotColorCommand, type BonePropertyName } from '../commands/animationCommands';
 import {
@@ -301,6 +302,7 @@ export function PropertiesPanel() {
               <NumberField label="Att Y" value={regionOf(shownAtt).y} onCommit={(y) => editAttachment((r) => (r.y = y))} />
               <NumberField label="Att W" value={regionOf(shownAtt).width} onCommit={(w) => editAttachment((r) => (r.width = Math.max(1, w)))} />
               <NumberField label="Att H" value={regionOf(shownAtt).height} onCommit={(h) => editAttachment((r) => (r.height = Math.max(1, h)))} />
+              <AutoMeshControls key={shownAtt.id} attachmentId={shownAtt.id} slotId={slot.id} />
               <button
                 className="mt-1 self-start rounded bg-neutral-800 px-2 py-0.5 text-xs text-red-300 hover:bg-neutral-700"
                 onClick={() => execute(new RemoveAttachmentCommand(engine, shownAtt.id))}

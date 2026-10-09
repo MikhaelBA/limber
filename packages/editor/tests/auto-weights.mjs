@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { installHeldWorkers } from '../../../tools/held-worker-harness.mjs';
 import { meshFixture } from '../../../tools/mesh-fixtures.mjs';
 
 const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
@@ -8,33 +9,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(60000);
   const errors = []; page.on('pageerror', (error) => errors.push(error.message));
-  // Computation is the real module Worker. Only final delivery is held to make races deterministic.
-  await page.addInitScript(() => {
-    const NativeWorker = window.Worker;
-    window.__workerJobs = [];
-    window.Worker = class {
-      onmessage = null; onerror = null;
-      constructor(url, options) {
-        this.native = new NativeWorker(url, options);
-        this.stats = { frames: 0, gaps: [], terminated: false, result: null };
-        window.__workerJobs.push(this.stats);
-        let last = performance.now();
-        const frame = (now) => { if (this.stats.terminated || this.stats.result) return; this.stats.frames++; this.stats.gaps.push(now - last); last = now; requestAnimationFrame(frame); };
-        requestAnimationFrame(frame);
-        this.native.onmessage = (event) => {
-          if (event.data.kind === 'progress' && event.data.fraction === 0) {
-            this.stats.frames = 0; this.stats.gaps = []; last = performance.now();
-          }
-          if (event.data.kind === 'result') { this.stats.result = event.data; this.pending = event; }
-          else this.onmessage?.(event);
-        };
-        this.native.onerror = (event) => this.onerror?.(event);
-        window.__releaseWeights = () => { if (this.pending && !this.stats.terminated) this.onmessage?.(this.pending); };
-      }
-      postMessage(message) { this.native.postMessage(message); }
-      terminate() { this.stats.terminated = true; this.native.terminate(); }
-    };
-  });
+  await page.addInitScript(installHeldWorkers);
   await page.goto(process.env.SPRINE_URL ?? 'http://localhost:5173/');
   await page.waitForFunction(() => window.__ticks > 2);
   const open = async (project) => page.locator('input[type=file]').setInputFiles({ name: 'weights.bbbproj', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
