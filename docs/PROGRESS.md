@@ -314,3 +314,12 @@ formatting and both builds. All fourteen browser suites passed (scene golden 0.0
 0.80ms); the optimized weight workflow also passed from the production build. Remote CI is pending.
 Linked/shared meshes, full Standard constraints/clips and Heavy clipping/deform playback/frame
 measurements remain unfinished; this increment does not close the Phase 6 gate.
+
+## 9 October 2026 Phase 6H browser gate repair
+
+Remote run 37953501945 passed unit/build checks but timed out waiting for a download in
+weight-tools.mjs during repeated malformed-geometry imports. The existing test also allowed a
+previous identical error to satisfy the next asynchronous import assertion. The suite now clears
+and awaits each import status and paces its rapid tiny snapshot downloads. Local reproduction
+passed before and after; the timeout alone does not prove which timing condition caused the
+remote failure. A fresh CI run must confirm this gate before Phase 6 is called complete.

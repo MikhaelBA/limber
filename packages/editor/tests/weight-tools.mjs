@@ -20,8 +20,27 @@ try {
       weights: Array.from({ length: 4 }, () => [3, 0, 0.2, 1, 0.3, 2, 0.5]).flat() }],
     ikConstraints: [], skins: [], activeSkin: '' },
     animations: [{ name: 'idle', duration: 1, loop: true, timelines: [] }], assetManifest: {} };
-  const open = async (project) => page.locator('input[type=file]').setInputFiles({ name: 'weights.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
-  const save = async () => { const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Save', exact: true }).click(); return JSON.parse(readFileSync(await (await pending).path(), 'utf8')); };
+  let lastDownload = 0;
+  const open = async (project) => {
+    // File reading is asynchronous. Clear the previous status so a repeated error cannot
+    // satisfy the next import assertion before its File.text() has finished.
+    await page.evaluate(async () => {
+      const { useEditorStore } = await import('/src/store/editorStore.ts');
+      useEditorStore.getState().setStatus('Opening weight fixture');
+    });
+    await page.locator('input[type=file]').setInputFiles({ name: 'weights.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+    await page.locator('footer').getByText(/Opened weights.json|Open failed:/).waitFor();
+  };
+  const save = async () => {
+    // This suite intentionally downloads many tiny snapshots. Pace those downloads
+    // so fast CI machines do not exercise Chromium's automatic-download limiter.
+    await page.waitForTimeout(Math.max(0, 150 - (Date.now() - lastDownload)));
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const download = await pending;
+    lastDownload = Date.now();
+    return JSON.parse(readFileSync(await download.path(), 'utf8'));
+  };
   await open(fixture);
   await page.getByText(/^weighted mesh/).first().click();
   const before = await save();
