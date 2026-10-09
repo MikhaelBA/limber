@@ -75,7 +75,7 @@ ADR 0016 specifies the contract and current Spine adapter limitation.
 ## Ordered constraints and limb pins (Phase 7A)
 
 `solveConstraints` is the shared stage used by character preview, scene preview, onion skin
-and RuntimePlayer after FK and before skinning. It currently dispatches IK in serialized order,
+and RuntimePlayer after FK and before skinning. It dispatches IK/transform follow in one baked serialized order,
 refreshing FK after each constraint. There is no iterative feedback or per-frame graph analysis.
 
 IK IDs and nonnegative integer orders are unique. Chains have one bone or a direct parent/child
@@ -93,3 +93,22 @@ fields in schema 6, authored through one Setup-only command with stable undo/red
 targets can receive ordinary bone animation keys in Animate. Pins require aligned setup limbs.
 Phase 7B supports invertible reflected/scaled/sheared limbs and parents;
 collapsed pins reject atomically. Pole/softness fields are supported with ADR 0019 semantics.
+
+## Transform follow and source schema 7 (Phase 7C)
+
+Optional skeleton `transformConstraints` share IDs/orders with IK. World follow computes
+`inverse(controlledParentWorld) * targetWorld * offset`; local follow uses `targetLocal * offset`.
+Offset composition is affine, in target coordinates. Translation/rotation/scale/shear mixes are
+independent finite values in [0,1]. Rotation follows the shortest arc; scale is signed linear mix;
+shear blends its tangent coefficient. Canonical local QR decomposition absorbs shearY into shearX
+and retains reflection in scaleY. Full mixes reproduce the desired affine; zero mixes preserve the
+exact sampled pose and translation-only follow preserves all sampled basis fields. Required
+singular inverses/decompositions hold the entire constraint. ADR 0020 specifies dependencies.
+The shared stage also rolls back controlled locals and preceding world matrices if any solved
+world matrix overflows Float32, with per-skeleton scratch allocated only on structural publication.
+
+Creation can keep the evaluated setup pose using a computed offset. Create/edit/delete/reorder are
+atomic, Setup-only and rig-scoped; deleting a referenced bone removes its follow constraints.
+Native source schema 7 identifies this model, with absent arrays meaning no follow constraints.
+The optional Spine adapter rejects native follow or pole/soft-reach semantics before exporting.
+The independent `.bbb` shipping schema/compiler is still a Phase 9 task.

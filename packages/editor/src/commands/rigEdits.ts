@@ -1,9 +1,34 @@
 import { Skeleton, validateDeformTimelines, type Animation, type SkeletonData } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
+import type { Command } from '../history/history';
 
 export interface RigSnapshot {
   skeleton: SkeletonData;
   animations: Animation[];
+}
+
+/** Common atomic, rig-scoped publication for every constraint authoring command. */
+export abstract class AtomicConstraintCommand implements Command {
+  abstract readonly label: string;
+  private before: RigSnapshot | null = null;
+  private after: RigSnapshot | null = null;
+  constructor(protected engine: EditorEngine) {}
+  protected abstract edit(data: SkeletonData): void;
+  do(): void {
+    if (this.after) {
+      applyRigSnapshot(this.engine, this.after);
+      return;
+    }
+    if (this.engine.mode !== 'setup') throw new Error('Switch to Setup to edit constraints.');
+    const before = captureRig(this.engine);
+    const after = prepareRigEdit(this.engine, (data) => this.edit(data));
+    applyRigSnapshot(this.engine, after);
+    this.before = before;
+    this.after = after;
+  }
+  undo(): void {
+    if (this.before) applyRigSnapshot(this.engine, this.before);
+  }
 }
 
 export function captureRig(engine: EditorEngine): RigSnapshot {

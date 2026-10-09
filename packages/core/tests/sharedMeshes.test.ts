@@ -1,3 +1,4 @@
+import { PROJECT_SCHEMA_VERSION } from '../src/project/model';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Skeleton, deserializeProject, serializeProject, activeRigDocument, exportSpineJson,
@@ -24,7 +25,7 @@ describe('shared mesh geometry with independent runtime state', () => {
     const project = fixture(), doc = activeRigDocument(project)!;
     new Skeleton(doc.skeleton);
     const native = serializeProject(project), raw = JSON.parse(native);
-    expect(raw.schemaVersion).toBe(6);
+    expect(raw.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
     expect(raw.artboards[0].nodes[0].skeleton.attachments[1].meshVertices).toBeUndefined();
     expect(serializeProject(deserializeProject(native))).toBe(native);
     const rig = serializeDocument(doc);

@@ -1,3 +1,4 @@
+import { PROJECT_SCHEMA_VERSION } from '../src/project/model';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
@@ -23,7 +24,7 @@ describe('responsive game UI contracts', () => {
   it('round-trips the immutable reward popup fixture across schema-3 UI primitives', () => {
     const source = readFileSync(new URL('../../../fixtures/bbbproj-v3-reward.json', import.meta.url), 'utf8');
     const project = deserializeProject(source);
-    expect(project).toEqual({ ...JSON.parse(source), schemaVersion: 6 });
+    expect(project).toEqual({ ...JSON.parse(source), schemaVersion: PROJECT_SCHEMA_VERSION });
     expect(deserializeProject(serializeProject(project))).toEqual(project);
   });
   it('fits the same centered popup and anchored action inside four safe rectangles', () => {

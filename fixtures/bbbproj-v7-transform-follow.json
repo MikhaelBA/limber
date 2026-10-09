@@ -1,0 +1,205 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 7,
+  "projectId": "project-demo",
+  "name": "Demo",
+  "artboards": [
+    {
+      "id": "artboard-character",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "rig-character",
+          "name": "Character rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "body",
+                "name": "Body",
+                "parentId": null,
+                "length": 10,
+                "setupPose": {
+                  "x": 100,
+                  "y": 100,
+                  "rotation": 0.3,
+                  "scaleX": -1.6,
+                  "scaleY": 0.8,
+                  "shearX": 0.2,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "follower",
+                "name": "Follower",
+                "parentId": "body",
+                "length": 30,
+                "setupPose": {
+                  "x": 20,
+                  "y": 10,
+                  "rotation": -0.2,
+                  "scaleX": 0.9,
+                  "scaleY": 1.2,
+                  "shearX": 0,
+                  "shearY": 0.3
+                }
+              },
+              {
+                "id": "target",
+                "name": "Target",
+                "parentId": null,
+                "length": 10,
+                "setupPose": {
+                  "x": 52,
+                  "y": 160,
+                  "rotation": 0.6,
+                  "scaleX": 1.3,
+                  "scaleY": 0.7,
+                  "shearX": 0,
+                  "shearY": 0.2
+                }
+              },
+              {
+                "id": "other",
+                "name": "Other",
+                "parentId": null,
+                "length": 20,
+                "setupPose": {
+                  "x": 150,
+                  "y": 50,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "7a299e7e-3666-4f15-856a-f09c823b33f5",
+                "name": "Other-ik",
+                "parentId": null,
+                "length": 8,
+                "setupPose": {
+                  "x": 170,
+                  "y": 50,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [],
+            "attachments": [],
+            "ikConstraints": [
+              {
+                "id": "38fc3f14-86e7-42c0-b968-e8f6bbe73e7c",
+                "bones": [
+                  "other"
+                ],
+                "targetId": "7a299e7e-3666-4f15-856a-f09c823b33f5",
+                "poleVectorId": null,
+                "bendDirection": 1,
+                "mix": 1,
+                "softness": 0,
+                "order": 0
+              }
+            ],
+            "skins": [],
+            "activeSkin": "",
+            "markers": [
+              {
+                "id": "follower",
+                "name": "follower",
+                "kind": "point",
+                "boneId": "follower",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "target",
+                "name": "target",
+                "kind": "point",
+                "boneId": "target",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "transformConstraints": [
+              {
+                "id": "de98d8fc-0984-45c7-b841-67fab7abff73",
+                "boneId": "follower",
+                "targetId": "target",
+                "space": "world",
+                "offset": {
+                  "x": -6.473668105787482,
+                  "y": -92.20796889419694,
+                  "rotation": 2.329097425119096,
+                  "scaleX": 1.5615287590731608,
+                  "scaleY": -0.9728419970010471,
+                  "shearX": -0.7574030352815068,
+                  "shearY": 0
+                },
+                "mixTranslation": 0.5,
+                "mixRotation": 1,
+                "mixScale": 1,
+                "mixShear": 1,
+                "order": 1
+              }
+            ]
+          },
+          "animations": [
+            {
+              "name": "Idle",
+              "duration": 1,
+              "loop": true,
+              "timelines": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "demo-tex": {
+      "name": "demo-limb.png",
+      "source": "embedded",
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1BreeoOwe0QAAAABJRU5ErkJggg=="
+    }
+  },
+  "editor": {
+    "activeArtboardId": "artboard-character",
+    "activeRigId": "rig-character"
+  }
+}

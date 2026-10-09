@@ -42,6 +42,7 @@ try {
     'rig-authoring.mjs',
     'character-pins.mjs',
     'affine-pins.mjs',
+    'transform-follow.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

@@ -1,32 +1,13 @@
-import { uuid, type BoneData, type IKConstraintData, type SkeletonData } from '@limber/core';
+import {
+  uuid,
+  orderedConstraints,
+  type BoneData,
+  type IKConstraintData,
+  type SkeletonData,
+} from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
-import type { Command } from '../history/history';
 import { inverseTransformPoint } from '../math/matrix';
-import { applyRigSnapshot, captureRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
-
-/** IK authoring validates a detached rig; failure preserves data, pose and redo. */
-abstract class AtomicIKCommand implements Command {
-  abstract readonly label: string;
-  private before: RigSnapshot | null = null;
-  private after: RigSnapshot | null = null;
-  constructor(protected engine: EditorEngine) {}
-  protected abstract edit(data: SkeletonData): void;
-  do(): void {
-    if (this.after) {
-      applyRigSnapshot(this.engine, this.after);
-      return;
-    }
-    if (this.engine.mode !== 'setup') throw new Error('Switch to Setup to edit IK constraints.');
-    const before = captureRig(this.engine);
-    const after = prepareRigEdit(this.engine, (data) => this.edit(data));
-    applyRigSnapshot(this.engine, after);
-    this.before = before;
-    this.after = after;
-  }
-  undo(): void {
-    if (this.before) applyRigSnapshot(this.engine, this.before);
-  }
-}
+import { AtomicConstraintCommand } from './rigEdits';
 
 function uniqueName(data: SkeletonData, base: string): string {
   const names = new Set(data.bones.map((bone) => bone.name));
@@ -83,12 +64,12 @@ function constraint(
     bendDirection,
     mix: 1,
     softness: 0,
-    order: data.ikConstraints.reduce((max, c) => Math.max(max, c.order), -1) + 1,
+    order: orderedConstraints(data).reduce((max, c) => Math.max(max, c.data.order), -1) + 1,
   };
 }
 
 /** Advanced IK: selected lower bone + parent, with a target at the selected tip. */
-export class AddIKConstraintCommand extends AtomicIKCommand {
+export class AddIKConstraintCommand extends AtomicConstraintCommand {
   readonly label = 'Add IK';
   readonly constraintId = uuid();
   readonly targetBoneId = uuid();
@@ -111,7 +92,7 @@ export class AddIKConstraintCommand extends AtomicIKCommand {
 }
 
 /** Pins the selected hand/foot pivot by controlling its two ancestor limb bones. */
-export class PinLimbCommand extends AtomicIKCommand {
+export class PinLimbCommand extends AtomicConstraintCommand {
   readonly constraintId = uuid();
   readonly targetBoneId = uuid();
   readonly label: string;
@@ -187,7 +168,7 @@ export class PinLimbCommand extends AtomicIKCommand {
 }
 
 /** Removing IK keeps its target: artwork, markers and tracks may still use it. */
-export class RemoveIKConstraintCommand extends AtomicIKCommand {
+export class RemoveIKConstraintCommand extends AtomicConstraintCommand {
   readonly label = 'Delete IK';
   constructor(
     engine: EditorEngine,
@@ -210,7 +191,7 @@ export interface IKPropsPatch {
   poleVectorId?: string | null;
   softness?: number;
 }
-export class SetIKPropsCommand extends AtomicIKCommand {
+export class SetIKPropsCommand extends AtomicConstraintCommand {
   readonly label = 'Edit IK';
   private readonly patch: IKPropsPatch;
   constructor(
@@ -230,8 +211,8 @@ export class SetIKPropsCommand extends AtomicIKCommand {
 }
 
 /** Swap adjacent serialized priorities; dependency validation can reject the move. */
-export class MoveIKConstraintCommand extends AtomicIKCommand {
-  readonly label = 'Reorder IK';
+export class MoveConstraintCommand extends AtomicConstraintCommand {
+  readonly label = 'Reorder constraint';
   constructor(
     engine: EditorEngine,
     readonly constraintId: string,
@@ -240,11 +221,12 @@ export class MoveIKConstraintCommand extends AtomicIKCommand {
     super(engine);
   }
   protected edit(data: SkeletonData): void {
-    const list = data.ikConstraints,
-      index = list.findIndex((c) => c.id === this.constraintId);
-    if (index < 0) throw new Error('IK constraint no longer exists.');
+    const list = orderedConstraints(data),
+      index = list.findIndex((c) => c.data.id === this.constraintId);
+    if (index < 0) throw new Error('Constraint no longer exists.');
     const other = list[index + this.direction];
-    if (!other) throw new Error('IK constraint is already at the end of the order.');
-    [list[index]!.order, other.order] = [other.order, list[index]!.order];
+    if (!other) throw new Error('Constraint is already at the end of the order.');
+    [list[index]!.data.order, other.data.order] = [other.data.order, list[index]!.data.order];
   }
 }
+export { MoveConstraintCommand as MoveIKConstraintCommand };

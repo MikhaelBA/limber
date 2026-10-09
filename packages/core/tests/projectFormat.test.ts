@@ -1,3 +1,4 @@
+import { PROJECT_SCHEMA_VERSION } from '../src/project/model';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
@@ -32,7 +33,7 @@ const group = (id: string, parentId: string | null = null): GroupNode => ({
 describe('BoneByBone project compatibility', () => {
   it('migrates the immutable first native schema fixture without changing its content', () => {
     const json = readFileSync(new URL('../../../fixtures/bbbproj-v1-demo.json', import.meta.url), 'utf8');
-    expect(deserializeProject(json)).toEqual({ ...JSON.parse(json), schemaVersion: 6 });
+    expect(deserializeProject(json)).toEqual({ ...JSON.parse(json), schemaVersion: PROJECT_SCHEMA_VERSION });
   });
   it('migrates the immutable legacy demo without changing any rig, animation or asset data', () => {
     const legacy = deserializeDocument(fixture);
@@ -85,7 +86,7 @@ describe('BoneByBone project compatibility', () => {
   });
 
   it('rejects future, fractional and nonnumeric schema versions', () => {
-    for (const schemaVersion of [7, 0, 1.1, '1']) {
+    for (const schemaVersion of [PROJECT_SCHEMA_VERSION + 1, 0, 1.1, '1']) {
       expect(() => deserializeProject(JSON.stringify({ ...fresh(), schemaVersion }))).toThrow(/unsupported/);
     }
   });

@@ -1,3 +1,4 @@
+import { PROJECT_SCHEMA_VERSION } from '../src/project/model';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
@@ -107,7 +108,7 @@ describe('native runtime marker contract', () => {
     for (const name of ['bbbproj-v1-demo.json', 'bbbproj-v2-motion.json', 'bbbproj-v3-reward.json']) {
       const raw = JSON.parse(readFileSync(new URL(`../../../fixtures/${name}`, import.meta.url), 'utf8'));
       const project = deserializeProject(JSON.stringify(raw));
-      expect(project).toEqual({ ...raw, schemaVersion: 6 });
+      expect(project).toEqual({ ...raw, schemaVersion: PROJECT_SCHEMA_VERSION });
       expect(deserializeProject(serializeProject(project))).toEqual(project);
     }
     const skeleton = makeSkeletonData([makeBone('child', null)]);

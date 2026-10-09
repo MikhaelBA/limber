@@ -65,7 +65,7 @@ export function IKControls({ boneId }: { boneId: string }) {
       {data.ikConstraints
         .filter((c) => c.bones.includes(boneId) || c.targetId === boneId || c.poleVectorId === boneId)
         .map((c) => {
-          const index = data.ikConstraints.indexOf(c);
+          const index = engine.skeleton.constraintOrder.findIndex((entry) => entry.data.id === c.id);
           const chain = c.bones.map((id) => byId.get(id)?.name ?? '?').join(' → ');
           const outside = (id: string): boolean => {
             for (let b = byId.get(id); b; b = b.parentId ? byId.get(b.parentId) : undefined)
@@ -193,7 +193,7 @@ export function IKControls({ boneId }: { boneId: string }) {
                   </button>
                   <button
                     title="Move IK later"
-                    disabled={index === data.ikConstraints.length - 1}
+                    disabled={index === engine.skeleton.constraintOrder.length - 1}
                     className="rounded bg-neutral-800 px-2 disabled:opacity-35"
                     onClick={() => run(new MoveIKConstraintCommand(engine, c.id, 1))}
                   >

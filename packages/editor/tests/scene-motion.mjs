@@ -1,3 +1,4 @@
+import { CURRENT_SOURCE_SCHEMA } from '../../../tools/project-schema.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -53,7 +54,7 @@ try {
   let project = await save(),
     board = project.artboards[1],
     clip = board.clips[0];
-  assert.equal(project.schemaVersion, 6);
+  assert.equal(project.schemaVersion, CURRENT_SOURCE_SCHEMA);
   assert.equal(clip.tracks.length, 2);
   assert.equal(clip.tracks[0].keys.length, 2);
   assert.equal(clip.tracks[1].keys.length, 2);

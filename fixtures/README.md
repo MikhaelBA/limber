@@ -33,3 +33,9 @@ the geometry-only worker race fixtures. `mesh-performance.mjs` records 180 stead
 actual influence-transform counts, CPU render submission, real frame gaps and the graphics driver;
 see docs/performance/phase6-mesh.md for scope and limits. Native project generation uses no artwork
 or randomness.
+
+`bbbproj-v7-transform-follow.json` is the real editor's schema-7 Save/Open result with a reflected
+parent, four independent follow mixes, a composed target offset, markers and independent IK in
+one order namespace. Runtime tests add a target X track and assert the half-strength world motion;
+the browser suite verifies creation without a setup jump, offsets/local space, mixed reordering,
+exact history and failed-import isolation. Historical schema fixtures remain unchanged.

@@ -48,6 +48,20 @@ export interface IKConstraintData {
   order: number;
 }
 
+export interface TransformConstraintData {
+  id: string;
+  boneId: string;
+  targetId: string;
+  space: 'world' | 'local';
+  /** Affine offset composed in the target's coordinates. */
+  offset: Transform;
+  mixTranslation: number;
+  mixRotation: number;
+  mixScale: number;
+  mixShear: number;
+  order: number;
+}
+
 export interface SlotData {
   id: string;
   name: string;
@@ -147,6 +161,7 @@ export interface SkeletonData {
   attachments: AttachmentData[];
   /** Sorted by `order` at load/normalization time. */
   ikConstraints: IKConstraintData[];
+  transformConstraints?: TransformConstraintData[];
   skins: SkinData[];
   activeSkin: string;
 }

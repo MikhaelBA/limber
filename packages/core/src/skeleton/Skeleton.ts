@@ -5,7 +5,7 @@ import { createPose, resetPose } from './pose';
 import { topologicalSortBones } from './topologicalSort';
 import { validateMarkers } from './markers';
 import { resolveMeshLinks } from './meshLinks';
-import { validateIKConstraints } from './constraints';
+import { validateConstraints, orderedConstraints, type ConstraintEntry } from './constraints';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -20,11 +20,16 @@ export class Skeleton {
   readonly slotIndexMap: Map<string, number> = new Map();
   /** attachmentId -> attachment. Baked with the other maps; used by the skinning step. */
   readonly attachmentById: Map<string, AttachmentData> = new Map();
+  /** Mixed serialized order, baked only on structural publication. */
+  constraintOrder: readonly ConstraintEntry[] = [];
+  /** Per-instance scratch for finite-output rollback; never serialized or frame allocated. */
+  constraintWorldBackup = new Float32Array(0);
 
   constructor(data: SkeletonData) {
     this.data = data;
     this.normalize();
     this.pose = createPose(data);
+    this.constraintWorldBackup = new Float32Array(this.pose.worldMatrices.length);
   }
 
   /** Convenience for pipeline step 1 (DESIGN.md §4.3). */
@@ -59,6 +64,8 @@ export class Skeleton {
     this.attachmentById.clear();
     for (const [id, attachment] of prepared.attachmentById) this.attachmentById.set(id, attachment);
     Object.assign(this.pose, prepared.pose);
+    this.constraintOrder = prepared.constraintOrder;
+    this.constraintWorldBackup = prepared.constraintWorldBackup;
   }
 
   /**
@@ -108,6 +115,7 @@ export class Skeleton {
     this.pose.slots = pose.slots;
     this.pose.slotOrder = pose.slotOrder;
     this.pose.worldMatrices = pose.worldMatrices;
+    this.constraintWorldBackup = new Float32Array(pose.worldMatrices.length);
     // Attachment vertex/deform caches are per-frame output — fresh allocation,
     // nothing to carry across a structural change.
     this.pose.attachments = pose.attachments;
@@ -127,6 +135,9 @@ export class Skeleton {
     this.data.ikConstraints = [...this.data.ikConstraints].sort(
       (a: IKConstraintData, b: IKConstraintData) => a.order - b.order,
     );
+    this.constraintOrder = orderedConstraints(this.data);
+    if (this.data.transformConstraints)
+      this.data.transformConstraints = [...this.data.transformConstraints].sort((a,b) => a.order-b.order);
 
     this.boneIndexMap.clear();
     for (let i = 0; i < this.data.bones.length; i++) {
@@ -175,7 +186,7 @@ export class Skeleton {
       }
     }
 
-    validateIKConstraints(this.data);
+    validateConstraints(this.data);
 
     const skinNames = new Set(this.data.skins.map((skin) => skin.name));
     if (skinNames.size !== this.data.skins.length || skinNames.has('')) {

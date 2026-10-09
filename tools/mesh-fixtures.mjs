@@ -1,3 +1,4 @@
+import { CURRENT_SOURCE_SCHEMA } from './project-schema.mjs';
 import { readFileSync } from 'node:fs';
 
 /** Reproducible spec Standard/Heavy geometry, no random input or external artwork. */
@@ -55,7 +56,7 @@ export function playbackFixture(kind) {
   const profile = JSON.parse(readFileSync(`fixtures/mesh-${kind.toLowerCase()}-v1.json`, 'utf8'));
   if (profile.fixtureVersion !== 1 || profile.kind !== kind)
     throw new Error('Unknown playback fixture version');
-  project.schemaVersion = 6;
+  project.schemaVersion = CURRENT_SOURCE_SCHEMA;
   project.name = `${kind} character benchmark v1`;
   const rig = project.artboards[0].nodes[0],
     data = rig.skeleton,

@@ -4,11 +4,7 @@ import { useRef, useState } from 'react';
 import { wouldCreateCycle } from '../commands/boneCommands';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
-import {
-  AddBoneCommand,
-  RemoveBoneCommand,
-  ReparentBoneCommand,
-} from '../commands/boneCommands';
+import { AddBoneCommand, RemoveBoneCommand, ReparentBoneCommand } from '../commands/boneCommands';
 import { AddSlotCommand, RemoveSlotCommand, ReorderSlotCommand } from '../commands/slotCommands';
 import { AddIKConstraintCommand } from '../commands/ikCommands';
 import { KeyDrawOrderCommand } from '../commands/animationCommands';
@@ -62,8 +58,11 @@ export function HierarchyPanel() {
 
   const removeSelected = () => {
     if (!selected) return;
-    try { execute(new RemoveBoneCommand(engine, selected)); }
-    catch (error) { setStatus((error as Error).message); }
+    try {
+      execute(new RemoveBoneCommand(engine, selected));
+    } catch (error) {
+      setStatus((error as Error).message);
+    }
   };
 
   const reparent = (boneId: string, newParentId: string | null) => {
@@ -72,8 +71,11 @@ export function HierarchyPanel() {
       setStatus('Cannot reparent a bone under its own descendant.');
       return;
     }
-    try { execute(new ReparentBoneCommand(engine, boneId, newParentId)); }
-    catch (error) { setStatus((error as Error).message); }
+    try {
+      execute(new ReparentBoneCommand(engine, boneId, newParentId));
+    } catch (error) {
+      setStatus((error as Error).message);
+    }
   };
 
   const isDropTarget = (targetId: string) => {
@@ -90,7 +92,12 @@ export function HierarchyPanel() {
   const reorderSlot = (slotId: string, delta: -1 | 1) => {
     const cmds: Command[] = [new ReorderSlotCommand(engine, slotId, delta)];
     if (useEditorStore.getState().mode === 'animate' && engine.currentAnimation) {
-      cmds.push(new KeyDrawOrderCommand(engine, engine.skeleton.data.slots.map((_, i) => i)));
+      cmds.push(
+        new KeyDrawOrderCommand(
+          engine,
+          engine.skeleton.data.slots.map((_, i) => i),
+        ),
+      );
     }
     execute(new CompositeCommand(`Reorder Slot`, cmds));
   };
@@ -119,7 +126,9 @@ export function HierarchyPanel() {
       execute(cmd);
       select(cmd.targetBoneId);
       setStatus('IK created — drag the target bone; edit strength/bend in Properties.');
-    } catch (error) { setStatus((error as Error).message); }
+    } catch (error) {
+      setStatus((error as Error).message);
+    }
   };
 
   return (
@@ -223,9 +232,7 @@ export function HierarchyPanel() {
           </button>
         </div>
         {data.slots.length === 0 && (
-          <p className="p-2 text-xs text-neutral-500">
-            No slots. Drop an image on the viewport or use ＋.
-          </p>
+          <p className="p-2 text-xs text-neutral-500">No slots. Drop an image on the viewport or use ＋.</p>
         )}
         {data.slots.map((slot, i) => {
           const isSlotSel = slot.id === selectedSlot;
@@ -295,9 +302,7 @@ export function HierarchyPanel() {
           </button>
         </div>
         {data.ikConstraints.length === 0 && (
-          <p className="p-2 text-xs text-neutral-500">
-            No IK constraints. Select a bone and ＋.
-          </p>
+          <p className="p-2 text-xs text-neutral-500">No IK constraints. Select a bone and ＋.</p>
         )}
         {data.ikConstraints.map((c) => {
           const endId = c.bones[c.bones.length - 1]!;
@@ -319,6 +324,21 @@ export function HierarchyPanel() {
             </div>
           );
         })}
+        {(data.transformConstraints?.length ?? 0) > 0 && (
+          <div className="mt-1 border-t border-neutral-800 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            Transform follow
+          </div>
+        )}
+        {(data.transformConstraints ?? []).map((c) => (
+          <div
+            key={c.id}
+            onClick={() => select(c.boneId)}
+            className={`cursor-default rounded py-0.5 pl-2 pr-1 text-sm ${selected === c.boneId || selected === c.targetId ? 'bg-sky-600/30 text-sky-100' : 'text-amber-300/90'}`}
+            title={`Follow: ${boneName.get(c.boneId)} → ${boneName.get(c.targetId)} (order ${c.order})`}
+          >
+            {boneName.get(c.boneId)} ⇢ {boneName.get(c.targetId)}
+          </div>
+        ))}
         <RigHelperPanel />
         <MarkerPanel />
       </div>

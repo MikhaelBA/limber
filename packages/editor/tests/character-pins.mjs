@@ -1,3 +1,4 @@
+import { CURRENT_SOURCE_SCHEMA } from '../../../tools/project-schema.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -65,7 +66,7 @@ try {
   assert.deepEqual(leftIK.bones, ['Upper arm L', 'Forearm L']);
   const target = pinned.artboards[0].nodes[0].skeleton.bones.find((b) => b.id === leftIK.targetId);
   assert.equal(target.parentId, null);
-  assert.equal(pinned.schemaVersion, 6);
+  assert.equal(pinned.schemaVersion, CURRENT_SOURCE_SCHEMA);
   await page.keyboard.press('Control+z');
   assert.deepEqual(await save(), before);
   await page.keyboard.press('Control+y');

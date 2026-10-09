@@ -497,8 +497,55 @@ including affine pins, body motion, pole/softness controls, atomic invalid edits
 exact undo/redo and Save/Open. Standard/Heavy CPU update/render-submit p95 was
 1.30/2.50ms; exact weighted transform counts remained 10000/40004. Heavy worker
 publication was 39.7ms. SwiftShader frame gaps remain separate software-graphics
-evidence, not a hardware-independent 60fps claim. Remote CI follows the push.
+evidence, not a hardware-independent 60fps claim. Code commit `857cb3c` passed
+remote CI 37999493731: Test & Build, Docker, VPS and GitHub Pages all succeeded.
 
 Phase 7 still needs transform/path constraints, specified fixed-step secondary
 motion and the combined acceptance gate. Sol 6.1 / High remains suitable for
 transform constraint implementation; no model change is required.
+
+## 10 October 2026 Phase 7C transform follow and mixed constraint order
+
+Source schema 7 adds native transform follow with independent translation,
+rotation, signed-scale and shear mixes, world/local modes and composed target
+space offsets. Creation preserves the evaluated setup pose by default; artists
+can choose to copy immediately. Canonical QR decomposition, shortest-arc rotation
+and tangent shear interpolation are defined in ADR 0020. Singular required
+inverses/decompositions hold the sampled pose deterministically.
+
+IK and follow now share one baked serialized order, globally unique IDs/orders,
+dependency analysis and cycle rejection. Position reads account for moving follow
+roots; local reads only depend on actual local writers. Atomic authoring uses a
+shared rig-scoped snapshot command. Bone deletion removes referencing follows;
+undo/redo retains the original rig and clip identities. The inspector exposes
+follow target/keep-pose and four strengths, with space/offset/order in Advanced.
+Hierarchy entries expose the resulting follows. Character, scene, onion-skin and
+runtime consumers use the shared stage.
+
+Final numeric review reproduced Float32 overflow for large finite IK/follow
+inputs. The shared stage now restores the controlled locals and preceding world
+matrices if a solve overflows; per-skeleton matrix backup is allocated only on
+creation/structural publication. Numerical regressions cover both solver types.
+The optional Spine adapter rejects native follow and pole/soft-reach semantics
+rather than silently dropping or translating different behavior. Native source
+retains these fields; the independent shipping compiler remains Phase 9.
+
+Added a real-editor saved schema-7 follow/IK fixture with a reflected parent,
+markers and target offset. Runtime tests key its target and assert half-strength
+world movement. Historical fixture bytes remain unchanged; header expectations
+and generated projects now use the authoritative current schema constant, fixing
+three old browser assumptions that compared migrated source against header 6.
+
+All 405 unit tests, lint/boundaries, formatting, TypeScript and package/editor
+builds passed. The complete nineteen-suite browser regression passed on the
+final source, including affine follow, independent mixes, offsets/local space,
+mixed reordering, exact history, Setup isolation, compatibility-export failure
+and native Save/Open. Scene/RTL raster tolerances are unchanged. Standard/Heavy
+CPU update/render-submit p95 was 1.40/2.50ms; weighted transform counts remained
+10000/40004. Heavy worker publication was 40.5ms. SwiftShader frame gaps remain
+separate from CPU cost and do not certify hardware GPU 60fps. Remote CI follows
+the push.
+
+Phase 7 still needs path constraints, fixed-step secondary motion and the combined
+acceptance gate. Sol 6.1 / High remains suitable for the path constraint increment.
+No unresolved product decision currently prevents continuing the roadmap.

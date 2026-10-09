@@ -40,6 +40,10 @@ interface Json {
 }
 
 export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
+  if (doc.skeleton.transformConstraints?.length)
+    throw new Error('Spine export does not support native transform follow constraints. Save the native .bbbproj to retain constraints.');
+  if (doc.skeleton.ikConstraints.some((c) => c.poleVectorId !== null || c.softness !== 0))
+    throw new Error('Spine export does not support native IK pole/soft-reach semantics. Save the native .bbbproj to retain constraints.');
   if (doc.skeleton.attachments.some((attachment) => attachment.meshSourceId !== undefined))
     throw new Error('Spine export does not support shared meshes yet. Detach shared meshes before exporting.');
   validateDeformTimelines(doc.skeleton, doc.animations);

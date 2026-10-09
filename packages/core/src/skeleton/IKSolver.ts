@@ -1,4 +1,4 @@
-import type { SkeletonData } from '../types/data';
+import type { IKConstraintData, SkeletonData } from '../types/data';
 import type { SkeletonPose } from '../types/pose';
 import { solveFK } from './FKSolver';
 import { trigAngles, trigRoots } from './trigRoots';
@@ -13,9 +13,15 @@ const clamp = (value: number, low: number, high: number): number => Math.max(low
  * an offset ellipse and a quartic in tan(r2/2). Conformal chains use circles.
  * Only rotations are written; scales/shears/translations/lengths are preserved.
  */
-export function solveIK(data: SkeletonData, boneIndexMap: Map<string, number>, pose: SkeletonPose): void {
+export function solveIK(
+  data: SkeletonData,
+  boneIndexMap: Map<string, number>,
+  pose: SkeletonPose,
+  only?: IKConstraintData,
+): void {
   const wm = pose.worldMatrices;
-  for (const constraint of data.ikConstraints) {
+  for (let index = 0; index < (only ? 1 : data.ikConstraints.length); index++) {
+    const constraint = only ?? data.ikConstraints[index]!;
     if (constraint.mix === 0) continue;
     const i1 = boneIndexMap.get(constraint.bones[0]!),
       ti = boneIndexMap.get(constraint.targetId);

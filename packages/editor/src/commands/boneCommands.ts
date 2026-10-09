@@ -407,6 +407,10 @@ export class RemoveBoneCommand implements Command {
       proposed.ikConstraints = proposed.ikConstraints.filter(
         (c) => !c.bones.includes(this.boneId) && c.targetId !== this.boneId && c.poleVectorId !== this.boneId,
       );
+      if (proposed.transformConstraints)
+        proposed.transformConstraints = proposed.transformConstraints.filter(
+          (c) => c.boneId !== this.boneId && c.targetId !== this.boneId,
+        );
       for (const slot of proposed.slots.filter((s) => s.boneId === this.boneId)) {
         if (newParentId === null) removeSlotReferences(proposed, animations, slot.id);
         else slot.boneId = newParentId;
