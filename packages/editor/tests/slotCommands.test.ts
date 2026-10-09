@@ -86,7 +86,7 @@ describe('RemoveSlotCommand', () => {
       name: 'clip',
       type: 'clipping',
       textureId: '',
-      vertices: [0, 0, 10, 0, 10, 10],
+      meshVertices: [0, 0, 10, 0, 10, 10],
       endSlotId: ids[1]!,
     });
     anim.timelines.push({
@@ -145,7 +145,7 @@ describe('RemoveSlotCommand', () => {
       name: 'clip',
       type: 'clipping',
       textureId: '',
-      vertices: [0, 0, 1, 0, 1, 1],
+      meshVertices: [0, 0, 1, 0, 1, 1],
       endSlotId: first.slotId,
     });
     const remove = new RemoveSlotCommand(engine, first.slotId);

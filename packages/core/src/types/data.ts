@@ -80,8 +80,9 @@ export interface AttachmentData {
   meshUVs?: number[];
   /**
    * Indices of the boundary vertices in walk order (format v2). Everything
-   * else is an interior (Steiner) vertex. Absent ⇒ ALL vertices are boundary
-   * vertices in index order — the triangulator fallback for pre-v2 documents.
+   * else is an interior (Steiner) vertex. When absent on an existing mesh,
+   * the boundary is inferred from triangles without rewriting source. New
+   * triangulation without a hull treats all supplied vertices as the boundary.
    */
   meshHull?: number[];
 

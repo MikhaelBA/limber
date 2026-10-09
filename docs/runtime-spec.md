@@ -51,6 +51,8 @@ Human guides and mirrors author setup data only. Guides add a new hierarchy usin
 
 ## Mesh influence validation and editing
 
+Setup meshes require finite distinct vertices, matched UVs and a nondegenerate manifold triangle disk covering one simple boundary exactly. Invalid geometry fails load before replacing the active project. Missing meshHull on existing geometry is inferred from boundary edges without rewriting source. New concave triangulation includes interior faces only. Topology changes invalidate affected Deform tracks atomically with exact undo; position-only setup edits retain tracks. Animated mesh folding remains allowed. See ADR 0010 for numeric tolerance, unsupported topology and performance limits.
+
 Indexed weight rows cover every vertex exactly once. Nonempty rows require unique integer bone indices in range, finite nonnegative weights and a sum within 1e-5 of one. Missing weights or count-zero rows use the current slot bone. Invalid source rows fail load; runtime skinning is not a repair step. Existing valid legacy weighted coordinates remain unchanged in this milestone.
 
 The standalone mesh algorithms normalize using overflow-safe scaling. Prune uses descending weight, ascending bone index for ties, a normalized threshold and maximum influence count; remaining values renormalize to one. Positive input always retains at least its strongest influence. Paint changes one bone while retaining all other proportions, including when the selected bone is the slot bone. Setup Normalize/Prune preserves animation/deform tracks and restores exact source on undo/redo.

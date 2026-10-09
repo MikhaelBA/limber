@@ -181,3 +181,17 @@ Commit `c9abe49`; CI run 37842645552 passed all checks, Docker and both deployme
 ## 9 October 2026 Phase 6A influence safety
 
 Added the independent mesh package and dependency/build/Docker wiring. Runtime load validation rejects missing/trailing rows, invalid indices, duplicate influences, nonfinite/negative values and nonnormalized sums. Normalization/pruning use stable ties and overflow-safe accumulation. Paint now preserves other bones proportionally, including when painting the slot bone. Normalize and maximum-influence Prune are exposed for weighted meshes in Setup with exact snapshot undo/redo. Tests include 400 seeded weight cases, invalid source rows, three-bone paint distributions and preservation of deformation tracks. Full local checks passed: lint/boundaries, formatting, TypeScript, 275 unit tests, package/editor builds and all ten browser suites. The new weight workflow checks sampled vertex positions, pruning, exact history, native roundtrip, invalid-import isolation and disabled Animate authoring. The scene golden remains 0.000% different (100-image CPU p95 0.80ms). Remote CI is pending; the remaining Phase 6 scope is recorded in ROADMAP.md and ADR 0009.
+
+## 9 October 2026 Phase 6A published
+
+Commit `9785d10`; CI run 37908044045 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6B topology safety
+
+Portable validation now checks finite distinct vertex pairs, matching UVs, complete nondegenerate triangle indices, manifold edges, one simple boundary and exact hull coverage. Concave constrained triangulation excludes exterior faces and emits canonical indices. Existing meshes without an authored hull infer their boundary from triangles without changing saved source; editing publishes an explicit boundary and undo restores omission.
+
+Grid/hull creation and vertex insertion/removal prepare geometry, weights and affected deformation tracks on a private rig snapshot. Failed operations preserve source, pose and redo. Successful vertex-count changes retain the existing policy of removing incompatible Deform tracks, with exact restoration on undo. Setup vertex drags retain the last valid candidate and preserve same-count tracks. Viewport failures appear in the status bar. Surviving attachment/slot object identity is retained across rig snapshots for compatibility with earlier commands.
+
+Validation is for setup topology: animated deformation may legitimately fold triangles. The supported topology is one simple disk; holes and disconnected components are rejected explicitly. The triangulator is a separate mesh entry point so runtime validation does not import cdt2d. Bind-pose skinning, full Deform input validation, worker responsiveness, linked meshes and measured Standard/Heavy costs remain unfinished.
+
+Full local checks passed with 283 unit tests, TypeScript, lint/boundaries and both builds. All ten browser suites passed, including concave hull creation with exact area, rejected setup drag and malformed native geometry import isolation. The existing scene golden is unchanged (0.000%; 100-image CPU p95 0.90ms). Remote CI remains pending; this is a Phase 6 increment, not the complete Deform Alpha gate.

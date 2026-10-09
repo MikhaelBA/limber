@@ -1,7 +1,7 @@
 // Regression: input must draw even when both rAF and the watchdog are stalled.
 // Run against the dev server: node packages/editor/tests/viewport-feedback.mjs
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
@@ -103,6 +103,14 @@ try {
   await page.keyboard.press('Control+y');
   near(await page.evaluate(() => window.__slotMesh0), [-125, 65]);
 
+  // Invalid setup geometry must retain the last valid preview, without crashing.
+  await page.mouse.move(...await screen(-125, 65));
+  await page.mouse.down();
+  await page.mouse.move(...await screen(100, 80));
+  await page.locator('footer').getByText(/Invalid mesh/).waitFor();
+  near(await page.evaluate(() => window.__slotMesh0), [-125, 65]);
+  await page.mouse.up();
+
   // Topology edits refresh both geometry and handles without an animation tick.
   await page.mouse.dblclick(...await screen(-35, 170));
   assert.equal(await page.evaluate(() => window.__slotMeshVerts0), 5);
@@ -134,9 +142,23 @@ try {
   await page.mouse.move(...await screen(100, 80));
   assert.notEqual(await image(), firstHull, 'hull rubber band follows mouse without frames');
   await page.mouse.click(...await screen(100, 80));
-  await page.mouse.click(...await screen(100, 240));
+  await page.mouse.click(...await screen(100, 140));
+  await page.mouse.click(...await screen(0, 140));
+  await page.mouse.click(...await screen(0, 240));
   await page.mouse.click(...await screen(-100, 240));
   await page.keyboard.press('Enter');
+  const savedHull = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const sourceHull = JSON.parse(readFileSync(await (await savedHull).path(), 'utf8'));
+  const meshHull = sourceHull.artboards[0].nodes[0].skeleton.attachments.find((item) => item.type === 'mesh');
+  const geometry = { vertices: meshHull.meshVertices, triangles: meshHull.meshTriangles };
+  let triangleArea = 0;
+  for (let i = 0; i < geometry.triangles.length; i += 3) {
+    const [a, b, c] = geometry.triangles.slice(i, i + 3).map((index) => geometry.vertices.slice(index * 2, index * 2 + 2));
+    triangleArea += Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
+  }
+  assert.equal(triangleArea, 22000, 'concave hull excludes its missing rectangle');
+  assert.equal(geometry.triangles.length, 12);
   await page.mouse.move(...await screen(-100, 80));
   await page.mouse.down();
   await page.mouse.move(...await screen(-110, 70));

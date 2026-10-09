@@ -105,7 +105,7 @@ describe('exportSpineJson', () => {
         name: 'skinned',
         type: 'mesh',
         textureId: 't1',
-        meshVertices: [10, 0, -10, -10, 10, -10, 10, 10, -10, 10],
+        meshVertices: [5, 0, -10, -10, 10, -10, 10, 10, -10, 10],
         meshTriangles: [1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 0],
         meshUVs: [0.5, 0.5, 0, 0, 1, 0, 1, 1, 0, 1],
         meshHull: [1, 2, 3, 4],
@@ -124,7 +124,7 @@ describe('exportSpineJson', () => {
     const w = v.slice(20); // the weighted vertex
     expect(w[0]).toBe(2);
     expect(w[1]).toBe(0); // bone a index
-    expect(w[2]).toBeCloseTo(10, 5); // influence-a local = M_a⁻¹·M_a·(10,0) = (10,0)
+    expect(w[2]).toBeCloseTo(5, 5); // The weighted interior point remains bone-local (5,0).
     expect(w[3]).toBeCloseTo(0, 5);
     expect(w[4]).toBeCloseTo(0.5, 5);
     expect(w[5]).toBe(1); // bone b index

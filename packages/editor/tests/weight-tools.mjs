@@ -46,6 +46,18 @@ try {
   await open(broken);
   await page.locator('footer').getByText(/malformed weights/).waitFor();
   assert.deepEqual(await save(), pruned);
+  for (const corrupt of [
+    (mesh) => { mesh.meshTriangles = [0, 1, 2]; },
+    (mesh) => { mesh.meshVertices[0] = mesh.meshVertices[2]; mesh.meshVertices[1] = mesh.meshVertices[3]; },
+    (mesh) => { mesh.meshUVs.pop(); },
+    (mesh) => { mesh.meshHull = null; },
+  ]) {
+    const badGeometry = structuredClone(pruned);
+    corrupt(badGeometry.artboards[0].nodes[0].skeleton.attachments[0]);
+    await open(badGeometry);
+    await page.locator('footer').getByText(/invalid geometry/i).waitFor();
+    assert.deepEqual(await save(), pruned, 'invalid geometry leaves the active project intact');
+  }
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'Prune weights', exact: true }).isDisabled(), true);
   assert.deepEqual(await save(), pruned);

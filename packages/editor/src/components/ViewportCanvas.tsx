@@ -1036,7 +1036,7 @@ function wireViewport(
       const v = pickVertex(wp.x, wp.y);
       if (e.altKey) {
         // Alt+click deletes a vertex (hull or interior; never below 3 total).
-        if (v >= 0) st.execute(new RemoveMeshVertexCommand(engine, ed.attachment.id, v));
+        if (v >= 0) { try { st.execute(new RemoveMeshVertexCommand(engine, ed.attachment.id, v)); } catch (error) { st.setStatus((error as Error).message); } }
         return;
       }
       if (v < 0) return;
@@ -1206,7 +1206,7 @@ function wireViewport(
       const ed = editableMesh();
       if (ed) {
         inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
+        try { meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y); } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
       }
       return;
     }
@@ -1433,7 +1433,7 @@ function wireViewport(
       if (pickVertex(wp.x, wp.y) >= 0) return; // On a vertex — that's a drag, not an add.
       inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
       if (!pointInMeshHull(ed.attachment, scratchPoint.x, scratchPoint.y)) return;
-      st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y));
+      try { st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y)); } catch (error) { st.setStatus((error as Error).message); }
       return;
     }
     if (isTransformTool(st.activeTool)) st.clearSelection(); // Spine: dblclick deselects.

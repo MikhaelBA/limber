@@ -102,7 +102,7 @@ describe('transactional bone structure', () => {
       name: 'clip',
       type: 'clipping',
       textureId: '',
-      vertices: [0, 0, 4, 0, 4, 4],
+      meshVertices: [0, 0, 4, 0, 4, 4],
       endSlotId: ids[1]!,
     });
     data.skins.push({ name: 'inactive', attachments: { [ids[1]!]: 'clip', [ids[2]!]: 'clip' } });

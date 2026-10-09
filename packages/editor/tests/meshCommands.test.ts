@@ -23,6 +23,7 @@ import { AutoKeyDeformCommand, DeleteDeformKeyframeCommand, upsertDeformKeyframe
 import { AddSlotCommand } from '../src/commands/slotCommands';
 import { AddBoneCommand } from '../src/commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../src/commands/attachmentCommands';
+import { HistoryManager } from '../src/history/history';
 
 const TEX = 'tex-1';
 
@@ -134,16 +135,17 @@ describe('SetMeshVerticesCommand', () => {
     const cmd = new SetMeshVerticesCommand(engine, add.attachmentId);
     cmd.open();
     expect(cmd.changed).toBe(false);
-    cmd.update(4, 3, 7); // center vertex
+    expect(() => cmd.update(4, 3, 7)).toThrow(); // Outside the existing boundary.
+    cmd.update(4, 3, 2); // Valid center vertex move.
     cmd.commit();
     expect(cmd.changed).toBe(true);
 
     const mesh = engine.skeleton.data.attachments[0] as { type: 'mesh'; meshVertices?: number[] };
-    expect(mesh.meshVertices!.slice(8, 10)).toEqual([3, 7]);
+    expect(mesh.meshVertices!.slice(8, 10)).toEqual([3, 2]);
     cmd.undo();
     expect(mesh.meshVertices!.slice(8, 10)).toEqual([0, 0]);
     cmd.do();
-    expect(mesh.meshVertices!.slice(8, 10)).toEqual([3, 7]);
+    expect(mesh.meshVertices!.slice(8, 10)).toEqual([3, 2]);
   });
 });
 
@@ -237,8 +239,8 @@ describe('triangulateMesh (cdt2d)', () => {
     expect(tris).toHaveLength(3); // one triangle.
   });
 
-  it('returns [] on degenerate input', () => {
-    expect(triangulateMesh([0, 0, 5, 5], [0, 1])).toEqual([]);
+  it('rejects degenerate input explicitly', () => {
+    expect(() => triangulateMesh([0, 0, 5, 5], [0, 1])).toThrow(/three/);
   });
 });
 
@@ -314,6 +316,73 @@ describe('CreateHullMeshCommand', () => {
 });
 
 describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
+  it('infers an omitted mesh boundary for picking and edits, restoring omission on undo', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    delete engine.skeleton.data.attachments[0]!.meshHull;
+    const before = structuredClone(engine.project);
+    expect(pointInMeshHull(engine.skeleton.data.attachments[0]!, 2, 0)).toBe(true);
+    const command = new AddMeshVertexCommand(engine, meshId, 2, 0);
+    command.do();
+    expect(engine.skeleton.data.attachments[0]!.meshHull).toHaveLength(8);
+    command.undo(); expect(engine.project).toEqual(before);
+    const remove = new RemoveMeshVertexCommand(engine, meshId, 4);
+    remove.do(); expect(engine.skeleton.data.attachments[0]!.meshHull).toHaveLength(8);
+    remove.undo(); expect(engine.project).toEqual(before);
+  });
+
+  it('rejects bad inserts/removals without losing deform keys, pose or redo', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(1));
+    engine.tick(0);
+    const history = new HistoryManager();
+    history.execute(new AddMeshVertexCommand(engine, meshId, 2, 0));
+    const added = structuredClone(engine.project);
+    history.undo();
+    engine.tick(0);
+    const before = structuredClone(engine.project);
+    const pose = [...engine.skeleton.pose.attachments.get(meshId)!.verts];
+    for (const command of [
+      new AddMeshVertexCommand(engine, meshId, 0, 0),
+      new AddMeshVertexCommand(engine, meshId, 30, 0),
+      new AddMeshVertexCommand(engine, meshId, 2, -5),
+      new AddMeshVertexCommand(engine, meshId, NaN, 0),
+      new RemoveMeshVertexCommand(engine, meshId, -1),
+      new RemoveMeshVertexCommand(engine, meshId, 100),
+    ]) {
+      expect(() => history.execute(command)).toThrow();
+      expect(engine.project).toEqual(before);
+      expect([...engine.skeleton.pose.attachments.get(meshId)!.verts]).toEqual(pose);
+      expect(history.canRedo).toBe(true);
+    }
+    history.redo(); expect(engine.project).toEqual(added);
+    history.undo(); expect(engine.project).toEqual(before);
+  });
+
+  it('rejects a removal that strands an interior vertex on the new boundary', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    new RemoveMeshVertexCommand(engine, meshId, 0).do();
+    new RemoveMeshVertexCommand(engine, meshId, 0).do();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(14).fill(2));
+    const before = structuredClone(engine.project);
+    expect(() => new RemoveMeshVertexCommand(engine, meshId, 0).do()).toThrow(/boundary/);
+    expect(engine.project).toEqual(before);
+  });
+
+  it('keeps the last valid drag preview and deformation keys on invalid coordinates', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(1));
+    const before = structuredClone(engine.project);
+    const cmd = new SetMeshVerticesCommand(engine, meshId); cmd.open();
+    cmd.update(4, 2, 1);
+    const preview = structuredClone(engine.project);
+    for (const [index, x, y] of [[4, NaN, 0], [4, 30, 0], [4, -10, -5], [-1, 0, 0]]) {
+      expect(() => cmd.update(index!, x!, y!)).toThrow();
+      expect(engine.project).toEqual(preview);
+    }
+    cmd.commit(); cmd.undo(); expect(engine.project).toEqual(before);
+    cmd.do(); expect(engine.project).toEqual(preview);
+  });
+
   it('adds an interior vertex: UV barycentric, re-triangulated, deform keys stripped+restored', () => {
     const { engine, meshId } = setupAnimatedMesh();
     upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(0));
@@ -363,10 +432,14 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
     expect(engine.skeleton.data.attachments[0]!.meshVertices!.length / 2).toBe(9);
     expect(vertexWeightOf(engine.skeleton.data.attachments[0]!.weights, 0, 1)).toBeCloseTo(0.5, 6);
 
-    // Refuse to go below one triangle: delete down to 3, then no-ops.
-    const guard = new RemoveMeshVertexCommand(engine, meshId, 0);
-    for (let i = 0; i < 10; i++) guard.do();
-    expect(engine.skeleton.data.attachments[0]!.meshVertices!.length / 2).toBe(3);
+    // A final triangle remains intact; every gesture is a fresh command.
+    const triangle = engine.skeleton.data.attachments[0]!;
+    triangle.meshVertices = [0, 0, 10, 0, 0, 10]; triangle.meshUVs = [0, 0, 1, 0, 0, 1];
+    triangle.meshTriangles = [0, 1, 2]; triangle.meshHull = [0, 1, 2]; delete triangle.weights;
+    engine.document.animations[0]!.timelines = []; engine.skeleton.rebuild();
+    const before = structuredClone(engine.project);
+    for (let i = 0; i < 3; i++) new RemoveMeshVertexCommand(engine, meshId, 0).do();
+    expect(engine.project).toEqual(before);
   });
 });
 

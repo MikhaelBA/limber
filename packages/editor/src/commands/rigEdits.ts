@@ -88,7 +88,24 @@ export function applyRigSnapshot(engine: EditorEngine, snapshot: RigSnapshot): v
   ) {
     throw new Error('Rig snapshot belongs to a different animation library.');
   }
+  const oldSlots = new Map(engine.skeleton.data.slots.map((item) => [item.id, item]));
+  const oldAttachments = new Map(engine.skeleton.data.attachments.map((item) => [item.id, item]));
   engine.skeleton.replaceData(snapshot.skeleton);
+  // Existing commands and callers may retain slot/attachment objects. Preserve
+  // surviving identities after validation, just as animation objects below.
+  const retain = <T extends { id: string }>(next: T, old: Map<string, T>): T => {
+    const existing = old.get(next.id);
+    if (!existing) return next;
+    for (const key of Object.keys(existing))
+      if (!(key in next)) delete (existing as Record<string, unknown>)[key];
+    return Object.assign(existing, next);
+  };
+  engine.skeleton.data.slots = engine.skeleton.data.slots.map((item) => retain(item, oldSlots));
+  engine.skeleton.data.attachments = engine.skeleton.data.attachments.map((item) =>
+    retain(item, oldAttachments),
+  );
+  engine.skeleton.attachmentById.clear();
+  for (const item of engine.skeleton.data.attachments) engine.skeleton.attachmentById.set(item.id, item);
   engine.document.animations.forEach((anim, index) => Object.assign(anim, animations[index]));
 }
 

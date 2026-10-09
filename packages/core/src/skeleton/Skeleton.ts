@@ -1,4 +1,4 @@
-import { validateWeights } from '@limber/mesh';
+import { validateWeights, validateHull, validateMeshTopology } from '@limber/mesh';
 import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/data';
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
@@ -219,6 +219,15 @@ export class Skeleton {
     }
 
     for (const attachment of this.data.attachments) {
+      try {
+        if (attachment.type === 'mesh') {
+          if (!attachment.meshUVs) throw new Error('Mesh UVs are required.');
+          validateMeshTopology({ vertices: attachment.meshVertices!, triangles: attachment.meshTriangles!, uvs: attachment.meshUVs, hull: attachment.meshHull });
+        } else if (attachment.type === 'region') {
+          if (attachment.vertices?.length !== 8 || attachment.uvs?.length !== 8) throw new Error('Region needs four vertices and UV pairs.');
+          validateMeshTopology({ vertices: attachment.vertices, triangles: [0, 1, 2, 0, 2, 3], uvs: attachment.uvs });
+        } else validateHull(attachment.meshVertices!, attachment.meshHull);
+      } catch (error) { throw new Error(`Attachment "${attachment.name}" has invalid geometry: ${(error as Error).message}`); }
       validateAttachmentWeights(attachment, this.data.bones.length);
     }
   }

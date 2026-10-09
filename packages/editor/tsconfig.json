@@ -18,11 +18,15 @@
       ],
       "@limber/mesh": [
         "../mesh/src/index.ts"
+      ],
+      "@limber/mesh/triangulate": [
+        "../mesh/src/triangulate.ts"
       ]
     }
   },
   "include": [
     "src",
-    "tests"
+    "tests",
+    "../mesh/src/cdt2d.d.ts"
   ]
 }

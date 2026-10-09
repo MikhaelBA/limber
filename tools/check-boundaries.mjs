@@ -4,11 +4,11 @@ import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '..');
 const errors = [];
-function check(directory, allowedPackages) {
+function check(directory, allowedPackages, externals = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) {
-      check(path, allowedPackages);
+      check(path, allowedPackages, externals);
       continue;
     }
     if (!entry.name.endsWith('.ts')) continue;
@@ -30,14 +30,15 @@ function check(directory, allowedPackages) {
         const allowed = name.startsWith('.')
           ? allowedPackages.some((p) => target.startsWith(`packages/${p}/src/`))
           : allowedPackages.some((p) => name === `@limber/${p}` || name.startsWith(`@limber/${p}/`));
-        if (!allowed) errors.push(`${relative(root, path)}: forbidden dependency ${name}`);
+        if (!allowed && !externals.includes(name))
+          errors.push(`${relative(root, path)}: forbidden dependency ${name}`);
       }
       ts.forEachChild(node, visit);
     }
     visit(source);
   }
 }
-check(resolve(root, 'packages/mesh/src'), ['mesh']);
+check(resolve(root, 'packages/mesh/src'), ['mesh'], ['cdt2d']);
 check(resolve(root, 'packages/core/src'), ['core', 'mesh']);
 check(resolve(root, 'packages/runtime/src'), ['core', 'runtime']);
 if (errors.length) {
