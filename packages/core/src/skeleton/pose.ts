@@ -13,7 +13,16 @@ function allocateAttachmentStates(data: SkeletonData): Map<string, AttachmentPos
   const map = new Map<string, AttachmentPoseState>();
   for (const a of data.attachments) {
     const n = attachmentVertexCount(a);
-    if (n > 0) map.set(a.id, { verts: new Float32Array(n), deform: new Float32Array(n), deformed: false });
+    if (n > 0) {
+      const state: AttachmentPoseState = { verts: new Float32Array(n), deform: new Float32Array(n), deformed: false };
+      if (a.boneBindings) {
+        state.bindMatrices = new Float64Array(data.bones.length * 6);
+        state.skinMatrices = new Float64Array(data.bones.length * 6);
+        const indices = new Map(data.bones.map((bone, index) => [bone.id, index]));
+        for (const binding of a.boneBindings) state.bindMatrices.set(binding.matrix, indices.get(binding.boneId)! * 6);
+      }
+      map.set(a.id, state);
+    }
   }
   return map;
 }

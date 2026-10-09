@@ -1,5 +1,7 @@
 # Compatibility and performance fixtures
 
+Backward file compatibility is not a release gate for this pre-release project, per the user's 9 October 2026 instruction. Existing historical fixtures may remain as regression inputs; prioritize new numeric and behavioral contracts.
+
 Committed legacy documents are immutable compatibility inputs. Copy a new fixture for a new schema;
 never regenerate an old one to hide a migration failure. Runtime numeric comparisons use an absolute
 tolerance of 1e-4 unless a test documents a stricter requirement.
@@ -15,3 +17,5 @@ when failing. Seed 0xbbb001 is the default. Planned benchmark sizes follow PRODU
 `scene-standard-v1.json` and `scene-standard-v1.png` are the Phase 2 100-image scene and reviewed viewport crop. The browser test compares RGB pixels with a 12-level channel tolerance and less than 1.5% changed pixels to allow platform edge rasterization. Dynamic controls/timing text are outside the crop. Update the PNG only for an intentional visual change with `UPDATE_SCENE_GOLDEN=1 node packages/editor/tests/scene-interaction.mjs`, then inspect the image and review the diff. CI never regenerates this fixture. The same test enforces a 16.7ms CPU update/render-submit p95 across 120 drag updates; this does not measure GPU completion or animated rig evaluation.
 
 `bbbproj-v4-markers.json` is an immutable native source fixture with a two-bone wave animation, a hand socket and a rectangular body hurtbox. The rig browser suite verifies marker authoring, failed-edit isolation, exact history/save/reopen and deterministic sampled socket positions without mutating the fixture or setup pose.
+
+`bbbproj-v5-bind-mesh.json` is the native bind-pose reference: a quad at [-50,80] through [50,240] has full influence on a bone whose setup X is 120, with frozen bind translation -120. The initial world quad equals the authored quad; at t=0.5 the bone's X=150 moves every vertex +30. Runtime numeric tests compare the full eight-coordinate arrays. The browser suite verifies binding selection, exact history/save/reopen, half-time sampling and cursor/deform alignment.

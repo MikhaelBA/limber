@@ -1,0 +1,13 @@
+# ADR 0011: Explicit mesh bind coordinates
+
+Status: accepted; Phase 6 remains in progress. Backward file compatibility is not a release gate, per the user's 9 October 2026 instruction.
+
+Native source schema 5 adds optional per-mesh boneBindings. Each entry identifies a bone by stable ID and stores a six-value affine transform B from attachment-local coordinates into that bone's local coordinates at bind time. Bind uses the setup FK pose, bypassing animation and IK: B = inverse(boneSetupWorld) * slotSetupWorld. Capture selected bones and always include the slot bone for rigid weight fallback. This is a deliberate authoring action; rebinding recalculates the stored transforms. Missing binding data means identity transforms rather than implicit bind-pose reconstruction.
+
+After animation and constraints, evaluate weighted vertices as sum(weight * boneWorld * B * (setupVertex + deform)). Unweighted/count-zero vertices retain the current slot transform. The bind transforms stay frozen across bone transform edits and are resolved to indexed Float64 arrays when the skeleton pose is allocated. World*bind products use a second reusable cache, so the skinning loop needs no ID lookup or per-frame allocation. Bone sorting changes index caches but preserves binding identities. Deleting an unused bound bone removes its entry; a bone with stored weight references must be rebound/removed first. Exact source undo restores the entries.
+
+Matrices need six finite values, finite pose precision and nonsingular linear parts with a scale-relative determinant threshold of 1e-12. Reflections and shear are supported. Every stored influence on a bound mesh must refer to a bound bone; painting an unbound target fails before mutation. Bound setup coordinates and Deform segment bounds must fit the pose's Float32 position storage. Binding commands validate private snapshots before publishing geometry-independent changes and retain clips/Deform tracks.
+
+Cursor editing inverts the selected vertex's blended evaluated affine transform. Applying only the slot inverse is incorrect for weighted vertices. Singular blends are permitted animation output but produce an explicit editing error; the last valid source/preview remains intact.
+
+The properties panel exposes bone selection and Bind setup pose in Setup mode. Spine export currently rejects native bindings explicitly because that adapter does not implement these semantics. Native save and the portable RuntimePlayer retain them. The .bbb shipping compiler and platform adapters remain Phase 9 onward. Auto jobs, linked meshes and Standard/Heavy measurements are still required for the full Phase 6 gate.

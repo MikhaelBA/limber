@@ -69,6 +69,26 @@ export function validateDeformTimelines(data: SkeletonData, animations: readonly
               fail('deformation exceeds finite pose precision.');
           }
         }
+        if (Array.isArray(attachment?.boneBindings)) {
+          for (const binding of attachment.boneBindings) {
+            // Malformed binding shape is rejected by Skeleton validation.
+            if (!Array.isArray(binding?.matrix) || binding.matrix.length !== 6) continue;
+            const m = binding.matrix;
+            for (let k = 0; k < local!.length; k += 2) {
+              for (const t of limits) {
+                const ax = a.offsets?.[k] ?? 0,
+                  ay = a.offsets?.[k + 1] ?? 0;
+                const x = local![k]! + ax + ((b.offsets?.[k] ?? 0) - ax) * t;
+                const y = local![k + 1]! + ay + ((b.offsets?.[k + 1] ?? 0) - ay) * t;
+                if (
+                  !finiteFloat(m[0]! * x + m[2]! * y + m[4]!) ||
+                  !finiteFloat(m[1]! * x + m[3]! * y + m[5]!)
+                )
+                  fail('bound deformation exceeds finite pose precision.');
+              }
+            }
+          }
+        }
       }
     }
   }

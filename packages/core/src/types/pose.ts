@@ -50,6 +50,9 @@ export interface SkeletonPose {
 
 /** Transient per-frame state for one attachment. Never serialized. */
 export interface AttachmentPoseState {
+  /** Optional setup bind transforms and evaluated world*bind matrices, indexed by bone. */
+  bindMatrices?: Float64Array;
+  skinMatrices?: Float64Array;
   /** World-space vertex positions — skinning output (rigid or weighted LBS). */
   verts: Float32Array;
   /** Per-vertex offsets from setup positions — DeformTimeline output. */

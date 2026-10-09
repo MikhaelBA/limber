@@ -38,6 +38,13 @@ function fixture() {
 }
 
 describe('Deform source validation and curves', () => {
+  it('rejects deformation that overflows after applying an otherwise valid bind matrix', () => {
+    const { skeleton, animations, timeline } = fixture();
+    skeleton.attachments[0]!.boneBindings = [{ boneId: 'root', matrix: [1e20, 0, 0, 1e20, 0, 0] }];
+    expect(() => new Skeleton(structuredClone(skeleton))).not.toThrow();
+    timeline.keyframes[1]!.offsets = new Array(6).fill(1e20);
+    expect(() => validateDeformTimelines(skeleton, animations)).toThrow(/bound deformation/);
+  });
   it('preserves valid native and legacy source and permits animated triangle folding', () => {
     const { timeline, ...doc } = fixture();
     timeline.keyframes[1]!.offsets = [10, 10, -20, 0, 0, -20];

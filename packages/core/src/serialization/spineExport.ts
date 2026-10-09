@@ -41,6 +41,9 @@ interface Json {
 
 export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
   validateDeformTimelines(doc.skeleton, doc.animations);
+  if (doc.skeleton.attachments.some((attachment) => attachment.boneBindings)) {
+    throw new Error('Spine export does not support native mesh bindings. Save the native .bbbproj to retain bone bindings.');
+  }
   if (doc.skeleton.markers?.length) {
     const warning = 'Spine export omits BoneByBone markers; keep the native .bbbproj for sockets and hit areas.';
     if (!warnings) throw new Error(warning);

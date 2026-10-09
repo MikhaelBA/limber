@@ -102,6 +102,10 @@ export interface AttachmentData {
    * A vertex with no weight entry is rigid-bound to its slot's bone.
    */
   weights?: number[];
+  /** Native schema 5: frozen attachment-local -> bone-local bind transforms.
+   * Absent means identity binding. Bone identities survive sorting.
+   */
+  boneBindings?: { boneId: string; matrix: number[] }[];
 }
 
 export interface SkinData {

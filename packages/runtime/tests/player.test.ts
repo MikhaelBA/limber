@@ -31,6 +31,14 @@ function makeExportedDocument(): ExportedDocument {
 }
 
 describe('RuntimePlayer (Phase 1 stub)', () => {
+  it('plays the native bind-pose fixture without changing setup artwork', () => {
+    const project = JSON.parse(readFileSync(new URL('../../../fixtures/bbbproj-v5-bind-mesh.json', import.meta.url), 'utf8'));
+    const rig = project.artboards[0].nodes[0], player = new RuntimePlayer(rig);
+    expect([...player.getDeformedVertices('mesh')]).toEqual([-50, 80, 50, 80, 50, 240, -50, 240]);
+    player.setAnimation('slide', { loop: false });
+    for (let i = 0; i < 5; i++) player.update(0.1);
+    expect([...player.getDeformedVertices('mesh')]).toEqual([-20, 80, 80, 80, 80, 240, -20, 240]);
+  });
   it('rejects malformed Deform data even when the JSON loader is bypassed', () => {
     const doc = makeExportedDocument();
     doc.animations.push({ name: 'bad', duration: 1, loop: false, timelines: [{ kind: 'deform', attachmentId: 'missing', keyframes: [] }] });

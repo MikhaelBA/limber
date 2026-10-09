@@ -32,7 +32,7 @@ const group = (id: string, parentId: string | null = null): GroupNode => ({
 describe('BoneByBone project compatibility', () => {
   it('migrates the immutable first native schema fixture without changing its content', () => {
     const json = readFileSync(new URL('../../../fixtures/bbbproj-v1-demo.json', import.meta.url), 'utf8');
-    expect(deserializeProject(json)).toEqual({ ...JSON.parse(json), schemaVersion: 4 });
+    expect(deserializeProject(json)).toEqual({ ...JSON.parse(json), schemaVersion: 5 });
   });
   it('migrates the immutable legacy demo without changing any rig, animation or asset data', () => {
     const legacy = deserializeDocument(fixture);
@@ -85,7 +85,7 @@ describe('BoneByBone project compatibility', () => {
   });
 
   it('rejects future, fractional and nonnumeric schema versions', () => {
-    for (const schemaVersion of [5, 0, 1.1, '1']) {
+    for (const schemaVersion of [6, 0, 1.1, '1']) {
       expect(() => deserializeProject(JSON.stringify({ ...fresh(), schemaVersion }))).toThrow(/unsupported/);
     }
   });

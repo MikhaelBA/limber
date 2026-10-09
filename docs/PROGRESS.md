@@ -207,3 +207,15 @@ Deform validation is shared by native/legacy import, direct RuntimePlayer constr
 Deform sampling now evaluates the authored Bezier easing instead of treating every non-stepped key as linear. Null setup interpolation, overshoot and crossfade are covered by numeric tests. Drag commands and curve edits validate candidates before publication, preserve the last valid preview and exact undo/redo, and report failures in the viewport. An old export-only test supplied a partial quad offset array; it now supplies all four coordinate pairs explicitly.
 
 Full local checks passed with 289 unit tests, TypeScript, lint/boundaries and both builds. All ten browser suites passed, including a cubic halfway vertex measurement and malformed Deform import isolation. The scene golden remains 0.000% different (100-image CPU p95 0.80ms). Remote CI is pending. Bone binding, workers, linked/shared meshes and Standard/Heavy measurement remain unfinished Phase 6 deliverables.
+
+## 9 October 2026 Phase 6C published
+
+Commit `f6d65c4`; CI run 37912067915 passed all checks, Docker and both deployments.
+
+## 9 October 2026 Phase 6D explicit mesh binding
+
+Native schema 5 stores stable-ID affine bone bindings captured from setup FK. The properties panel selects bones and binds/rebinds in one atomic Setup command. Changing weights after binding preserves setup artwork. The portable evaluator caches world*bind matrices and uses the same path for preview and RuntimePlayer. Reflected/sheared transforms and exact source restoration are covered by seeded numerical tests and a new native quad fixture. Bound influences and matrix/coordinate precision are validated before publication; unused bindings are cleaned on bone deletion. Deform bounds also validate the transformed bind coordinates.
+
+Weighted cursor editing now inverts the vertex's blended transform, so setup/deform drags follow the cursor rather than incorrectly using only the slot bone. Singular blends report an editing error without publishing invalid coordinates. Bind selection/import failures preserve source and redo. Spine export explicitly rejects native bindings until its adapter supports those semantics; native save and runtime evaluation retain them.
+
+The user removed backward file compatibility as an acceptance requirement. This policy is recorded in architecture.md; new contracts take precedence without adding compatibility work. Full local checks passed with 297 unit tests, TypeScript, lint/boundaries and both builds. All eleven browser suites passed, including exact bind history/roundtrip, half-time pose and weighted deform/cursor alignment. The scene golden remains 0.000% different (100-image CPU p95 0.80ms). Remote CI is pending. Auto mesh/weights workers, linked/shared meshes and measured Standard/Heavy costs remain Phase 6 work.

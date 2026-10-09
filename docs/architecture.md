@@ -3,6 +3,8 @@
 BoneByBone evolves the working Limber editor. Preserve existing rigs, mesh/deform edits, animation
 curves, IK, skins, events, texture imports, autosave and optional Spine export during migration.
 
+Pre-release policy (9 October 2026): the user removed backward file compatibility from acceptance requirements. Prioritize correct new authoring/runtime contracts; historical readers/adapters may remain when inexpensive, but preserving old file behavior must not complicate new features or delay a phase gate. Earlier migration ADRs describe delivered behavior, not a continuing compatibility obligation.
+
 ## Boundaries
 
 - `packages/mesh`: renderer-independent mesh/influence algorithms; no core, editor or runtime dependency.

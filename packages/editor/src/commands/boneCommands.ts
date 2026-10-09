@@ -417,6 +417,12 @@ export class RemoveBoneCommand implements Command {
         );
       }
       proposed.bones = proposed.bones.filter((bone) => bone.id !== this.boneId);
+      for (const attachment of proposed.attachments) {
+        if (attachment.boneBindings) {
+          attachment.boneBindings = attachment.boneBindings.filter((binding) => binding.boneId !== this.boneId);
+          if (!attachment.boneBindings.length) delete attachment.boneBindings;
+        }
+      }
       if (proposed.markers) proposed.markers = proposed.markers.filter((marker) => marker.boneId !== this.boneId);
     });
     applyRigSnapshot(this.engine, after);

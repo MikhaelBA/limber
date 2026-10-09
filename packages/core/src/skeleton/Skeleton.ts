@@ -1,4 +1,4 @@
-import { validateWeights, validateHull, validateMeshTopology } from '@limber/mesh';
+import { validateWeights, validateHull, validateMeshTopology, validateInvertibleAffine, decodeWeights } from '@limber/mesh';
 import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/data';
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
@@ -229,6 +229,26 @@ export class Skeleton {
         } else validateHull(attachment.meshVertices!, attachment.meshHull);
       } catch (error) { throw new Error(`Attachment "${attachment.name}" has invalid geometry: ${(error as Error).message}`); }
       validateAttachmentWeights(attachment, this.data.bones.length);
+      if (attachment.boneBindings !== undefined) {
+        if (attachment.type !== 'mesh' || !Array.isArray(attachment.boneBindings) || !attachment.boneBindings.length) throw new Error('Bone bindings require a mesh and at least one bone.');
+        const bound = new Set<string>();
+        for (const binding of attachment.boneBindings) {
+          if (!binding || !this.boneIndexMap.has(binding.boneId) || bound.has(binding.boneId)) throw new Error('Bone binding references a missing or duplicate bone.');
+          if (!Array.isArray(binding.matrix)) throw new Error('Bone binding matrix must be an array.');
+          if (binding.matrix.some((value) => !Number.isFinite(Math.fround(value)))) throw new Error('Bone binding exceeds finite pose precision.');
+          validateInvertibleAffine(binding.matrix); bound.add(binding.boneId);
+          for (let i = 0; i < attachment.meshVertices!.length; i += 2) {
+            const x = attachment.meshVertices![i]!, y = attachment.meshVertices![i + 1]!;
+            if (!Number.isFinite(Math.fround(binding.matrix[0]! * x + binding.matrix[2]! * y + binding.matrix[4]!)) ||
+                !Number.isFinite(Math.fround(binding.matrix[1]! * x + binding.matrix[3]! * y + binding.matrix[5]!))) throw new Error('Bound vertex exceeds finite pose precision.');
+          }
+        }
+        if (attachment.weights) {
+          for (const row of decodeWeights(attachment.weights, attachment.meshVertices!.length / 2, this.data.bones.length)) {
+            if (row.some((influence) => !bound.has(this.data.bones[influence.boneIndex]!.id))) throw new Error('Bind every influenced bone before assigning mesh weights.');
+          }
+        }
+      }
     }
   }
 

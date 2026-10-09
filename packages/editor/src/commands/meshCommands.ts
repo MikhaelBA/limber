@@ -576,6 +576,9 @@ export class PaintWeightsCommand implements Command {
     )
       throw new Error('Invalid weight brush input.');
     const weights = a.weights ?? this.baseline();
+    if (a.boneBindings && [boneIndex, slotBoneIndex].some((index) => !a.boneBindings!.some((binding) => binding.boneId === this.engine.skeleton.data.bones[index]!.id))) {
+      throw new Error('Bind the target and slot bones before painting this mesh.');
+    }
     const current = vertexWeightOf(weights, vertexIndex, boneIndex, slotBoneIndex);
     let next = current;
     if (mode === 'set') next = Math.max(current, Math.min(1, amount));

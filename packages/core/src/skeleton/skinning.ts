@@ -10,7 +10,8 @@ import type { Skeleton } from './Skeleton';
  * - RIGID (no `weights`, the common case): each vertex transforms by the
  *   slot's bone world matrix. This is what regions got before Phase 5 — now
  *   the renderer reads the cache instead of transforming setup vertices.
- * - WEIGHTED (linear blend skinning): world = Σ wᵢ · Mᵢ · (v + deform).
+ * - WEIGHTED: world = Σ wᵢ · Mᵢ · Bᵢ · (v + deform), where Bᵢ is the
+ *   stored attachment-local -> bone-local bind transform (identity if absent).
  *   In 2D we only need positions for rendering, so blending transformed
  *   POINTS is exact — no matrix blending artifacts.
  *
@@ -28,6 +29,21 @@ export function computeAttachmentVertices(
   if (!local) return;
   const { verts, deform } = state;
   const w = attachment.weights;
+  const bm = state.bindMatrices,
+    sm = state.skinMatrices;
+  if (attachment.boneBindings && (!bm || !sm))
+    throw new Error('Bound mesh pose must be allocated from its skeleton.');
+  if (bm && sm) {
+    for (let o = 0; o < wm.length; o += 6) {
+      sm[o] = wm[o]! * bm[o]! + wm[o + 2]! * bm[o + 1]!;
+      sm[o + 1] = wm[o + 1]! * bm[o]! + wm[o + 3]! * bm[o + 1]!;
+      sm[o + 2] = wm[o]! * bm[o + 2]! + wm[o + 2]! * bm[o + 3]!;
+      sm[o + 3] = wm[o + 1]! * bm[o + 2]! + wm[o + 3]! * bm[o + 3]!;
+      sm[o + 4] = wm[o]! * bm[o + 4]! + wm[o + 2]! * bm[o + 5]! + wm[o + 4]!;
+      sm[o + 5] = wm[o + 1]! * bm[o + 4]! + wm[o + 3]! * bm[o + 5]! + wm[o + 5]!;
+    }
+  }
+  const weightedMatrices = sm ?? wm;
 
   if (!w) {
     const o = slotBoneIndex * 6;
@@ -64,16 +80,82 @@ export function computeAttachmentVertices(
     for (let e = 0; e < count; e++) {
       const bi = (w[p++]! | 0) * 6;
       const weight = w[p++]!;
-      const a = wm[bi]!;
-      const b = wm[bi + 1]!;
-      const c = wm[bi + 2]!;
-      const d = wm[bi + 3]!;
-      wx += weight * (a * x + c * y + wm[bi + 4]!);
-      wy += weight * (b * x + d * y + wm[bi + 5]!);
+      const a = weightedMatrices[bi]!;
+      const b = weightedMatrices[bi + 1]!;
+      const c = weightedMatrices[bi + 2]!;
+      const d = weightedMatrices[bi + 3]!;
+      wx += weight * (a * x + c * y + weightedMatrices[bi + 4]!);
+      wy += weight * (b * x + d * y + weightedMatrices[bi + 5]!);
     }
     verts[k] = wx;
     verts[k + 1] = wy;
   }
+}
+
+/** Invert the selected vertex's blended affine transform for cursor/deform editing.
+ * Call after skinning has evaluated the pose. Singular blends are valid animation
+ * output but cannot be inverted for editing, so they fail explicitly.
+ */
+export function worldToAttachmentVertex(
+  attachment: AttachmentData,
+  slotBoneIndex: number,
+  wm: Float32Array,
+  state: AttachmentPoseState,
+  vertexIndex: number,
+  wx: number,
+  wy: number,
+  out: { x: number; y: number },
+): void {
+  if (
+    !Number.isInteger(vertexIndex) ||
+    vertexIndex < 0 ||
+    vertexIndex * 2 + 1 >= state.verts.length ||
+    !Number.isFinite(wx) ||
+    !Number.isFinite(wy)
+  )
+    throw new Error('Invalid mesh editing point.');
+  const weights = attachment.weights,
+    matrices = state.skinMatrices ?? wm;
+  let p = 0;
+  if (weights) for (let i = 0; i < vertexIndex; i++) p += 1 + weights[p]! * 2;
+  const count = weights?.[p++] ?? 0;
+  let a = 0,
+    b = 0,
+    c = 0,
+    d = 0,
+    tx = 0,
+    ty = 0;
+  if (!count) {
+    const o = slotBoneIndex * 6;
+    a = wm[o]!;
+    b = wm[o + 1]!;
+    c = wm[o + 2]!;
+    d = wm[o + 3]!;
+    tx = wm[o + 4]!;
+    ty = wm[o + 5]!;
+  } else
+    for (let i = 0; i < count; i++) {
+      const o = weights![p++]! * 6,
+        weight = weights![p++]!;
+      a += matrices[o]! * weight;
+      b += matrices[o + 1]! * weight;
+      c += matrices[o + 2]! * weight;
+      d += matrices[o + 3]! * weight;
+      tx += matrices[o + 4]! * weight;
+      ty += matrices[o + 5]! * weight;
+    }
+  const det = a * d - b * c,
+    scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  if (!scale || !Number.isFinite(det) || Math.abs(det) <= scale * scale * 1e-12)
+    throw new Error('Cannot edit through a singular weighted transform.');
+  const dx = wx - tx,
+    dy = wy - ty;
+  const x = (d * dx - c * dy) / det,
+    y = (a * dy - b * dx) / det;
+  if (!Number.isFinite(x) || !Number.isFinite(y))
+    throw new Error('Mesh editing position exceeds numeric precision.');
+  out.x = x;
+  out.y = y;
 }
 
 /**

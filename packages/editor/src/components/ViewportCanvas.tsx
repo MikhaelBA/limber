@@ -9,6 +9,7 @@ import {
   solveFK,
   solveIK,
   updateSkinning,
+  worldToAttachmentVertex,
 } from '@limber/core';
 import {
   AutoKeyBonePropCommand,
@@ -986,7 +987,7 @@ function wireViewport(
       if (d2 >= r2) continue;
       const t = 1 - Math.sqrt(d2) / r; // 1 at center → 0 at the rim.
       const falloff = t * t * (3 - 2 * t); // smoothstep
-      paintCmd.update(k, boneIndex, ed.boneIndex, falloff * st.brushStrength, st.brushMode);
+      try { paintCmd.update(k, boneIndex, ed.boneIndex, falloff * st.brushStrength, st.brushMode); } catch (error) { st.setStatus((error as Error).message); return; }
     }
   };
 
@@ -1045,8 +1046,10 @@ function wireViewport(
         deformDragCmd = new AutoKeyDeformCommand(engine, ed.attachment.id);
         deformDragCmd.open();
         dragVertex = v;
-        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        try { deformDragCmd.update(v, scratchPoint.x, scratchPoint.y); } catch (error) { st.setStatus((error as Error).message); }
+        try {
+          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, v, wp.x, wp.y, scratchPoint);
+          deformDragCmd.update(v, scratchPoint.x, scratchPoint.y);
+        } catch (error) { st.setStatus((error as Error).message); }
       } else {
         meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
         meshDragCmd.open();
@@ -1205,16 +1208,20 @@ function wireViewport(
       // world space next tick, so the handle follows the cursor exactly.
       const ed = editableMesh();
       if (ed) {
-        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        try { meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y); } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
+        try {
+          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, dragVertex, wp.x, wp.y, scratchPoint);
+          meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
+        } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
       }
       return;
     }
     if (deformDragCmd && dragVertex >= 0) {
       const ed = editableMesh();
       if (ed) {
-        inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
-        try { deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y); } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
+        try {
+          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, dragVertex, wp.x, wp.y, scratchPoint);
+          deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
+        } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
       }
       return;
     }

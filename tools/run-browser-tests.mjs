@@ -41,6 +41,7 @@ try {
     'scene-ui.mjs',
     'rig-authoring.mjs',
     'weight-tools.mjs',
+    'mesh-binding.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {
