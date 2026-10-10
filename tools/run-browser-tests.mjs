@@ -51,6 +51,8 @@ try {
     'logic-bindings.mjs',
     'logic-routes.mjs',
     'logic-workspace.mjs',
+    'logic-rendering.mjs',
+    'logic-performance.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

@@ -10,6 +10,7 @@ interface Props {
   onFrame: () => void;
   onError: (message: string) => void;
 }
+type LogicFrame = { timestamp: number; coreMs: number; cpuMs: number; acceptedTicks: number };
 export function LogicViewport(props: Props) {
   const host = useRef<HTMLDivElement>(null),
     current = useRef(props);
@@ -36,7 +37,10 @@ export function LogicViewport(props: Props) {
           return;
         }
         const renderer = new PixiSceneRenderer();
-        const evidence = window as unknown as { __logicCapture?: () => unknown };
+        const evidence = window as unknown as {
+          __logicCapture?: () => unknown;
+          __logicFrameMetrics?: { limit: number; frames: LogicFrame[] };
+        };
         const capture = () => ({
           snapshot: current.current.session.player?.snapshot() ?? null,
           rigs: renderer.inspectRigs(),
@@ -164,12 +168,24 @@ export function LogicViewport(props: Props) {
         const tick = (now: number) => {
           if (disposed) return;
           try {
+            const metrics = evidence.__logicFrameMetrics,
+              measure = metrics && metrics.frames.length < Math.min(600, metrics.limit),
+              started = measure ? performance.now() : 0,
+              beforeTick = measure ? (current.current.session.player?.currentTick ?? 0) : 0;
             current.current.session.advance((now - previous) / 1000);
+            const coreMs = measure ? performance.now() - started : 0;
             draw();
             if (now - debugAt > 100) {
               current.current.onFrame();
               debugAt = now;
             }
+            if (measure)
+              metrics.frames.push({
+                timestamp: now,
+                coreMs,
+                cpuMs: performance.now() - started,
+                acceptedTicks: (current.current.session.player?.currentTick ?? 0) - beforeTick,
+              });
           } catch (error) {
             current.current.session.pause();
             current.current.onError((error as Error).message);

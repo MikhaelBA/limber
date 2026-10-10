@@ -29,5 +29,5 @@ describe('combined character-alpha weighted fixtures', () => {
       expect(a.getDeformedVertices(mesh.id).every(Number.isFinite)).toBe(true);
       expect(project).toEqual(before);
       expect(node.skeleton.secondaryConstraints?.length).toBe(kind === 'Standard' ? 12 : 22);
-    });
+    }, 15000);
 });

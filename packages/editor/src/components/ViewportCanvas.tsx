@@ -231,8 +231,7 @@ function wireViewport(
   // Untextured polygon gizmos (bounding boxes, clipping) + the clip mask.
   const shapesG = new Graphics();
   world.addChild(shapesG);
-  const clipMask = new Graphics();
-  world.addChild(clipMask);
+  const clipMasks = new Map<string, Graphics>();
   const bonesG = new Graphics();
   world.addChild(bonesG);
 
@@ -478,6 +477,13 @@ function wireViewport(
     const data = engine.skeleton.data;
     attachmentById = new Map(data.attachments.map((a) => [a.id, a]));
     const liveIds = new Set(data.slots.map((s) => s.id));
+    for (const [slotId, mask] of clipMasks) {
+      if (!liveIds.has(slotId)) {
+        world.removeChild(mask);
+        mask.destroy();
+        clipMasks.delete(slotId);
+      }
+    }
     for (const [slotId, entry] of slotMeshes) {
       if (!liveIds.has(slotId)) {
         slotsContainer.removeChild(entry.mesh);
@@ -513,10 +519,10 @@ function wireViewport(
     for (let p = 0; p < pose.slotOrder.length; p++) drawPosOfSlot[pose.slotOrder[p]!] = p;
 
     shapesG.clear();
-    clipMask.clear();
-    let activeClip: { attachment: AttachmentData; verts: Float32Array } | null = null;
+    for (const mask of clipMasks.values()) mask.clear();
+    let activeClip: { attachment: AttachmentData; mask: Graphics } | null = null;
 
-    for (let i = 0; i < data.slots.length; i++) {
+    for (const i of pose.slotOrder) {
       const entry = slotMeshes.get(data.slots[i]!.id);
       if (!entry) continue;
       const slotPose = pose.slots[i]!;
@@ -530,7 +536,16 @@ function wireViewport(
 
       if (attachment && state && attachment.type === 'clipping') {
         drawPolygonOutline(attachment, state.verts, 0xb45bef, 0.85);
-        activeClip = { attachment, verts: state.verts };
+        const slotId = data.slots[i]!.id;
+        let mask = clipMasks.get(slotId);
+        if (!mask) {
+          mask = new Graphics();
+          mask.includeInBuild = false;
+          clipMasks.set(slotId, mask);
+          world.addChild(mask);
+        }
+        updateClipMask(mask, state.verts);
+        activeClip = { attachment, mask };
       } else if (attachment && state && attachment.type === 'boundingBox') {
         drawPolygonOutline(attachment, state.verts, 0xe6d55a, 0.9);
       }
@@ -582,23 +597,23 @@ function wireViewport(
       for (let k = 0; k < state.verts.length; k++) pos[k] = state.verts[k]!;
       entry.mesh.geometry.getBuffer('aPosition').update();
       const color = slotPose.color;
-      entry.mesh.tint = color & 0x00ffffff;
-      entry.mesh.alpha = (color >>> 24) / 255;
+      entry.mesh.tint = color >>> 8;
+      entry.mesh.alpha = (color & 0xff) / 255;
       entry.mesh.blendMode = data.slots[i]!.blendMode === 'add' ? 'add' : 'normal';
       entry.mesh.zIndex = drawPosOfSlot[i] ?? i;
 
       // World-space polygon mask (mask + meshes share the `world` container's
       // local space, so the skinning cache coords line up exactly).
       if (activeClip) {
-        updateClipMask(activeClip.verts);
-        entry.mesh.mask = clipMask;
+        entry.mesh.mask = activeClip.mask;
       } else {
         entry.mesh.mask = null;
       }
     }
+    for (const mask of clipMasks.values()) mask.includeInBuild = false;
   };
 
-  const updateClipMask = (verts: Float32Array): void => {
+  const updateClipMask = (clipMask: Graphics, verts: Float32Array): void => {
     const n = verts.length / 2;
     if (n < 3) return;
     clipMask.clear();
@@ -653,7 +668,7 @@ function wireViewport(
       const i = pose.slotOrder[p]!;
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
-      if (!attachment || (slotPose.color >>> 24) === 0) continue;
+      if (!attachment || (slotPose.color & 0xff) === 0) continue;
       if (attachment.type === 'mesh') {
         const state = pose.attachments.get(attachment.id);
         if (state && pointInMeshHull({

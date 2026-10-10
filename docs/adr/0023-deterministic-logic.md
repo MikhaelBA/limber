@@ -222,6 +222,17 @@ rendered mesh positions and raster text; no per-frame copy or source mutation oc
 The debug overlay shows state, tick, blend, changes, receipts and typed events. Debug
 React updates are limited to 10Hz; posing/rendering stays in the viewport frame loop.
 
+The final renderer gate compares actual Standard/Heavy mesh buffers and full matrices
+against paused Step and continuous accepted ticks, including IK, affine follow, closed
+paths, secondary motion, weights and Deform. Pixel goldens also cover multiple independent
+stencils, exclusive end slots, animated draw order and unused clip suppression. In Pixi,
+stencil graphics remain renderable but are excluded from the ordinary color pass using
+includeInBuild. Stable mask assignments survive frames. Slot colors use the native
+0xRRGGBBAA contract: RGB is the upper 24 bits and alpha the low byte. Both the Logic and
+raw Character adapters and color picker follow that contract with unsigned publication.
+Optional bounded profiling records CPU update/render-submit time and accepted ticks;
+software frame gaps remain separate from hardware GPU acceptance.
+
 ## Validation and acceptance
 
 Reject malformed arrays/enums, duplicate IDs/names/priorities, nonfinite/range-invalid

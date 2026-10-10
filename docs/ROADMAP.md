@@ -13,7 +13,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
-| 8     | Logic, typed parameters, state machine and bindings                  | Partial; editor Logic gate      |
+| 8     | Logic, typed parameters, state machine and bindings                  | Partial; final regression/CI    |
 | 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas     |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
@@ -101,6 +101,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] One-way bindings to exposed properties with source preservation.
 - [x] Portable typed pointer/focus/test routes with atomic input batches and receipt tracing.
 - [x] Logic graph editing, pointer/focus/test preview and debug overlay.
+- [x] Actual Standard/Heavy rendered-matrix/vertex parity and bounded CPU profiling.
+- [x] Pixel goldens for independent clipping, exclusive ends, draw order and RGBA/alpha.
 - [ ] Disabled-logic/raw-animation parity, native/history/browser fixtures and full Phase 8 CI gate.
 
 ## Layered character sample (10 October 2026)

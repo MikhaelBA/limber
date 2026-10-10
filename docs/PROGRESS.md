@@ -909,8 +909,44 @@ preservation. The actual saved schema-13 interactive fixture is retained. The co
 fresh twenty-eight-suite browser regression passed after the Step correction, retaining
 Scene/RTL golden tolerances. Standard/Heavy combined CPU p95 was 1.80/5.20ms, with
 10000/40004 weighted transforms and exact source preservation. Software frame-gap p95
-was 22.00/56.60ms, separate from hardware GPU claims. Remote CI is pending.
+was 22.00/56.60ms, separate from hardware GPU claims. Commit `a33f58e` passed
+CI 38018547572: Test & Build, Docker, VPS and GitHub Pages all succeeded.
 
 Phase 8 remains partial until its final Standard/Heavy Logic-renderer parity and
 performance gate plus remote CI pass. Sol 6.1 / High remains suitable; no material
 user question currently blocks that verification.
+
+## 10 October 2026 Phase 8F integrated renderer gate
+
+The Standard/Heavy Logic workflow compares actual displayed world matrices and mesh
+buffers against twelve paused Steps and continuous accepted ticks. It retains all
+IK/follow/path/spring stages, weights, Deform and clipping, verifies stable geometry/
+scene caches, disabled authored setup and exact source Save. Bounded on-demand profiling
+records CPU update/render-submit time and accepted ticks; graphics cadence is reported
+separately. The heavy fixture now cuts the mesh halfway to test actual visible pixels.
+
+Pixel tests found and fixed a Logic stencil bug that hid the whole clipped mesh:
+stencil graphics remain renderable and are excluded only from ordinary color passes.
+Stable mask assignments avoid removing/reinstalling effects every frame. Separate
+pixel goldens cover independent clip regions, exclusive end slots and unused clips.
+Review also found native RGBA misinterpretation in both display adapters and the
+Character color picker. RGB/alpha now follow 0xRRGGBBAA, and authoring preserves unsigned
+values and exact history. The raw Character path uses independent cached clip masks
+and posed draw order, fixing overwritten clip shapes and animated scope errors.
+
+Targeted Chromium passed actual pixel/color/alpha, independent masks, animated draw
+order, color-picker Undo/Redo/native history and Logic/source isolation. Screenshots
+were visually checked. The complete fresh thirty-suite browser regression passed,
+retaining Scene/RTL golden tolerances. Logic Standard/Heavy CPU p95 was 1.20/4.10ms;
+software frame-gap p95 was 16.70/33.40ms. Raw combined CPU p95 was 1.80/5.10ms,
+with 10000/40004 weighted transforms and 21.30/55.60ms software frame-gap p95.
+These measurements do not certify hardware GPU 60fps.
+
+The first concurrent local unit/browser run hit the existing five-second wall timeout
+in the Heavy combined numeric fixture. Standalone replay passed both fixtures in
+1.70s. That integration test now uses the same fifteen-second wall allowance as the
+combined Logic replay, preserving every numeric/source assertion; the separate 16.7ms
+CPU performance gate is unchanged. The final full local check passed all 528 tests
+in 75 files, lint/boundaries, formatting, TypeScript and package/editor builds.
+Remote acceptance remains pending. Phase 8 stays partial until it passes. Sol 6.1 / High remains suitable and
+no material user question blocks this task.

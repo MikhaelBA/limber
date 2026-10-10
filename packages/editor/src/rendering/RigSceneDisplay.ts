@@ -19,7 +19,7 @@ export class RigSceneDisplay {
       this.slots.set(slot.id, holder);
       this.container.addChild(holder);
       const clip = new Graphics();
-      clip.renderable = false;
+      clip.includeInBuild = false;
       this.clips.set(slot.id, clip);
       holder.addChild(clip);
       const ids = [slot.defaultAttachmentId, ...skeleton.data.skins.map((skin) => skin.attachments[slot.id])];
@@ -69,7 +69,6 @@ export class RigSceneDisplay {
     }
     for (const mesh of this.meshes.values()) {
       mesh.visible = false;
-      mesh.mask = null;
     }
     for (const clip of this.clips.values()) clip.clear();
     let activeClip: Graphics | null = null,
@@ -95,13 +94,16 @@ export class RigSceneDisplay {
         if (!mesh) continue;
         mesh.geometry.positions.set(state.verts);
         mesh.geometry.getBuffer('aPosition').update();
-        mesh.tint = slotPose.color & 0xffffff;
-        mesh.alpha = (slotPose.color >>> 24) / 255;
+        mesh.tint = slotPose.color >>> 8;
+        mesh.alpha = (slotPose.color & 0xff) / 255;
         mesh.blendMode = slot.blendMode === 'add' ? 'add' : 'normal';
         mesh.mask = activeClip;
         mesh.visible = true;
       }
     }
+    // Stencil masks must be renderable, but never enter the ordinary color pass.
+    // Removing a mask effect can restore includeInBuild, including on unused clips.
+    for (const clip of this.clips.values()) clip.includeInBuild = false;
     this.bones.clear();
     if (!data.slots.length)
       data.bones.forEach((bone, index) => {
@@ -125,7 +127,7 @@ export class RigSceneDisplay {
           positions: Array.from(mesh.geometry.positions),
           tint: mesh.tint,
           alpha: mesh.alpha,
-          masked: mesh.mask !== null,
+          masked: Boolean(mesh.mask),
         })),
       geometryCount: this.meshes.size,
     };

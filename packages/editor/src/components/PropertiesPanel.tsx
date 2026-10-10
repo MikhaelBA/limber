@@ -48,7 +48,7 @@ function fmt(n: number): string {
 
 /** Packed RGBA uint32 -> "#rrggbb" for <input type="color">. */
 function packedToHex(c: number): string {
-  return '#' + ((c >>> 16) & 0xffffff).toString(16).padStart(6, '0');
+  return '#' + (c >>> 8).toString(16).padStart(6, '0');
 }
 
 /**
@@ -258,7 +258,7 @@ export function PropertiesPanel() {
               type="color"
               value={packedToHex(shownColor)}
               onChange={(e) =>
-                commitColor((parseInt(e.target.value.slice(1), 16) << 24) | (shownColor & 0xff))
+                commitColor(((parseInt(e.target.value.slice(1), 16) << 8) | (shownColor & 0xff)) >>> 0)
               }
               className="h-6 w-10 cursor-pointer rounded bg-neutral-800"
             />
@@ -272,7 +272,7 @@ export function PropertiesPanel() {
               key={`alpha-${shownColor & 0xff}`}
               onBlur={(e) => {
                 const v = Math.min(Math.max(parseFloat(e.target.value) || 0, 0), 1);
-                commitColor((shownColor & 0xffffff00) | Math.round(v * 255));
+                commitColor(((shownColor & 0xffffff00) | Math.round(v * 255)) >>> 0);
               }}
               className="w-14 rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
             />
