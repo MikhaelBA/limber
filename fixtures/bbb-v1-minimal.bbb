@@ -1,0 +1,26 @@
+{
+  "format": "bonebybone-runtime",
+  "version": 1,
+  "id": "runtime-minimal",
+  "name": "Native runtime sample",
+  "defaultArtboardId": "board",
+  "features": ["scene", "scene-motion", "typed-events"],
+  "textures": [],
+  "components": [],
+  "artboards": [{
+    "id": "board", "name": "Main", "width": 320, "height": 240,
+    "nodes": [{
+      "id": "box", "name": "Box", "type": "shape", "parentId": null,
+      "transform": {"x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1, "shearX": 0, "shearY": 0, "pivotX": 0, "pivotY": 0},
+      "opacity": 1, "visible": true, "width": 40, "height": 40, "color": 65280, "radius": 4
+    }],
+    "clips": [{
+      "id": "slide", "name": "Slide", "duration": 0.2, "loop": true,
+      "tracks": [{"nodeId": "box", "property": "x", "keys": [
+        {"time": 0, "value": 0, "curve": {"type": "linear"}},
+        {"time": 0.2, "value": 60, "curve": {"type": "linear"}}
+      ]}],
+      "events": [{"time": 0.2, "name": "arrived", "payload": {"type": "string", "value": "رسید 🦊"}}]
+    }]
+  }]
+}

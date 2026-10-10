@@ -101,3 +101,11 @@ graph drag/cancellation, removal/recreation, raw clip preservation and native re
 Read-only renderer capture matches actual mesh positions with portable core posing and
 verifies bound raster text, hidden/revealed displays and stable caches. Its reproducible
 starting source is tools/logic-workspace-fixture.mjs; authored changes happen in the UI.
+
+`bbb-v1-minimal.bbb` is an independent native runtime wire fixture, not renamed source.
+It animates a shape and carries a typed Persian/emoji endpoint event. Runtime tests
+load its debug JSON and compact UTF-8, recompile its private sampling adapter, and
+verify that source-only identities/FPS/revisions never ship. The source corpus adds
+13 successful raster/native compilations (including Fox) with exact scene/rig matrix
+and vertex parity; the two SVG projects receive explicit conversion findings until
+the asset worker rasterizes their actual artwork. ADR 0024 records those staging limits.

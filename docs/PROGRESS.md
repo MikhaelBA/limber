@@ -957,3 +957,35 @@ Phase 8 Interactive Alpha is complete. The next phase defines the independent .b
 schema/compiler before Web runtime, atlas workers, Ship Doctor/profiler and engine
 integrations. The user's pre-release policy removes new backward-reader obligations.
 Sol 6.1 / High remains suitable and no material user question blocks the next increment.
+
+## 10 October 2026 Phase 9A native runtime schema/compiler
+
+ADR 0024 separates the shipping `bonebybone-runtime` v1 schema from editable source.
+The portable pure compiler whitelists nested fields, removes editor selection, scene
+selection identities/FPS, graph positions and component revisions, preserves playback/
+UI/Logic semantics and ships referenced raster assets in independent image records.
+Linked meshes retain one geometry owner. Runtime entry selection is explicit or follows
+authored artboard order. Public names/IDs remain stable; output is deterministic.
+
+Debug JSON and compact UTF-8 `.bbb` use the same header/schema. Strict ingestion rejects
+unknown fields/versions/types, malformed UTF-8/JSON/scalars, false feature manifests,
+missing pixels, broken references, invalid draw order/RGBA and weight index ordering.
+Canonical base64 and MIME signatures are checked without recursive regex exhaustion;
+full image decoding still belongs to the asset worker/renderer. Failures have coded,
+object-linked explanations and remedies before any program is returned. The private
+sampling adapter creates collision-free ephemeral metadata without serializing it.
+
+Thirty new tests verify the independent stored `.bbb` fixture, compact/debug loading,
+determinism, metadata removal, mutable isolation, exact source preservation, scene/rig
+matrix and vertex parity, 240-tick Logic/binding/route/event parity, asset requirements
+and malformed-input rejection. Thirteen raster/native corpus projects compile, including
+the layered Fox sample. Two SVG source fixtures correctly receive conversion diagnostics
+until real worker rasterization exists; no replacement artwork was used as evidence.
+Text reports explicit external-font warnings until the asset stage packages those fonts.
+
+All 558 tests in 76 files passed locally with lint/architecture boundaries, formatting,
+TypeScript and package/editor builds. Phase 9 remains in progress: the native artboard
+player, shared Web renderer, atlas/image/font workers, Ship Doctor/profiler and actual
+export/load/play acceptance gate are outstanding. Remote CI is pending for this increment.
+The next portable playback task is suitable for Sol 6.1 / High; no model change or material
+user decision is required.

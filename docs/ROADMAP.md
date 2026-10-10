@@ -14,7 +14,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
 | 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas     |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: native v1 compiler |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
 | 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
@@ -104,6 +104,22 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Actual Standard/Heavy rendered-matrix/vertex parity and bounded CPU profiling.
 - [x] Pixel goldens for independent clipping, exclusive ends, draw order and RGBA/alpha.
 - [x] Disabled-logic/raw-animation parity, native/history/browser fixtures and full Phase 8 CI gate.
+
+## Current Runtime Alpha checklist
+
+- [x] Independent runtime v1 schema/compiler and strict ingestion contract (ADR 0024).
+- [x] Debug JSON and compact UTF-8 `.bbb`, detached source and actionable diagnostics.
+- [x] Corpus source/pose/vertex parity and explicit unsupported asset findings.
+- [ ] Native artboard/character playback API with raw mixing/queue and Logic lifecycle parity.
+- [ ] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
+- [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
+- [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
+- [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
+- [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
+
+Phase 9A accepts embedded raster images; two SVG source fixtures await actual worker
+rasterization. Font packaging and complete image decoding remain explicit asset-stage
+requirements. The existing legacy player is not the native artboard player gate.
 
 ## Layered character sample (10 October 2026)
 
