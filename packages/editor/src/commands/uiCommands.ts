@@ -57,6 +57,14 @@ export class EditUICommand implements Command {
             queue.push(node.id);
           }
         if (
+          board.logic &&
+          (board.nodes.some(
+            (node) => included.has(node.id) && node.type === 'text' && node.binding !== undefined,
+          ) ||
+            board.logic.bindings?.some((binding) => included.has(binding.instanceId)))
+        )
+          throw new Error('Remove or migrate Logic bindings before extracting this component.');
+        if (
           board.clips?.some((clip) =>
             clip.tracks.some((track) => included.has(track.nodeId) && track.nodeId !== root.id),
           )
@@ -155,6 +163,21 @@ export class EditUICommand implements Command {
                 );
             }
           }
+          for (const board of artboards)
+            for (const binding of board.logic?.bindings ?? []) {
+              const instance = board.nodes.find((node) => node.id === binding.instanceId);
+              if (instance?.type !== 'instance' || instance.componentId !== before.id) continue;
+              const oldTarget = before.exposed.find((e) => e.name === binding.exposureName);
+              const nextTarget = intent.component.exposed.find((e) => e.name === binding.exposureName);
+              if (
+                !nextTarget ||
+                oldTarget?.nodeId !== nextTarget.nodeId ||
+                oldTarget?.property !== nextTarget.property
+              )
+                throw new Error(
+                  'Explicit binding migration is required before changing an exposed target in use.',
+                );
+            }
         }
         const component = { ...intent.component, revision: (before?.revision ?? 0) + 1 };
         components = before

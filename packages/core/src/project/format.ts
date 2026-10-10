@@ -10,6 +10,7 @@ import type { SceneClip } from './motion';
 import { validateEventPayload, validateEventName } from '../animation/eventPayload';
 import { LogicEventSampler } from '../logic/eventSampling';
 import type { LogicGraph } from '../logic/model';
+import { LogicSceneBindings } from '../logic/LogicSceneBindings';
 
 export class ProjectFormatError extends Error {
   constructor(
@@ -203,6 +204,8 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           if (names.size !== animations.length)
             fail('DUPLICATE_CLIP_NAME', 'Logic rigs require unique animation names.', node.id);
           validateLogicGraph(node.logic, new Map(animations.map((a) => [a.name, { duration: a.duration }])));
+          if ((node.logic as LogicGraph).bindings?.length)
+            fail('RIG_SCENE_BINDING', 'Scene exposure bindings belong to the artboard Logic graph.', node.id);
           for (const state of (node.logic as LogicGraph).states)
             if (state.clip !== null) {
               const clip = animations.find((a) => a.name === state.clip)!;
@@ -261,6 +264,9 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
   }
   if (!activeFound) fail('BROKEN_REFERENCE', 'Active artboard does not exist.');
   validateUIProject(project as unknown as BoneByBoneProject);
+  const typed = project as unknown as BoneByBoneProject;
+  for (const board of typed.artboards)
+    if (board.logic) new LogicSceneBindings(board.logic, board, typed.components);
 }
 
 export function serializeProject(project: BoneByBoneProject): string {
@@ -289,7 +295,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
     project.schemaVersion === 7 ||
     project.schemaVersion === 8 ||
     project.schemaVersion === 9 ||
-    project.schemaVersion === 10
+    project.schemaVersion === 10 ||
+    project.schemaVersion === 11
   )
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);

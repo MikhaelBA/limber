@@ -1,4 +1,4 @@
-import type { LogicGraph, LogicClipCatalog, LogicParameter, LogicValue } from './model';
+import type { LogicGraph, LogicClipCatalog, LogicParameter, LogicValue, LogicBinding } from './model';
 export class LogicValidationError extends Error {
   constructor(
     readonly code: string,
@@ -55,6 +55,29 @@ export function validateLogicValue(
 }
 export function canonicalLogicValue(type: LogicParameter['type'], value: LogicValue): LogicValue {
   return type === 'float' ? Math.fround(value as number) : value;
+}
+export const LOGIC_BINDING_TYPES = {
+  text: 'string',
+  visible: 'bool',
+  opacity: 'float',
+  tint: 'int',
+} as const;
+/** Property domains validate before parameter publication, including authored initial values. */
+export function validateLogicBindingValue(
+  property: LogicBinding['property'],
+  value: unknown,
+  id: string,
+): void {
+  validateLogicValue(LOGIC_BINDING_TYPES[property], value, `Binding ${id}`);
+  if (
+    (property === 'opacity' && ((value as number) < 0 || (value as number) > 1)) ||
+    (property === 'tint' && ((value as number) < 0 || (value as number) > 0xffffff))
+  )
+    fail(
+      'INVALID_BINDING_VALUE',
+      `Binding ${id} requires ${property} in ${property === 'opacity' ? '[0,1]' : '[0,0xffffff]'}.`,
+      id,
+    );
 }
 
 /** Pure bounded structural validation; never sorts or mutates source. */
@@ -159,6 +182,28 @@ export function validateLogicGraph(value: unknown, catalog: LogicClipCatalog): a
       const sources = t.from === null ? [...states.keys()].filter((s) => s !== t.to) : [t.from as string];
       for (const source of sources) immediate.get(source)!.push(t.to);
     }
+  }
+  const writers = new Set<string>();
+  for (const item of list(graph.bindings === undefined ? [] : graph.bindings, 256, 'Bindings')) {
+    const b = record(item, 'Binding'),
+      id = take(b.id, 'Binding ID');
+    for (const key of Object.keys(b))
+      if (!['id', 'parameterId', 'instanceId', 'exposureName', 'property'].includes(key))
+        fail('INVALID_BINDING', `Unknown binding field ${key}.`, id);
+    text(b.parameterId, 'Binding parameter');
+    text(b.instanceId, 'Binding instance');
+    text(b.exposureName, 'Binding exposure');
+    if (typeof b.property !== 'string' || !Object.hasOwn(LOGIC_BINDING_TYPES, b.property))
+      fail('INVALID_BINDING_PROPERTY', 'Bind text, visible, opacity or tint.', id);
+    const p = parameters.get(b.parameterId);
+    if (!p) fail('MISSING_PARAMETER', 'Binding parameter does not exist.', id);
+    const property = b.property as LogicBinding['property'];
+    if (p.type !== LOGIC_BINDING_TYPES[property])
+      fail('INVALID_BINDING_TYPE', `${property} binding requires ${LOGIC_BINDING_TYPES[property]}.`, id);
+    validateLogicBindingValue(property, p.initial, id);
+    const target = JSON.stringify([b.instanceId, b.exposureName]);
+    if (writers.has(target)) fail('DUPLICATE_BINDING', 'Only one parameter may write an exposure.', id);
+    writers.add(target);
   }
   // Reject only unconditional immediate cycles. Guarded locomotion cycles are valid.
   const indegree = new Map([...states.keys()].map((id) => [id, 0]));

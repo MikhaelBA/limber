@@ -810,9 +810,42 @@ editor builds passed. The complete fresh twenty-five-suite browser regression pa
 after correcting a real event-button keyboard propagation regression found by smoke.
 Scene/RTL golden tolerances were unchanged. Standard/Heavy combined CPU p95 was
 1.90/5.50ms, with 10000/40004 weighted transforms; software frame-gap p95 was
-21.50/56.90ms, separate from hardware GPU claims. Remote CI follows commit/push.
+21.50/56.90ms, separate from hardware GPU claims. Commit `773caf8` passed CI
+38014120401: Test & Build, Docker, VPS and GitHub Pages all succeeded.
 
 Phase 8 remains partial: one-way exposed-property/direct-text bindings, graph editing,
 pointer/focus/test inputs, debug preview and the final integrated gate remain. The
 portable graph adapters are not yet connected to editor Logic preview. The next
 binding increment is suitable for Sol 6.1 / High; no user decision currently blocks it.
+
+## 10 October 2026 Phase 8D one-way scene bindings
+
+Schema 12 stores optional explicit graph bindings to instance exposures: text/string,
+visible/bool, opacity/float and tint/int. SceneLogicPlayer bakes/clones definitions and
+applies bindings after animation, before expansion/layout. Direct artboard text names
+resolve same-graph string parameters. Projection never writes source, definitions,
+stored overrides or history. Opacity [0,1] and tint [0,0xffffff] validate before enqueue;
+unknown targets/types, duplicate writers, extra fields and incompatible initial values
+reject even for disabled graphs. Disable restores authored setup while retaining state
+and pending input. Rig graphs cannot own scene exposure bindings; artboard graphs can
+bind exposed properties of rig component instances.
+
+Commands add/edit/remove bindings. Parameter rename/delete migrates or removes direct
+text references and dependent bindings; scene duplicate/delete preserves binding
+references with stable new IDs. Destructive exposure retargeting and extraction of
+bound content require explicit migration. Metadata publication preflights all text
+targets before any write. Failed edits preserve redo and existing payload identities.
+Eleven new unit tests cover all projection types, domain boundaries, source isolation,
+disabled/pending/reset behavior, definitions, reference failures and exact history.
+All 513 unit tests in 72 files, lint/boundaries, formatting, TypeScript and package/editor
+builds passed. Targeted Chromium tests passed native Save/Open, RTL bound views across
+10/60/120/144/240/1000Hz and failed-import isolation. The actual editor-saved schema-12
+fixture is retained and its authored RTL screenshot was visually checked. The complete
+fresh twenty-six-suite browser regression passed, keeping Scene/RTL golden tolerances
+unchanged. Standard/Heavy combined CPU p95 was 1.80/5.20ms with 10000/40004 weighted
+transforms and exact source preservation. Software frame-gap p95 was 21.70/57.10ms,
+separate from hardware GPU claims. Remote CI follows commit/push.
+
+Phase 8 remains partial. Next: portable pointer/focus/test routing, graph authoring UI,
+scene/character preview/debug integration and the final interactive gate. Sol 6.1 / High
+remains appropriate; no user decision currently blocks progress.

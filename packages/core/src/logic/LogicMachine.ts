@@ -9,7 +9,13 @@ import type {
   LogicValue,
   RecordedLogicInput,
 } from './model';
-import { canonicalLogicValue, validateLogicGraph, validateLogicValue } from './validate';
+import {
+  canonicalLogicValue,
+  validateLogicGraph,
+  validateLogicValue,
+  validateLogicBindingValue,
+} from './validate';
+import type { LogicBinding } from './model';
 export const LOGIC_STEP_SECONDS = SECONDARY_STEP_SECONDS;
 export interface LogicBlend {
   id: string;
@@ -53,6 +59,7 @@ export class LogicMachine {
   private readonly states: Map<string, LogicState>;
   private readonly durations: Map<string, number>;
   private readonly ordered: LogicTransition[];
+  private readonly boundParameters = new Map<string, LogicBinding[]>();
   private readonly values = new Map<string, LogicValue>();
   private readonly pending: LogicInput[] = [];
   private readonly changes: LogicChange[] = [];
@@ -73,6 +80,11 @@ export class LogicMachine {
       this.graph.states.map((s) => [s.id, s.clip === null ? 0 : catalog.get(s.clip)!.duration]),
     );
     this.ordered = [...this.graph.transitions].sort((a, b) => a.priority - b.priority);
+    for (const binding of this.graph.bindings ?? []) {
+      const bindings = this.boundParameters.get(binding.parameterId) ?? [];
+      bindings.push(binding);
+      this.boundParameters.set(binding.parameterId, bindings);
+    }
     this.state = this.states.get(this.graph.entryStateId)!;
     this.enabledValue = this.graph.enabled;
     this.reset();
@@ -135,6 +147,8 @@ export class LogicMachine {
     if (input.type !== p.type)
       throw new Error(`Logic parameter "${p.name}" requires ${p.type}, not ${input.type}.`);
     validateLogicValue(p.type, input.value, `Parameter ${p.name}`);
+    for (const binding of this.boundParameters.get(p.id) ?? [])
+      validateLogicBindingValue(binding.property, input.value, binding.id);
     if (this.pending.length >= 1024) throw new Error('At most 1024 Logic inputs may wait for a step.');
     this.pending.push({ ...input, value: canonicalLogicValue(p.type, input.value) } as LogicInput);
   }

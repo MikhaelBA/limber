@@ -48,6 +48,7 @@ try {
     'logic-source.mjs',
     'logic-playback.mjs',
     'typed-events.mjs',
+    'logic-bindings.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

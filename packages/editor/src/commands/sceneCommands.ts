@@ -9,6 +9,7 @@ import {
   type Artboard,
   type SceneTransform,
   type SceneClip,
+  type LogicGraph,
 } from '@limber/core';
 import type { Command } from '../history/history';
 
@@ -28,6 +29,7 @@ export type SceneEdit =
       nodeIds: string[];
       idMap: Record<string, string>;
       motionIdMap?: Record<string, string>;
+      bindingIdMap?: Record<string, string>;
     }
   | { kind: 'reorder'; nodeId: string; beforeId: string | null };
 
@@ -154,6 +156,8 @@ export class EditSceneCommand implements Command {
   private after: SceneNode[] | null = null;
   private beforeClips: SceneClip[] | undefined;
   private afterClips: SceneClip[] | undefined;
+  private beforeLogic: LogicGraph | undefined;
+  private afterLogic: LogicGraph | undefined;
   private beforeRig: string | null = null;
   private afterRig: string | null = null;
 
@@ -170,6 +174,13 @@ export class EditSceneCommand implements Command {
           if (this.edit.idMap[track.nodeId]) ids.push(track.id, ...track.keys.map((key) => key.id));
       this.edit.motionIdMap = Object.fromEntries(ids.map((id) => [id, uuid()]));
     }
+    if (this.edit.kind === 'duplicate' && !this.edit.bindingIdMap) {
+      this.edit.bindingIdMap = Object.fromEntries(
+        (this.artboard().logic?.bindings ?? [])
+          .filter((binding) => this.edit.kind === 'duplicate' && this.edit.idMap[binding.instanceId])
+          .map((binding) => [binding.id, uuid()]),
+      );
+    }
     this.label = `${edit.kind[0]!.toUpperCase()}${edit.kind.slice(1)} scene nodes`;
   }
 
@@ -185,12 +196,19 @@ export class EditSceneCommand implements Command {
       const after = editedNodes(artboard.nodes, this.edit, artboard);
       this.beforeClips = artboard.clips;
       this.afterClips = artboard.clips;
+      this.beforeLogic = artboard.logic;
+      this.afterLogic = artboard.logic;
       if (this.edit.kind === 'remove') {
         const remaining = new Set(after.map((node) => node.id));
         this.afterClips = artboard.clips?.map((clip) => ({
           ...clip,
           tracks: clip.tracks.filter((track) => remaining.has(track.nodeId)),
         }));
+        if (artboard.logic?.bindings)
+          this.afterLogic = {
+            ...artboard.logic,
+            bindings: artboard.logic.bindings.filter((binding) => remaining.has(binding.instanceId)),
+          };
       } else if (this.edit.kind === 'duplicate') {
         const intent = this.edit;
         this.afterClips = artboard.clips?.map((clip) => ({
@@ -210,6 +228,16 @@ export class EditSceneCommand implements Command {
               })),
           ],
         }));
+        if (artboard.logic?.bindings) {
+          const copies = artboard.logic.bindings
+            .filter((binding) => intent.idMap[binding.instanceId])
+            .map((binding) => {
+              const id = intent.bindingIdMap![binding.id];
+              if (!id) throw new Error(`Duplicate binding mapping is missing ${binding.id}.`);
+              return { ...binding, id, instanceId: intent.idMap[binding.instanceId]! };
+            });
+          this.afterLogic = { ...artboard.logic, bindings: [...artboard.logic.bindings, ...copies] };
+        }
       }
       const active = this.project.editor.activeArtboardId === artboard.id;
       this.beforeRig = this.project.editor.activeRigId;
@@ -221,7 +249,7 @@ export class EditSceneCommand implements Command {
       validateProject({
         ...this.project,
         artboards: this.project.artboards.map((a) =>
-          a.id === artboard.id ? { ...a, nodes: after, clips: this.afterClips } : a,
+          a.id === artboard.id ? { ...a, nodes: after, clips: this.afterClips, logic: this.afterLogic } : a,
         ),
         editor: { ...this.project.editor, activeRigId: this.afterRig },
       });
@@ -231,6 +259,8 @@ export class EditSceneCommand implements Command {
     artboard.nodes = this.after;
     if (this.afterClips === undefined) delete artboard.clips;
     else artboard.clips = this.afterClips;
+    if (this.afterLogic === undefined) delete artboard.logic;
+    else artboard.logic = this.afterLogic;
     if (this.project.editor.activeArtboardId === artboard.id) this.project.editor.activeRigId = this.afterRig;
   }
 
@@ -240,6 +270,8 @@ export class EditSceneCommand implements Command {
     artboard.nodes = this.before;
     if (this.beforeClips === undefined) delete artboard.clips;
     else artboard.clips = this.beforeClips;
+    if (this.beforeLogic === undefined) delete artboard.logic;
+    else artboard.logic = this.beforeLogic;
     if (this.project.editor.activeArtboardId === artboard.id)
       this.project.editor.activeRigId = this.beforeRig;
   }

@@ -24,6 +24,8 @@ export class RigLogicPlayer extends LogicPlayback {
   private readonly outgoing: RigLogicPoseBuffer;
   constructor(source: RigNode, target?: Skeleton) {
     if (!source.logic) throw new Error('Rig Logic playback needs a rig graph.');
+    if (source.logic.bindings?.length)
+      throw new Error('Scene exposure bindings belong to the artboard Logic graph.');
     const clips = structuredClone(source.animations),
       skeleton = target ?? new Skeleton(structuredClone(source.skeleton));
     if (target && source.skeleton !== target.data)

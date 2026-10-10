@@ -76,3 +76,11 @@ character AttackHit int payload, scene UIConfirm bool payload and a custom Persi
 emoji string cue. Browser coverage exercises both event composers/templates,
 invalid drafts/import isolation, exact history and compatibility-export rejection.
 Core playback verifies all three entry payloads while preserving authored source.
+
+`bbbproj-v12-bindings.json` is the actual editor Save/Open result for exposed
+text/visibility/opacity/tint plus direct artboard RTL text. Stored overrides and text
+remain authored; portable SceneLogicPlayer projects parameters into a transient view.
+Core/history tests cover disabled graphs, domains, references and exact transactions.
+Chromium verifies six frame groupings, native round trips and failed import isolation.
+Graph authoring and interaction preview UI follow separately. The reproducible source
+is `logicBindingsFixture` in tools/logic-bindings-fixture.mjs.

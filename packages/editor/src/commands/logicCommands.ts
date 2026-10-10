@@ -5,6 +5,8 @@ import {
   type LogicParameter,
   type LogicState,
   type LogicTransition,
+  type LogicBinding,
+  type TextNode,
 } from '@limber/core';
 import type { Command } from '../history/history';
 export interface LogicOwner {
@@ -23,7 +25,10 @@ export type LogicEdit =
   | { kind: 'removeState'; id: string }
   | { kind: 'addTransition'; transition: LogicTransition }
   | { kind: 'transition'; id: string; patch: Partial<Omit<LogicTransition, 'id'>> }
-  | { kind: 'removeTransition'; id: string };
+  | { kind: 'removeTransition'; id: string }
+  | { kind: 'addBinding'; binding: LogicBinding }
+  | { kind: 'binding'; id: string; patch: Partial<Omit<LogicBinding, 'id'>> }
+  | { kind: 'removeBinding'; id: string };
 function requireIndex(values: readonly { id: string }[], id: string, label: string): number {
   const index = values.findIndex((v) => v.id === id);
   if (index < 0) throw new Error(`${label} no longer exists.`);
@@ -34,7 +39,7 @@ function patchAllowed(target: object, patch: object, keys: readonly string[]): v
     if (!keys.includes(key)) throw new Error(`Unsupported Logic edit field ${key}.`);
   Object.assign(target, patch);
 }
-/** Graph-only copy-on-write transaction; existing rig/clip payload identities survive. */
+/** Graph copy-on-write plus slim direct-text metadata history; rig/clip payload identities survive. */
 export class EditLogicCommand implements Command {
   readonly scope = 'project' as const;
   readonly label = 'Edit Logic graph';
@@ -43,6 +48,7 @@ export class EditLogicCommand implements Command {
   private prepared = false;
   private readonly owner: LogicOwner;
   private readonly intent: LogicEdit;
+  private textEdits: { id: string; before: string | undefined; after: string | undefined }[] = [];
   constructor(
     private project: BoneByBoneProject,
     owner: LogicOwner,
@@ -63,6 +69,14 @@ export class EditLogicCommand implements Command {
     const container = this.container();
     if (!this.prepared) {
       const edit = this.intent;
+      const textEdits: typeof this.textEdits = [];
+      const updateTextNames = (name: string, next: string | undefined) => {
+        if (this.owner.rigId !== null) return;
+        const board = this.project.artboards.find((a) => a.id === this.owner.artboardId)!;
+        for (const node of board.nodes)
+          if (node.type === 'text' && node.binding === name)
+            textEdits.push({ id: node.id, before: name, after: next });
+      };
       let after: LogicGraph | undefined;
       if (edit.kind === 'create') {
         if (container.logic) throw new Error('This owner already has a Logic graph.');
@@ -83,16 +97,20 @@ export class EditLogicCommand implements Command {
           case 'parameter': {
             const index = requireIndex(after.parameters, edit.id, 'Parameter');
             if (edit.parameter.id !== edit.id) throw new Error('Parameter identity cannot change.');
+            const old = after.parameters[index]!;
+            if (old.name !== edit.parameter.name) updateTextNames(old.name, edit.parameter.name);
             after.parameters[index] = edit.parameter;
             break;
           }
           case 'removeParameter': {
-            requireIndex(after.parameters, edit.id, 'Parameter');
+            const parameter = after.parameters[requireIndex(after.parameters, edit.id, 'Parameter')]!;
+            updateTextNames(parameter.name, undefined);
             after.parameters = after.parameters.filter((p) => p.id !== edit.id);
             // Remove dependent edges instead of silently weakening their guards.
             after.transitions = after.transitions.filter(
               (t) => !t.conditions.some((c) => c.parameterId === edit.id),
             );
+            if (after.bindings) after.bindings = after.bindings.filter((b) => b.parameterId !== edit.id);
             break;
           }
           case 'addState':
@@ -128,27 +146,76 @@ export class EditLogicCommand implements Command {
             requireIndex(after.transitions, edit.id, 'Transition');
             after.transitions = after.transitions.filter((t) => t.id !== edit.id);
             break;
+          case 'addBinding':
+            (after.bindings ??= []).push(edit.binding);
+            break;
+          case 'binding': {
+            const bindings = after.bindings ?? [];
+            patchAllowed(bindings[requireIndex(bindings, edit.id, 'Binding')]!, edit.patch, [
+              'parameterId',
+              'instanceId',
+              'exposureName',
+              'property',
+            ]);
+            break;
+          }
+          case 'removeBinding':
+            requireIndex(after.bindings ?? [], edit.id, 'Binding');
+            after.bindings = after.bindings!.filter((b) => b.id !== edit.id);
+            break;
         }
       }
       const artboards = this.project.artboards.map((a) =>
         a.id !== this.owner.artboardId
           ? a
           : this.owner.rigId === null
-            ? { ...a, logic: after }
+            ? {
+                ...a,
+                logic: after,
+                nodes: a.nodes.map((node) => {
+                  const edit = textEdits.find((change) => change.id === node.id);
+                  if (!edit || node.type !== 'text') return node;
+                  const copy = { ...node };
+                  if (edit.after === undefined) delete copy.binding;
+                  else copy.binding = edit.after;
+                  return copy;
+                }),
+              }
             : { ...a, nodes: a.nodes.map((n) => (n.id === this.owner.rigId ? { ...n, logic: after } : n)) },
       );
       validateProject({ ...this.project, artboards });
       this.before = container.logic;
       this.after = after;
+      this.textEdits = textEdits;
       this.prepared = true;
     }
+    const targets = this.textTargets();
     if (this.after === undefined) delete container.logic;
     else container.logic = this.after;
+    this.publishText(targets, 'after');
   }
   undo(): void {
     if (!this.prepared) return;
     const container = this.container();
+    const targets = this.textTargets();
     if (this.before === undefined) delete container.logic;
     else container.logic = this.before;
+    this.publishText(targets, 'before');
+  }
+  private textTargets(): TextNode[] {
+    const board = this.project.artboards.find((a) => a.id === this.owner.artboardId)!;
+    return this.textEdits.map((edit) => {
+      const node = board.nodes.find((n): n is TextNode => n.id === edit.id && n.type === 'text');
+      if (!node) throw new Error('Bound text node no longer exists.');
+      return node;
+    });
+  }
+  private publishText(targets: TextNode[], direction: 'before' | 'after'): void {
+    for (let index = 0; index < this.textEdits.length; index++) {
+      const edit = this.textEdits[index]!;
+      const node = targets[index]!;
+      if (edit[direction] === undefined) delete node.binding;
+      else node.binding = edit[direction];
+    }
   }
 }

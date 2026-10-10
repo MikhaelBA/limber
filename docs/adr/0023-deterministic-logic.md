@@ -4,8 +4,8 @@ Status: portable parameter/state/transition kernel implemented in Phase 8A after
 the Phase 7 gate. Phase 8B adds native schema 10 graph ownership, validation and
 atomic authoring commands. Phase 8C1 implements portable scene/rig pose adapters and
 chronological fixed-step event delivery. Phase 8C2 adds explicit typed event payloads,
-source validation and scene/rig event authoring. Bindings, interaction and graph UI
-below remain required later increments.
+source validation and scene/rig event authoring. Phase 8D adds one-way scene bindings
+and reference-safe authoring history. Interaction and graph UI remain later increments.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -156,6 +156,16 @@ string parameter names. With a graph present, unknown/wrong-type names are valid
 errors; without a graph they remain dormant authoring metadata. Component definition
 text-binding annotations are dormant unless exposed/bound by an artboard instance.
 There is no implicit lookup into globals or evaluation of the name as an expression.
+
+Phase 8D implements bindings on artboard graphs: a rig owns skeleton data, not scene
+instances, so its graph cannot author scene exposure bindings. An artboard graph can
+bind properties exposed on a rig component instance. Source schema 12 stores explicit
+binding IDs, parameter IDs, instance IDs, exposure names and properties. Disabling the
+graph returns stored overrides and text, retaining pending input. Parameter rename
+updates direct-text names; deletion clears those names and dependent explicit bindings.
+Scene deletion removes dependent bindings; duplication creates stable independent IDs.
+Destructive exposure retargeting and extraction of bound content require explicit
+migration rather than silently losing behavior. Graph removal leaves text names dormant.
 
 Preview routes map a scene node or character viewport to pointer down/up/enter/leave,
 click, focus/blur or a test control. Routes author a typed value or fire a trigger;

@@ -1,0 +1,209 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 12,
+  "projectId": "binding-demo",
+  "name": "Logic bindings",
+  "assetManifest": {},
+  "editor": {
+    "activeArtboardId": "board",
+    "activeRigId": null
+  },
+  "components": [
+    {
+      "id": "button",
+      "name": "Button",
+      "revision": 1,
+      "width": 280,
+      "height": 80,
+      "nodes": [
+        {
+          "id": "label",
+          "name": "label",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "type": "text",
+          "width": 280,
+          "height": 80,
+          "text": "متن ذخیره‌شده",
+          "fontFamilies": [
+            "sans-serif"
+          ],
+          "fontSize": 24,
+          "lineHeight": 30,
+          "direction": "rtl",
+          "align": "start",
+          "color": 16777215
+        }
+      ],
+      "exposed": [
+        {
+          "name": "text",
+          "nodeId": "label",
+          "property": "text"
+        },
+        {
+          "name": "visible",
+          "nodeId": "label",
+          "property": "visible"
+        },
+        {
+          "name": "opacity",
+          "nodeId": "label",
+          "property": "opacity"
+        },
+        {
+          "name": "tint",
+          "nodeId": "label",
+          "property": "tint"
+        }
+      ]
+    }
+  ],
+  "artboards": [
+    {
+      "id": "board",
+      "name": "Bindings",
+      "width": 640,
+      "height": 480,
+      "nodes": [
+        {
+          "id": "instance",
+          "name": "instance",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "type": "instance",
+          "componentId": "button",
+          "width": 280,
+          "height": 80,
+          "overrides": {}
+        },
+        {
+          "id": "direct",
+          "name": "direct",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 100,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "type": "text",
+          "width": 280,
+          "height": 80,
+          "text": "متن ذخیره‌شده",
+          "fontFamilies": [
+            "sans-serif"
+          ],
+          "fontSize": 24,
+          "lineHeight": 30,
+          "direction": "rtl",
+          "align": "start",
+          "color": 16777215,
+          "binding": "label"
+        }
+      ],
+      "logic": {
+        "id": "graph",
+        "name": "UI behavior",
+        "enabled": true,
+        "entryStateId": "entry",
+        "states": [
+          {
+            "id": "entry",
+            "name": "Setup",
+            "clip": null,
+            "loop": false
+          }
+        ],
+        "transitions": [],
+        "parameters": [
+          {
+            "id": "label",
+            "name": "label",
+            "type": "string",
+            "initial": "سلام 🌿"
+          },
+          {
+            "id": "shown",
+            "name": "shown",
+            "type": "bool",
+            "initial": true
+          },
+          {
+            "id": "alpha",
+            "name": "alpha",
+            "type": "float",
+            "initial": 0.5
+          },
+          {
+            "id": "color",
+            "name": "color",
+            "type": "int",
+            "initial": 1193046
+          }
+        ],
+        "bindings": [
+          {
+            "id": "binding-0",
+            "parameterId": "label",
+            "instanceId": "instance",
+            "exposureName": "text",
+            "property": "text"
+          },
+          {
+            "id": "binding-1",
+            "parameterId": "shown",
+            "instanceId": "instance",
+            "exposureName": "visible",
+            "property": "visible"
+          },
+          {
+            "id": "binding-2",
+            "parameterId": "alpha",
+            "instanceId": "instance",
+            "exposureName": "opacity",
+            "property": "opacity"
+          },
+          {
+            "id": "binding-3",
+            "parameterId": "color",
+            "instanceId": "instance",
+            "exposureName": "tint",
+            "property": "tint"
+          }
+        ]
+      }
+    }
+  ]
+}

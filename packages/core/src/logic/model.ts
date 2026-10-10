@@ -41,6 +41,15 @@ export interface LogicGraph {
   parameters: LogicParameter[];
   states: LogicState[];
   transitions: LogicTransition[];
+  bindings?: LogicBinding[];
+}
+/** Explicit component exposure in the graph owner's artboard. */
+export interface LogicBinding {
+  id: string;
+  parameterId: string;
+  instanceId: string;
+  exposureName: string;
+  property: 'text' | 'visible' | 'opacity' | 'tint';
 }
 export type LogicClipCatalog = ReadonlyMap<string, { readonly duration: number }>;
 export type LogicInput =

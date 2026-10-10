@@ -4,18 +4,22 @@ import { resolveLogicScenePose, blendLogicScenePoses } from './poseBlend';
 import { LogicPlayback } from './LogicPlayback';
 import type { LogicSnapshot } from './LogicMachine';
 import { LogicEventSampler, type LogicFiredEvent } from './eventSampling';
+import { LogicSceneBindings } from './LogicSceneBindings';
+import type { UIComponent } from '../project/ui';
 export class SceneLogicPlayer extends LogicPlayback {
   private readonly board: Artboard;
   private readonly clips: Map<string, SceneClip>;
   private readonly samplers = new Map<string, LogicEventSampler>();
   private pose: SceneMotionPose;
   private outgoing: SceneMotionPose;
-  constructor(source: Artboard) {
+  private readonly bindings: LogicSceneBindings;
+  constructor(source: Artboard, components: readonly UIComponent[] = []) {
     if (!source.logic) throw new Error('Scene Logic playback needs an artboard graph.');
     const board = structuredClone(source),
       clips = new Map((board.clips ?? []).map((c) => [c.id, c]));
     super(board.logic!, new Map([...clips].map(([id, c]) => [id, { duration: c.duration }])));
     this.board = board;
+    this.bindings = new LogicSceneBindings(board.logic!, board, structuredClone(components));
     this.clips = clips;
     this.pose = resolveLogicScenePose(board, null, 0);
     this.outgoing = structuredClone(this.pose);
@@ -57,7 +61,8 @@ export class SceneLogicPlayer extends LogicPlayback {
   protected finishFrame(): void {}
   /** Read-only transient view; source assets and stored overrides are not changed. */
   getView(): Artboard {
-    return applySceneMotion(this.board, this.pose);
+    const view = applySceneMotion(this.board, this.pose);
+    return this.machine.enabled ? this.bindings.apply(view, this.machine.snapshot().parameters) : view;
   }
   getPose(): SceneMotionPose {
     return this.pose;

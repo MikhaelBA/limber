@@ -271,3 +271,21 @@ including fixed rig key time and preceding clip duration. Typed payload compatib
 export fails explicitly. Logic, SceneClock and legacy RuntimePlayer emit the same typed
 values without changing the legacy players' time-zero/queue ordering. No audio/haptic
 side effects execute automatically. Bindings and Logic UI/interaction/debug remain.
+
+## One-way bindings and schema 12 (Phase 8D)
+
+SceneLogicPlayer accepts optional component definitions and projects committed typed
+parameters onto exposed instance text/string, visible/bool, opacity/float and tint/int
+after animation and before component expansion/layout. Direct artboard text binding
+names resolve string parameters from the same graph. Values are transient copies;
+source text, definitions, stored overrides and animations remain unchanged. Opacity
+inputs must be in [0,1], tint in [0,0xffffff]; invalid values reject before enqueueing.
+Float values canonicalize to binary32. Duplicate writers are rejected. Disabled Logic
+returns authored setup and retains state and pending input. Definitions are cloned/baked.
+
+Bindings belong to artboard graphs; rig graphs cannot reference scene instances. Native
+validation resolves exposures and direct names even when the graph is disabled. Without
+a graph direct names are dormant. Parameter rename/delete and scene duplicate/delete
+preserve valid references with exact history. Destructive exposure changes/extraction
+are blocked with migration diagnostics. Headers advance to 12; graph editing/interaction
+preview and debug UI remain for the next Phase 8 increment.
