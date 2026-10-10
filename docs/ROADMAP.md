@@ -14,7 +14,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
 | 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: Ship Doctor next   |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: Ship integration   |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
 | 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
@@ -124,14 +124,19 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
   - [x] Portable native inventory, physical resource metrics and strict preset/custom warning policies.
   - [x] Live posed work counts, actual core WebGL2 draw submissions and bounded measured CPU profiler.
-  - [ ] Ship/Rig findings, saved custom policies and actionable inspector integration.
+  - [x] Ship findings and saved custom policies.
+  - [ ] Actionable source focus, Rig findings and compatibility report.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
+  - [x] Worker preparation/cancellation, atlas inspection, packaged native preview and .bbb Save/Open.
+  - [ ] Typed Logic inputs, character interaction and complete inspection workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
 projects. Font import, isolated preview, native packaging and explicit SVG text-font
-matching pass actual browser acceptance. Ship Doctor/profiler/workspace and the complete
-acceptance gate remain open. The existing legacy player is not the native artboard player gate.
+matching pass actual browser acceptance. Ship preview, atlas inspection and saved warning
+policies pass development and production builds. Actionable findings, typed native inputs
+and the complete acceptance gate remain open. The existing legacy player is not the native
+artboard player gate.
 
 ## Layered character sample (10 October 2026)
 

@@ -1449,3 +1449,34 @@ sources receive correct semantic checking. Complete browser acceptance is 37 sui
 remote CI follows publication. Saved custom policies, actionable Ship/Rig inspector,
 atlas inspection and the complete export/load/play workflow remain open.
 Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `60caeab` passed CI 38062098403: all 37 browser suites, Test & Build,
+Docker, VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9E3a Ship workspace and packaged playback
+
+Ship now captures an immutable source/texture snapshot before asynchronous encoding,
+then prepares the native asset in the actual cancellable atlas/font worker. Explicit
+entry artboard, trim/scale/padding/rotation/page settings are separate from preview
+selection. Source edits/settings invalidate stale publications. Save and existing
+exports share the owned capture helper and retain download bytes through dispatch.
+
+The workspace previews actual decoded packaged textures/private fonts through the
+independent Web SDK, with play/pause/single-step/stop, scene/character clip selection,
+inventory/posed work/measured profiler, worker progress and coded findings. Atlas pages
+have selectable keyboard-accessible region/crop/rotation inspection. Strict native
+open retains the authoring project; malformed input retains the last valid publication.
+Exports are enabled after resource decode succeeds. Preset/custom thresholds persist
+in workspace storage with strict validation; these are warnings rather than guarantees.
+
+Three unit tests verify immutable capture across edits, missing texture metadata,
+custom policy ownership/corruption and failed storage writes. The new browser suite
+checks worker export, actual .bbb/debug downloads, exact packaged pixels after reload,
+clock controls, atlas keyboard selection, persistent custom warnings, rejected-file
+ownership, source preservation, font cleanup and cancellation during actual font I/O.
+It passed against both development and the production build, including emitted worker
+and resvg WASM paths. All 674 tests in 90 files and complete local checks passed.
+The Linux Docker image `limber:phase9e3a` built successfully. Complete browser acceptance
+now has 38 suites; remote CI follows publication. Actionable source/Rig findings,
+typed native inputs, compatibility report and final Phase 9 acceptance remain open.
+Sol 6.1 / High remains suitable; no user decision is required.

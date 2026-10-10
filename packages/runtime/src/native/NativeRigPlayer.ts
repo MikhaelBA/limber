@@ -147,6 +147,9 @@ export class NativeRigPlayer {
     if (snapshot.logic && !snapshot.logic.enabled) return 0;
     return this.source.animations.find((clip) => clip.name === snapshot.clip)?.timelines.length ?? 0;
   }
+  getAnimations(): readonly { name: string; duration: number; loop: boolean }[] {
+    return this.source.animations.map(({ name, duration, loop }) => ({ name, duration, loop }));
+  }
   /** Read-only adapter view. Buffers are live; do not mutate or replace them. */
   get skeleton(): Skeleton {
     return this.adapter().skeleton;

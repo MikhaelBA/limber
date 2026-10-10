@@ -118,6 +118,9 @@ export class NativeScenePlayer {
     if (snapshot.logic && !snapshot.logic.enabled) return 0;
     return this.board.clips?.find((clip) => clip.id === snapshot.clip)?.tracks.length ?? 0;
   }
+  getClips(): readonly { id: string; name: string; duration: number; loop: boolean }[] {
+    return (this.board.clips ?? []).map(({ id, name, duration, loop }) => ({ id, name, duration, loop }));
+  }
   get currentTick(): number {
     return this.adapter().currentTick;
   }

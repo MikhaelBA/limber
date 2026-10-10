@@ -5,37 +5,18 @@ import {
   serializeProject,
   assertSpineProjectSupported,
   type BoneByBoneProject,
-  type TextureMeta,
 } from '@limber/core';
 import { buildSpineBundle } from '../export/spineBundle';
 import { cancelScheduledAutosave, clearAutosave, readAutosave } from '../persistence/autosave';
 import { textureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
-
-const blobToDataUrl = (blob: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('dataURL encode failed'));
-    reader.readAsDataURL(blob);
-  });
+import { captureProjectSnapshot, downloadProjectArtifact } from '../persistence/projectSnapshot';
 
 /** Project file with every still-loaded texture embedded as a data URL. */
 async function serializeSelfContained(doc: BoneByBoneProject): Promise<{ json: string; embedded: number }> {
-  const blobs = new Map(textureRegistry.blobEntries().map((e) => [e.textureId, e]));
-  const manifest: Record<string, TextureMeta> = {};
-  let embedded = 0;
-  for (const [textureId, meta] of Object.entries(doc.assetManifest)) {
-    const blob = blobs.get(textureId);
-    if (blob) {
-      manifest[textureId] = { ...meta, dataUrl: await blobToDataUrl(blob.blob) };
-      embedded++;
-    } else {
-      manifest[textureId] = { ...meta };
-    }
-  }
-  return { json: serializeProject({ ...doc, assetManifest: manifest }), embedded };
+  const { project, embedded } = await captureProjectSnapshot(doc, textureRegistry.blobEntries());
+  return { json: serializeProject(project), embedded };
 }
 
 export function TopMenuBar() {
@@ -112,14 +93,7 @@ export function TopMenuBar() {
     }
   };
 
-  const download = (blob: Blob, name: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const download = downloadProjectArtifact;
 
   const onSave = async () => {
     const st = useEditorStore.getState();

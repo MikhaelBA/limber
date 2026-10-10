@@ -1,5 +1,6 @@
 import { SceneWorkspace } from './components/SceneWorkspace';
 import { LogicWorkspace } from './components/LogicWorkspace';
+import { ShipWorkspace } from './components/ShipWorkspace';
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { Transform } from '@limber/core';
@@ -96,7 +97,12 @@ function Shell() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         st.redo();
-      } else if (st.workspace === 'scene' || st.workspace === 'logic' || !engine.project.editor.activeRigId) {
+      } else if (
+        st.workspace === 'scene' ||
+        st.workspace === 'logic' ||
+        st.workspace === 'ship' ||
+        !engine.project.editor.activeRigId
+      ) {
         return;
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         // Copy the selected bone's local transform.
@@ -228,8 +234,20 @@ function Shell() {
         >
           Logic
         </button>
+        <button
+          className={workspace === 'ship' ? 'text-amber-300' : 'text-neutral-400'}
+          onClick={() => {
+            engine.pause();
+            useEditorStore.getState().setPlaying(false);
+            useEditorStore.getState().setWorkspace('ship');
+          }}
+        >
+          Ship
+        </button>
       </nav>
-      {workspace === 'logic' ? (
+      {workspace === 'ship' ? (
+        <ShipWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
+      ) : workspace === 'logic' ? (
         <LogicWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
       ) : workspace === 'scene' || !engine.project.editor.activeRigId ? (
         <SceneWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
