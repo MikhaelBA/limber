@@ -33,4 +33,15 @@ exact Undo/Redo. They caught real stencil, shared-mask and color conversion defe
 Actual software frame gaps do not certify hardware GPU 60fps. Renderer/user-agent
 metadata and raw results are stored in `packages/editor/.smoke/logic-performance.json`.
 Native fixtures and screenshots accompany CI evidence. The complete local and remote
-acceptance status remains in PROGRESS.md; Phase 8 is partial until that gate passes.
+acceptance status remains in PROGRESS.md.
+
+## Remote acceptance
+
+Commit `8070c52` passed [CI 38034780726](https://github.com/MikhaelBA/limber/actions/runs/38034780726).
+All 528 unit tests, thirty browser suites, builds, Docker and both deployments passed.
+Linux Standard/Heavy Logic core p95 was 2.30/8.00ms and total CPU p95 was 2.60/8.30ms.
+Software frame-gap p95 was 50.00/66.80ms with six/eight accepted ticks per frame at p95.
+Actual clipping pixels, full buffer parity and source/cache isolation passed unchanged.
+The raw combined workload passed at 2.80/8.30ms CPU p95 and 42.50/124.50ms software
+frame-gap p95. Phase 8's acceptance gate is complete; hardware profiling remains a
+later platform/release requirement.

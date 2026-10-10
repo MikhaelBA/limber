@@ -948,5 +948,12 @@ in the Heavy combined numeric fixture. Standalone replay passed both fixtures in
 combined Logic replay, preserving every numeric/source assertion; the separate 16.7ms
 CPU performance gate is unchanged. The final full local check passed all 528 tests
 in 75 files, lint/boundaries, formatting, TypeScript and package/editor builds.
-Remote acceptance remains pending. Phase 8 stays partial until it passes. Sol 6.1 / High remains suitable and
-no material user question blocks this task.
+Commit `8070c52` passed CI 38034780726: Test & Build, Docker, VPS and GitHub Pages all
+succeeded. Linux Logic CPU p95 was 2.60/8.30ms and software frame-gap p95 was
+50.00/66.80ms; raw combined CPU p95 was 2.80/8.30ms, with 42.50/124.50ms software
+frame-gap p95. Both CPU gates passed without changing numeric/Scene/RTL tolerances.
+
+Phase 8 Interactive Alpha is complete. The next phase defines the independent .bbb
+schema/compiler before Web runtime, atlas workers, Ship Doctor/profiler and engine
+integrations. The user's pre-release policy removes new backward-reader obligations.
+Sol 6.1 / High remains suitable and no material user question blocks the next increment.
