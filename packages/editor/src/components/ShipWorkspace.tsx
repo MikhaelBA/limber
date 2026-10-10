@@ -8,6 +8,8 @@ import {
   createRuntimeBudget,
   validateRuntimeBudget,
   inspectRuntimeInventory,
+  diagnoseNativeRigs,
+  inspectRuntimeCompatibility,
   checkRuntimeBudget,
   loadRuntime,
   serializeRuntime,
@@ -24,6 +26,8 @@ import { captureProjectSnapshot, downloadProjectArtifact } from '../persistence/
 import { readShipBudget, saveShipBudget } from '../persistence/shipSettings';
 import { NativePreview, type NativePreviewHandle, type NativePreviewStatistics } from './NativePreview';
 import { NativeLogicControls } from './NativeLogicControls';
+import { ShipDoctorFindings } from './ShipDoctorFindings';
+import { resolveShipFocus, type ShipFocusTarget } from '../persistence/shipFocus';
 
 const button = 'rounded border border-neutral-600 px-2 py-1 text-xs hover:bg-neutral-700 disabled:opacity-40';
 const field = 'w-full rounded border border-neutral-600 bg-neutral-900 p-1 text-xs';
@@ -63,13 +67,18 @@ export function ShipWorkspace() {
   const engine = useEngine(),
     revision = useEditorStore((s) => s.dataRevision),
     setStatus = useEditorStore((s) => s.setStatus);
-  const [budget, setBudget] = useState(() => {
+  const [restoredBudget] = useState(() => {
     try {
-      return readShipBudget(localStorage).budget;
+      return readShipBudget(localStorage);
     } catch {
-      return createRuntimeBudget();
+      return {
+        budget: createRuntimeBudget(),
+        warning: 'Browser storage is unavailable. Web preset restored.',
+      };
     }
   });
+  const [budget, setBudget] = useState(restoredBudget.budget);
+  const [focusTargets, setFocusTargets] = useState<ShipFocusTarget[]>([]);
   const [publication, setPublication] = useState<Publication | null>(null),
     [entryArtboardId, setEntryArtboardId] = useState(engine.project.artboards[0]!.id),
     [artboardId, setArtboardId] = useState(''),
@@ -91,7 +100,8 @@ export function ShipWorkspace() {
   const handle = useRef<NativePreviewHandle | null>(null),
     job = useRef<AbortController | null>(null),
     epoch = useRef(0),
-    chooser = useRef<HTMLInputElement>(null);
+    chooser = useRef<HTMLInputElement>(null),
+    atlasInspection = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     epoch.current++;
     job.current?.abort();
@@ -100,6 +110,7 @@ export function ShipWorkspace() {
     setReady(false);
     setStatistics(null);
     setError(null);
+    setFocusTargets([]);
     setEntryArtboardId((id) =>
       engine.project.artboards.some((board) => board.id === id) ? id : engine.project.artboards[0]!.id,
     );
@@ -112,9 +123,14 @@ export function ShipWorkspace() {
     () => (publication ? inspectRuntimeInventory(publication.asset, budget) : null),
     [publication, budget],
   );
+  const rigFindings = useMemo(
+    () => (publication ? diagnoseNativeRigs(publication.asset, budget) : []),
+    [publication, budget],
+  );
   const diagnostics = useMemo(() => {
     const all = [
       ...(report?.diagnostics ?? []),
+      ...rigFindings,
       ...(publication?.compileDiagnostics ?? []),
       ...(error ? [error] : []),
     ];
@@ -164,7 +180,7 @@ export function ShipWorkspace() {
       );
     }
     return [...new Map(all.map((entry) => [JSON.stringify(entry), entry])).values()];
-  }, [report, publication, error, statistics, budget, artboardId]);
+  }, [report, publication, error, statistics, budget, artboardId, rigFindings]);
   const applyBudget = (candidate: RuntimeBudget) => {
     try {
       const valid = validateRuntimeBudget(candidate);
@@ -188,6 +204,7 @@ export function ShipWorkspace() {
     const program = loadRuntime(new Uint8Array(bytes)),
       asset = new NativeRuntimeAsset(program);
     setPublication({ asset, program, bytes, kind, compileDiagnostics });
+    setFocusTargets([]);
     setArtboardId(program.defaultArtboardId);
     setInputOwner('');
     setPageIndex(0);
@@ -251,6 +268,7 @@ export function ShipWorkspace() {
     setBusy(false);
     setStatus('Export settings changed. Prepare a new native snapshot.');
     setPublication(null);
+    setFocusTargets([]);
     setStatistics(null);
     setReady(false);
     setError(null);
@@ -267,6 +285,33 @@ export function ShipWorkspace() {
   const canDownload = ready && publication && !busy && !diagnostics.some((d) => d.severity === 'error');
   const filename = publication?.program.name.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || 'project';
   const page = publication?.program.atlasPages[pageIndex];
+  const atlasObjects = useMemo(
+    () =>
+      new Set(
+        publication
+          ? [
+              ...publication.program.atlasPages.map((page) => page.id),
+              ...publication.program.textures
+                .filter((texture) => texture.type === 'atlas')
+                .map((texture) => texture.id),
+              ...(publication.program.atlasPages.length ? [publication.program.id] : []),
+            ]
+          : [],
+      ),
+    [publication],
+  );
+  const focusSource = (target: ShipFocusTarget) => {
+    engine.pause();
+    engine.focusRig(target.artboardId, target.rigId);
+    engine.mode = 'setup';
+    const ui = useEditorStore.getState();
+    ui.inspectSource(target);
+    ui.setStatus(`Inspecting ${target.label}. Source content is unchanged.`);
+  };
+  const compatibility = useMemo(
+    () => (publication ? inspectRuntimeCompatibility(publication.asset) : null),
+    [publication],
+  );
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Ship workspace">
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-700 p-2">
@@ -688,6 +733,7 @@ export function ShipWorkspace() {
                 }}
               />
               <details
+                ref={atlasInspection}
                 className="max-h-56 overflow-auto border-t border-neutral-700 p-2 text-xs"
                 aria-label="Atlas inspection"
               >
@@ -781,6 +827,7 @@ export function ShipWorkspace() {
           aria-label="Ship Doctor"
         >
           <h2 className="font-semibold">Ship Doctor</h2>
+          {restoredBudget.warning && <p role="status">{restoredBudget.warning}</p>}
           <p className="mt-1">
             {diagnostics.filter((d) => d.severity === 'error').length} errors ·{' '}
             {diagnostics.filter((d) => d.severity === 'warning').length} warnings
@@ -792,17 +839,50 @@ export function ShipWorkspace() {
                 ? 'Checking packaged preview…'
                 : 'Prepare or open an asset to inspect it.'}
           </p>
-          {diagnostics.slice(0, 200).map((entry, i) => (
+          <ShipDoctorFindings
+            diagnostics={diagnostics}
+            compatibility={compatibility}
+            atlasObjects={atlasObjects}
+            onAtlas={(id) => {
+              if (!publication) return;
+              const texture = publication.program.textures.find(
+                (texture) => texture.id === id && texture.type === 'atlas',
+              );
+              const pageId = texture?.type === 'atlas' ? texture.pageId : id;
+              const index = publication.program.atlasPages.findIndex((page) => page.id === pageId);
+              setPageIndex(Math.max(0, index));
+              setFocusedTexture(texture?.id ?? '');
+              if (atlasInspection.current) atlasInspection.current.open = true;
+              setStatus('Inspecting the packaged atlas. Source content is unchanged.');
+            }}
+            canFocus={publication?.kind !== 'loaded'}
+            onFocus={(entry) => {
+              const targets = resolveShipFocus(engine.project, entry);
+              if (targets.length === 1) focusSource(targets[0]!);
+              else if (targets.length > 1) setFocusTargets(targets);
+              else
+                setStatus(
+                  'This finding has no matching source object. Inspect the asset/settings or its remedy.',
+                );
+            }}
+          />
+          {focusTargets.length > 0 && (
             <div
-              key={i}
-              className={`mt-2 rounded border p-2 ${entry.severity === 'error' ? 'border-red-700' : 'border-amber-700'}`}
+              className="mt-2 rounded border border-neutral-600 p-2"
+              role="group"
+              aria-label="Matching source objects"
             >
-              <strong>{entry.code}</strong> · {entry.objectId ?? 'Asset'}
-              <p>{entry.explanation}</p>
-              <p className="mt-1 text-neutral-300">{entry.remedy}</p>
+              <p>Choose the source owner to inspect.</p>
+              {focusTargets.map((target, index) => (
+                <button key={index} className={button} onClick={() => focusSource(target)}>
+                  {target.label}
+                </button>
+              ))}
+              <button className={button} onClick={() => setFocusTargets([])}>
+                Cancel source inspection
+              </button>
             </div>
-          ))}
-          {diagnostics.length > 200 && <p>Showing the first 200 of {diagnostics.length} findings.</p>}
+          )}
           {ready && handle.current && publication && (
             <details className="mt-4" open>
               <summary>Packaged Logic inputs</summary>

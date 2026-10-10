@@ -16,8 +16,7 @@ inspect actual packaged playback. Reset restores initial Logic parameters and cl
 Select the input owner under **Packaged Logic inputs** to test scene or character typed
 parameters, triggers and routes. Values queue for the next accepted tick; Pause and Step
 to inspect them. Physical pointer/focus and Enter/Space confirm go to the selected owner.
-Viewport presets resize responsive UI without resetting clocks. Source focus is being
-completed in Phase 9.
+Viewport presets resize responsive UI without resetting clocks.
 The Web SDK is available; Unity/Cocos integration is still pending its engine gates.
 
 Expand **Atlas settings** for page size, padding, scale, trim, rotation and power-of-two
@@ -31,6 +30,20 @@ storage. Invalid thresholds cannot replace the active policy. Warnings permit ex
 resource/format errors require correction. Findings show a code, severity, object and
 remedy. The inventory includes all variants; the posed workload counts currently selected
 geometry, including hidden independent rigs that still incur CPU work.
+
+Search findings by code, object, explanation or remedy and filter errors/warnings.
+**Inspect source** opens the owning character slot/bone, scene node or Logic graph.
+Repeated local IDs present every matching owner; qualified Rig Doctor warnings select the
+actual owner. Component content opens its authored instance in Scene. Inspection changes
+editor selection rather than authoring content. Arbitrary opened native files have no
+verified source link. **Inspect atlas** opens the associated packaged page/region even
+for a loaded asset.
+
+Rig Doctor reports per-attachment potential mesh/triangle/influence/clipping costs,
+zero-influence vertices using legal rigid slot-bone fallback, and self-ending exclusive
+clipping ranges. These are inspection warnings, not automatic edits. Repair/optimization
+actions remain in Phase 12. **Runtime compatibility** lists native feature requirements
+and implemented hosts. Web is available; Unity/Cocos remain pending their engine gates.
 
 Texture memory is an approximate base-level RGBA8 allocation, excluding mipmaps, driver
 overhead and retained CPU copies. Encoded image/font bytes are reported separately.

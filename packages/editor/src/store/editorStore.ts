@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BonePropertyName } from '../commands/animationCommands';
 import type { BrushMode } from '../commands/meshCommands';
 import { history, type Command } from '../history/history';
+import type { ShipFocusTarget } from '../persistence/shipFocus';
 
 /**
  * Transform tools mirror Spine's (spine-tools): translate V, rotate C, scale X,
@@ -26,6 +27,9 @@ export type KeyframeSelection =
  */
 interface UIState {
   documentEpoch: number;
+  inspectionTarget: ShipFocusTarget | null;
+  inspectSource: (target: ShipFocusTarget) => void;
+  clearInspection: () => void;
   workspace: 'rig' | 'scene' | 'logic' | 'ship';
   setWorkspace: (workspace: 'rig' | 'scene' | 'logic' | 'ship') => void;
   selectedBoneId: string | null;
@@ -79,9 +83,27 @@ let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useEditorStore = create<UIState>((set, get) => ({
   documentEpoch: 0,
+  inspectionTarget: null,
+  inspectSource: (target) =>
+    set({
+      inspectionTarget: target,
+      workspace: target.workspace,
+      selectedBoneId: target.boneId,
+      selectedSlotId: target.slotId,
+      selectedKeyframe: null,
+      mode: 'setup',
+      isPlaying: false,
+    }),
+  clearInspection: () => set({ inspectionTarget: null }),
   workspace: 'rig',
   setWorkspace: (workspace) =>
-    set({ workspace, selectedBoneId: null, selectedSlotId: null, selectedKeyframe: null }),
+    set({
+      workspace,
+      inspectionTarget: null,
+      selectedBoneId: null,
+      selectedSlotId: null,
+      selectedKeyframe: null,
+    }),
   selectedBoneId: null,
   selectedSlotId: null,
   hoveredBoneId: null,
@@ -167,6 +189,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
     history.clear();
     set((s) => ({
       documentEpoch: s.documentEpoch + 1,
+      inspectionTarget: null,
       dataRevision: s.dataRevision + 1,
       canUndo: false,
       canRedo: false,

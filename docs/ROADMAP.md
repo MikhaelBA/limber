@@ -121,22 +121,22 @@ Before each implementation task, recommend a model and reasoning effort suited t
   - [x] Portable source/runtime OpenType bytes, strict bounds/cmap, license metadata and fallback diagnostics.
   - [x] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
   - [x] Authoring font import, project preview/history and SVG text-font matching acceptance.
-- [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
+- [x] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
   - [x] Portable native inventory, physical resource metrics and strict preset/custom warning policies.
   - [x] Live posed work counts, actual core WebGL2 draw submissions and bounded measured CPU profiler.
   - [x] Ship findings and saved custom policies.
-  - [ ] Actionable source focus, Rig findings and compatibility report.
-- [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
+  - [x] Actionable source focus, Rig findings and compatibility report.
+- [x] Ship workspace, atlas inspection and complete export/load/play browser workflow.
   - [x] Worker preparation/cancellation, atlas inspection, packaged native preview and .bbb Save/Open.
   - [x] Typed Logic inputs, scene/character pointer/keyboard interaction and responsive preview.
-  - [ ] Complete actionable inspection and compatibility workflow.
+  - [x] Complete actionable inspection and compatibility workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
 projects. Font import, isolated preview, native packaging and explicit SVG text-font
 matching pass actual browser acceptance. Ship preview, atlas inspection and saved warning
-policies and typed native inputs pass development and production builds. Actionable findings
-and the complete acceptance gate remain open. The existing legacy player is not the native
+policies, typed native inputs and actionable Doctor findings pass development and production
+builds. The final complete acceptance gate remains open. The existing legacy player is not the native
 artboard player gate.
 
 ## Layered character sample (10 October 2026)

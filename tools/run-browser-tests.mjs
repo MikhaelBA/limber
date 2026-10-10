@@ -62,6 +62,7 @@ try {
     'native-profiler.mjs',
     'ship-workspace.mjs',
     'ship-inputs.mjs',
+    'ship-doctor-ui.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

@@ -149,7 +149,8 @@ The shared Web render adapter stages real image/page pixels, packaged fonts and 
 external host fonts. SVG rasterization, real font decode and packed native compilation
 run in an owned browser worker. The editor host can package bundled Noto/OFL when
 referenced; Web playback uses private aliases and needs no font network for packaged
-families. Font authoring/SVG text matching and the integrated Ship workspace remain gates.
+families. Font authoring/SVG text matching and the integrated Ship workspace have actual
+browser acceptance; complete Phase 9 release acceptance is recorded in the roadmap.
 
 ## Packed native resources
 
@@ -204,8 +205,8 @@ and labels pass `validateRuntimeBudget`, returning an owned complete record.
 leaves unknown fields unmeasured and returns warnings strictly above a threshold. Scopes
 distinguish inventory, frame, resources and profile. Each finding retains code, severity,
 object reference and remedy; font findings compose automatically. The report does not
-decode pixels, install resources or mutate playback. Live measured profiling and saved
-workspace policies remain separate tasks; see ADR 0025.
+decode pixels, install resources or mutate playback. The Ship workspace owns real resource
+decoding, saved policies and measured profiling; see ADR 0025.
 
 `inspectRuntimeFrame(player)` reports currently selected skeletal geometry/influences,
 configured solvers and incoming selected timeline counts, including hidden rig CPU
@@ -219,3 +220,13 @@ milliseconds, accepted ticks and known/unknown draw calls. `inspect()` returns d
 nearest-rank min/median/p95/max and coverage. Invalid samples are rejected atomically.
 The Web adapter's `NativeWebFrameProfiler` performs actual CPU timing and temporary core
 WebGL2 draw instrumentation; it never infers GPU time or target hardware FPS.
+
+`diagnoseNativeRigs(asset, budget)` returns owner-qualified per-attachment cost warnings,
+legal rigid fallback vertices and self-ending exclusive clipping ranges. It inspects all
+variants/expanded rigs without mutating assets or player state. `inspectRuntimeCompatibility`
+returns detached required features and implemented host support; Unity/Cocos remain
+explicitly pending until their engine acceptance gates pass.
+
+`NativeRigPlayer.getAnimations()` and `NativeScenePlayer.getClips()` publish detached
+name/ID, duration and authored loop catalogues for native host selectors. Input, playback,
+skin and parameter state remain private to each player instance.

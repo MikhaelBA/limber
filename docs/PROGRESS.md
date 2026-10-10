@@ -1507,3 +1507,37 @@ without changing its timeout/assertions. Typecheck/build passed after the final 
 control addition. Complete browser acceptance now has 39 suites; remote CI follows
 publication. Actionable source/Rig findings, compatibility report and final Phase 9
 acceptance remain open. Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `4320907` passed CI 38065825690: all 39 browser suites, Test & Build,
+Docker, VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9E3c actionable Ship/Rig Doctor and compatibility
+
+Rig Doctor now reports owner-qualified per-attachment potential costs, legal rigid
+fallback vertices and empty self-ending exclusive clip ranges across hidden and expanded
+characters. Findings retain code/severity/object/remedy plus artboard/rig identities,
+avoiding ambiguous attachment IDs across independent instances. Inventory inspection is
+memoized separately from live statistics. Broken refs and unsupported resources remain
+strict compiler/ingestion errors rather than silently repaired source mutations.
+
+Ship findings can be searched and filtered by severity. Source inspection selects the
+owning slot/bone, scene node or Logic owner; repeated unqualified IDs expose all candidates.
+Expanded component content selects the authored instance. The source resolver is pure;
+editor navigation changes selection only. Native atlas warnings open their page/region.
+Loaded arbitrary native assets cannot claim a verified association to the current source.
+Corrupt/unavailable persisted budgets show the restored policy warning. Compatibility
+reports expose detached native requirements and actual host status; Web is available,
+Unity/Cocos remain explicitly pending. Old-file compatibility was waived by the user
+before release; no previous-schema reader guarantee is claimed.
+
+Six new unit tests verify independent owner identities, variant weights, rigid fallback,
+exclusive clipping, detached compatibility, repeated source IDs and component/graph/
+attachment/texture navigation without mutation. The new actual browser suite checks
+search/severity, qualified slot and scene inspection, unchanged source content, pending
+engine status, foreign native isolation and atlas navigation. All 680 tests in 91 files,
+lint/boundaries, formatting, typecheck and both builds passed. Full browser acceptance
+now has 40 suites. The Doctor UI suite also passed against the production build; the
+Linux Docker image `limber:phase9e3c` built successfully. Full local browser regression
+and remote CI are being completed before the Phase 9 gate is closed. Automated fixes
+remain in Phase 12.
+Sol 6.1 / High remains suitable; no user decision is required.

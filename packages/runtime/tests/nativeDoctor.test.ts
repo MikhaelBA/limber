@@ -16,6 +16,8 @@ import {
   validateRuntimeBudget,
   checkRuntimeBudget,
   inspectRuntimeInventory,
+  diagnoseNativeRigs,
+  inspectRuntimeCompatibility,
   RUNTIME_BUDGET_KEYS,
   type RuntimeBudget,
   type RuntimeProgram,
@@ -146,6 +148,63 @@ function source(): BoneByBoneProject {
 const asset = (program?: RuntimeProgram) =>
   new NativeRuntimeAsset(program ?? compileRuntime(source()).program);
 describe('native Ship Doctor inventory and warning budgets', () => {
+  it('reports qualified variant/rigid-fallback mesh findings for independent component owners without mutation', () => {
+    const published = asset(),
+      before = JSON.stringify(published.getProgram());
+    const findings = diagnoseNativeRigs(published, createRuntimeBudget('custom', { vertices: 2 }));
+    const fallback = findings.filter((finding) => finding.code === 'RIG_RIGID_FALLBACK');
+    expect(fallback).toHaveLength(2);
+    expect(fallback.map((finding) => finding.rigId)).toEqual(['["first","rig"]', '["second","rig"]']);
+    expect(
+      fallback.every(
+        (finding) =>
+          finding.objectId === 'mesh' &&
+          finding.artboardId === 'board' &&
+          finding.severity === 'warning' &&
+          finding.explanation.includes('1 of 3'),
+      ),
+    ).toBe(true);
+    expect(findings.filter((finding) => finding.code === 'BUDGET_VERTICES')).toHaveLength(8);
+    expect(
+      findings.some((finding) => finding.objectId === 'linked' && finding.code === 'RIG_RIGID_FALLBACK'),
+    ).toBe(false);
+    expect(JSON.stringify(published.getProgram())).toBe(before);
+    findings[0]!.explanation = 'host edit';
+    expect(diagnoseNativeRigs(published)[0]!.explanation).not.toBe('host edit');
+  });
+  it('warns about a self-ending exclusive clipping range without treating intentional rigid regions as missing weights', () => {
+    const project = source();
+    const rig = project.components![0]!.nodes[0] as RigNode;
+    rig.skeleton.attachments.find((attachment) => attachment.id === 'clip')!.endSlotId = 'clip-slot';
+    const findings = diagnoseNativeRigs(new NativeRuntimeAsset(compileRuntime(project).program));
+    expect(findings.filter((finding) => finding.code === 'RIG_EMPTY_CLIP_RANGE')).toHaveLength(2);
+    expect(findings.some((finding) => finding.objectId === 'region')).toBe(false);
+  });
+  it('publishes detached feature/host compatibility and leaves unimplemented engine hosts pending', () => {
+    const published = asset(),
+      before = JSON.stringify(published.getProgram());
+    const report = inspectRuntimeCompatibility(published);
+    expect(report.version).toBe(1);
+    expect(report.requiredFeatures).toEqual(published.getProgram().features);
+    expect(report.hosts[0]).toMatchObject({ id: 'web', status: 'available', version: 1 });
+    expect(
+      report.hosts
+        .slice(1)
+        .map((host) => ({
+          id: host.id,
+          status: host.status,
+          version: host.version,
+          features: host.features,
+        })),
+    ).toEqual([
+      { id: 'unity', status: 'pending', version: null, features: [] },
+      { id: 'cocos', status: 'pending', version: null, features: [] },
+    ]);
+    report.requiredFeatures.length = 0;
+    report.hosts[0]!.features.length = 0;
+    expect(inspectRuntimeCompatibility(published).requiredFeatures.length).toBeGreaterThan(0);
+    expect(JSON.stringify(published.getProgram())).toBe(before);
+  });
   it('counts repeated component rigs, all variants and shared geometry without changing source/asset', () => {
     const original = source(),
       before = JSON.stringify(original),

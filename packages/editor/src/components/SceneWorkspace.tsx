@@ -44,7 +44,11 @@ export function SceneWorkspace() {
   const [localization, setLocalization] = useState<LocalizationPreview>('expected');
   const [, redrawMotion] = useState(0);
   useEffect(() => motion.subscribe(() => redrawMotion((value) => value + 1)), [motion]);
-  const [selection, setSelection] = useState<string[]>([]);
+  const [selection, setSelection] = useState<string[]>(() => {
+    const target = state.inspectionTarget;
+    return target?.artboardId === artboard.id && target.nodeId ? [target.nodeId] : [];
+  });
+  useEffect(() => state.clearInspection(), []);
   const selected = selection.filter((id) => artboard.nodes.some((n) => n.id === id));
   const node = motion.view().nodes.find((n) => n.id === selected[0]);
   const imageInput = useRef<HTMLInputElement>(null);

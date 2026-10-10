@@ -70,7 +70,7 @@ This is neither GPU elapsed time nor target hardware FPS certification. The actu
 golden records seven calls with stencil masks versus fewer after removing them, agrees
 with an independent observer and preserves exact rendered pixels and context methods.
 
-## Remaining workspace acceptance
+## Workspace acceptance
 
 Active scene/rig counts must follow live attachment selection, draw order, component
 expansion and clipping semantics. Selected animation tracks, solver/skinning work and
@@ -91,3 +91,18 @@ node counts and unchanged source/player state, and restores owned font resources
 Live work also matches independent core skinning counters on the weighted Fox sample and
 ordinary poses. Window rollover/unknown coverage/atomic invalid samples are unit-tested;
 actual native Web CPU samples, stencil draw counts and failed-render cleanup are browser-tested.
+
+The Ship UI labels packaged inventory, posed work and CPU percentiles separately, owns
+cancellable source/texture capture and native resource staging, persists custom policies
+and verifies actual export/load/play. Findings are searchable/filterable and keep code,
+severity, object and remedy. Rig diagnostics add artboard/expanded-rig context because
+attachment IDs can repeat across independent owners. Zero-influence mesh vertices retain
+legal rigid fallback rather than being mislabeled as invalid; exclusive self-ending clip
+ranges are warnings. Inspection can select source slots/bones/graphs, authored component
+instances or native atlas pages without modifying model content. Foreign native assets
+do not claim a verified source association. Automated fix actions belong to Phase 12.
+
+Compatibility reports own detached native requirements and host support. Only the accepted
+Web host is available; Unity/Cocos stay pending until their respective engine gates pass.
+The user explicitly waived old-file compatibility before release. Native v1 does not
+invent a previous-reader guarantee or migration adapter for an unpublished format.

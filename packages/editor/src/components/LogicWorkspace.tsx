@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { uuid, formatEventPayload, type LogicParameter, type LogicInput } from '@limber/core';
 import { useEngine } from '../hooks/useEngine';
@@ -15,10 +15,11 @@ export function LogicWorkspace() {
   const engine = useEngine(),
     ui = useEditorStore();
   const [boardId, setBoardId] = useState(engine.project.editor.activeArtboardId),
-    [rigId, setRigId] = useState<string | null>(null),
+    [rigId, setRigId] = useState<string | null>(() => ui.inspectionTarget?.rigId ?? null),
     [selected, setSelected] = useState<string | null>(null),
     [error, setError] = useState(''),
     [, redraw] = useState(0);
+  useEffect(() => ui.clearInspection(), []);
   const board = engine.project.artboards.find((b) => b.id === boardId) ?? engine.project.artboards[0]!;
   const rig = board.nodes.find((node) => node.id === rigId && node.type === 'rig');
   const owner = { artboardId: board.id, rigId: rig?.id ?? null };

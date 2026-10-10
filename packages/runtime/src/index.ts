@@ -13,3 +13,5 @@ export { NativeRuntimeAsset } from './native/NativeRuntimeAsset';
 export * from './native/NativeArtboardPlayer';
 export * from './native/doctor';
 export * from './native/profiler';
+export * from './native/rigDoctor';
+export * from './native/compatibility';
