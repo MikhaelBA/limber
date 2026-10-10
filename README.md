@@ -12,6 +12,14 @@ to try layered sprites, bound meshes, cloth Deform, skins and hand IK.
 
 [Import and package project fonts](docs/FONTS.md) for Scene/Game UI and Logic preview.
 
+[Prepare and inspect native exports in Ship](docs/SHIP.md), including packed atlas pages,
+typed native Logic inputs, measured CPU profiling and actionable Ship/Rig Doctor findings.
+The Web runtime is independent of editor React; Unity/Cocos remain pending their engine
+acceptance gates. The current CI runs unit/architecture checks, all managed development
+browser suites, and the actual main production Ship workflow before publishing artifacts.
+After `npm run build -w @limber/editor`, run `npm run test:e2e:production` for that shipping
+bundle gate. Exact milestone counts and limitations are recorded in PROGRESS.md.
+
 ## Historical Limber documentation
 
 The status below predates the BoneByBone roadmap. It is retained as implementation history, not current gate status.

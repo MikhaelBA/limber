@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch({ headless: true });
-mkdirSync('packages/editor/.smoke', { recursive: true });
+const output = process.env.BBB_SHIP_EVIDENCE_DIR ?? 'packages/editor/.smoke';
+mkdirSync(output, { recursive: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } }),
     errors = [];
@@ -57,6 +59,7 @@ try {
     details.open = false;
   });
   const originalPixels = await page.getByTestId('native-preview').locator('canvas').screenshot();
+  await page.screenshot({ path: join(output, 'ship-workspace.png') });
   const shipped = await download('Download .bbb'),
     debug = JSON.parse((await download('Download debug JSON')).bytes.toString());
   assert(shipped.filename.endsWith('.bbb'));
@@ -129,7 +132,7 @@ try {
   await page.waitForFunction((expected) => document.fonts.size === expected, sourceFaces);
   assert.deepEqual(errors, []);
   writeFileSync(
-    'packages/editor/.smoke/ship-workspace.json',
+    join(output, 'ship-workspace.json'),
     JSON.stringify(
       {
         name: debug.name,

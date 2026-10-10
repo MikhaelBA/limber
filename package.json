@@ -21,6 +21,7 @@
     "format": "prettier --write docs tools fixtures/README.md eslint.config.mjs .prettierrc.json",
     "format:check": "prettier --check docs tools fixtures/README.md eslint.config.mjs .prettierrc.json",
     "test:e2e": "node tools/run-browser-tests.mjs",
+    "test:e2e:production": "node tools/run-ship-production-tests.mjs",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run build -w @limber/editor"
   },
   "devDependencies": {

@@ -1541,3 +1541,25 @@ Linux Docker image `limber:phase9e3c` built successfully. Full local browser reg
 and remote CI are being completed before the Phase 9 gate is closed. Automated fixes
 remain in Phase 12.
 Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `b04d739` passed CI 38067120644: all 40 browser suites, Test & Build,
+Docker, VPS and GitHub Pages succeeded. The entire 40-suite development gate also passed
+locally, including actual native fonts, profiler, all fifteen atlas/source comparisons,
+Standard/Heavy Logic, mesh and combined-constraint CPU gates.
+
+## 10 October 2026 Phase 9F production workflow acceptance
+
+CI now serves the main emitted editor build through an owned ephemeral preview server
+and runs all three Ship export/interaction/Doctor suites after production compilation.
+The gate requires emitted native worker/WASM assets and shipped resvg/xmldom/font notices.
+It never substitutes Vite source aliases for the shipping bundle. The server is cleaned
+up on success/failure; development and production JSON/screenshot evidence are stored
+separately and uploaded as distinct CI artifacts. Windows helpers remain hidden.
+
+`npm run test:e2e:production` passed all three suites locally using the actual main build.
+Visual inspection of the captured Ship workspace confirmed the native RTL popup, usable
+controls and complete findings/metrics panels. No sampler/model code changed in this
+increment; the existing complete 680-unit/40-development-suite gate remains green.
+The roadmap records the final production CI gate as pending until the published revision
+passes. Unity work starts after that result. Sol 6.1 / High remains suitable; no user
+decision is required.

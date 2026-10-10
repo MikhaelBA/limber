@@ -67,6 +67,18 @@ jobs:
       - name: Editor production build
         run: npm run build -w @limber/editor
 
+      - name: Production Ship regression tests
+        run: npm run test:e2e:production
+
+      - name: Upload production Ship evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-ship-evidence
+          path: packages/editor/.smoke/ship-production
+          include-hidden-files: true
+          retention-days: 7
+
       # The static bundle is reused by the Pages deploy below.
       - name: Upload editor dist
         uses: actions/upload-artifact@v4

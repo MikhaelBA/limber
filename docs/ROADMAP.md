@@ -14,7 +14,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
 | 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: Ship integration   |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: production CI      |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
 | 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
@@ -131,6 +131,9 @@ Before each implementation task, recommend a model and reasoning effort suited t
   - [x] Typed Logic inputs, scene/character pointer/keyboard interaction and responsive preview.
   - [x] Complete actionable inspection and compatibility workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
+  - [x] All 40 development browser suites, including fifteen native source projects and CPU gates.
+  - [x] Main production build Ship workflow, typed inputs and actionable Doctor acceptance.
+  - [ ] Production workflow enforced and green in remote CI before Unity integration.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
 projects. Font import, isolated preview, native packaging and explicit SVG text-font

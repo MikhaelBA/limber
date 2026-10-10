@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { logicWorkspaceFixture } from '../../../tools/logic-workspace-fixture.mjs';
 
 const browser = await chromium.launch({ headless: true });
-mkdirSync('packages/editor/.smoke', { recursive: true });
+const output = process.env.BBB_SHIP_EVIDENCE_DIR ?? 'packages/editor/.smoke';
+mkdirSync(output, { recursive: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } }),
     errors = [];
@@ -106,8 +108,9 @@ try {
   assert(await page.getByLabel('Atlas inspection', { exact: true }).evaluate((details) => details.open));
   assert(await page.getByRole('img', { name: 'Atlas page 1', exact: true }).isVisible());
   assert.deepEqual(errors, []);
+  await page.screenshot({ path: join(output, 'ship-doctor-ui.png') });
   writeFileSync(
-    'packages/editor/.smoke/ship-doctor-ui.json',
+    join(output, 'ship-doctor-ui.json'),
     JSON.stringify(
       {
         qualifiedMeshFocus: true,
