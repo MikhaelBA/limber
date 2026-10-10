@@ -14,7 +14,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
 | 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: production CI      |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Complete; CI 38068183728 passed |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
 | 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
@@ -130,17 +130,22 @@ Before each implementation task, recommend a model and reasoning effort suited t
   - [x] Worker preparation/cancellation, atlas inspection, packaged native preview and .bbb Save/Open.
   - [x] Typed Logic inputs, scene/character pointer/keyboard interaction and responsive preview.
   - [x] Complete actionable inspection and compatibility workflow.
-- [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
+- [x] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
   - [x] All 40 development browser suites, including fifteen native source projects and CPU gates.
   - [x] Main production build Ship workflow, typed inputs and actionable Doctor acceptance.
-  - [ ] Production workflow enforced and green in remote CI before Unity integration.
+  - [x] Production workflow enforced and green in remote CI before Unity integration.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
 projects. Font import, isolated preview, native packaging and explicit SVG text-font
 matching pass actual browser acceptance. Ship preview, atlas inspection and saved warning
 policies, typed native inputs and actionable Doctor findings pass development and production
-builds. The final complete acceptance gate remains open. The existing legacy player is not the native
-artboard player gate.
+builds. Commit `0ec8d38` passed the final complete acceptance gate in CI 38068183728:
+680 unit tests in 91 files, all 40 development browser suites and all three main production
+Ship suites, plus Docker, VPS and GitHub Pages. Phase 9 is complete. The existing legacy
+player is not the native artboard player gate.
+
+Phase 10 has not started. On 10 October 2026 the user explicitly requested that Unity work
+wait; Phase 10 implementation must remain pending until the user resumes it.
 
 ## Layered character sample (10 October 2026)
 

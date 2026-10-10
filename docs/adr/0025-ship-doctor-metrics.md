@@ -1,7 +1,9 @@
 # ADR 0025: Ship Doctor inventory, budgets and measured work
 
-Status: inventory, warning policies, live posed work and measured profiler implemented;
-Ship UI and saved custom policy integration pending.
+Status: inventory, warning policies, live posed work, measured profiler, Ship UI,
+saved custom policies and actionable source/atlas inspection implemented. Phase 9F
+development and main production acceptance passed at commit `0ec8d38`, CI 38068183728.
+Automated source fix actions remain in Phase 12.
 
 ## Contract
 

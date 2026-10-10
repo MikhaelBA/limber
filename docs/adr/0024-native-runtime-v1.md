@@ -7,7 +7,8 @@ UI/bindings/routing. Phase 9B2b adds validated shared assets and owned artboard 
 Phase 9C1 adds staged Web pixels/host fonts and shared production/editor rendering.
 Phase 9D1–9D3 add portable atlas kernels, real image/SVG worker conversion and packed
 native export/load/render acceptance. Packaged fonts, Ship Doctor/profiler and the
-integrated Ship workflow remain required. Sol 6.1 / High is suitable.
+integrated Ship workflow passed development and main production acceptance in Phase 9F.
+Phase 9 is complete at commit `0ec8d38`, CI 38068183728. Sol 6.1 / High is suitable.
 
 ## File and ownership contract
 

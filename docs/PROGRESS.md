@@ -1563,3 +1563,24 @@ increment; the existing complete 680-unit/40-development-suite gate remains gree
 The roadmap records the final production CI gate as pending until the published revision
 passes. Unity work starts after that result. Sol 6.1 / High remains suitable; no user
 decision is required.
+
+## 10 October 2026 Phase 9 complete; Unity deferred by the user
+
+Commit `0ec8d38` passed CI 38068183728 on the exact published revision
+`0ec8d383f425f29063c8b9c3decfe902dec5daf1`. Test & Build, Docker image,
+Deploy to VPS and Deploy to GitHub Pages all completed successfully. The acceptance gate
+includes 680 unit tests in 91 files, all 40 development browser suites and the three
+main production Ship export/interaction/Doctor suites. Phases 0–9 are now complete.
+
+Remaining delivery is Phase 10 Unity importer/world/UGUI runtime and parity; Phase 11
+Cocos Creator integration and parity; and Phase 12 PSD import, recovery hardening,
+Doctor fix actions, accessibility, documentation and public beta acceptance. Phase 13
+commercial services remain conditional on validated product demand and licensing/legal
+decisions; they are not automatically authorized implementation requirements.
+
+The user requested a status report and then explicitly instructed not to start Phase 10
+yet. No Unity package, importer or runtime implementation has started. Read-only discovery
+confirmed installed Unity Editors and .NET SDKs; it is not engine acceptance or completed
+integration. The roadmap and ADR status summaries now reflect the accepted Phase 9 result.
+This increment changes documentation only. Sol 6.1 / High remains suitable when Unity work
+is resumed.
