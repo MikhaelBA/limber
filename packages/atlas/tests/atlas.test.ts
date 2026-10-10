@@ -248,6 +248,12 @@ describe('portable RGBA atlas preparation', () => {
       'ATLAS_INVALID_INPUT',
     );
     error(() => prepareAtlasImage(image('x', 1025, 1), { scale: 16, trim: false }), 'ATLAS_INVALID_INPUT');
+    const stats = createAtlasWorkStats();
+    error(
+      () => prepareAtlasImage(image('budget', 2, 2), { scale: 2, trim: false, maxPixels: 15 }, stats),
+      'ATLAS_PIXEL_BUDGET',
+    );
+    expect(stats.resizedPixels).toBe(0);
   });
 
   it('composes exact clockwise pixel rows, extrudes edge/corner gutters and leaves unused pixels transparent', () => {

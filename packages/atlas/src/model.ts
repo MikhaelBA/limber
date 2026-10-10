@@ -40,6 +40,8 @@ export interface AtlasRasterOptions {
   trim?: boolean;
   scale?: number;
   sampling?: 'nearest' | 'bilinear';
+  /** Bounds output allocation before resize; useful for an aggregate worker budget. */
+  maxPixels?: number;
 }
 export interface PreparedAtlasImage extends AtlasRasterInput {
   sourceWidth: number;

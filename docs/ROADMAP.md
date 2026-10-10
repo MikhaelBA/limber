@@ -14,7 +14,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed  |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed  |
 | 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed  |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: native playback/Web |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: atlas asset workers |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                          |
 | 11    | Cocos Creator integration and parity                                 | Pending                          |
 | 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                          |
@@ -115,7 +115,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Native artboard orchestration with scene and independent/instanced character parity.
 - [x] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
 - [x] Portable deterministic multipage atlas layout, trim/scale, RGBA rotation and gutter composition.
-- [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
+- [x] Real PNG/JPEG/WebP/SVG worker decode, staged PNG atlas pages and hard cancellation.
+- [ ] Packed native atlas manifest/load/render and packaged font staging.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.

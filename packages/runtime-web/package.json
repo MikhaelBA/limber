@@ -8,11 +8,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./asset-worker": {
+      "types": "./dist/assetWorker.d.ts",
+      "default": "./dist/assetWorker.js"
     }
   },
   "dependencies": {
+    "@limber/atlas": "^0.1.0",
     "@limber/core": "*",
     "@limber/runtime": "*",
+    "@resvg/resvg-wasm": "2.6.2",
     "pixi.js": "^8.6.6"
   }
 }

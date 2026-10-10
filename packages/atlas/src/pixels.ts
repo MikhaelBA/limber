@@ -5,6 +5,7 @@ import {
   atlasInteger,
   validateImageSize,
   type AtlasRasterInput,
+  type AtlasImageSize,
   type AtlasRasterOptions,
   type PreparedAtlasImage,
   type AtlasRect,
@@ -21,6 +22,22 @@ function validatePixels(image: AtlasRasterInput): void {
     atlasFail('ATLAS_INVALID_PIXELS', image.id, 'Image needs exactly four RGBA8 bytes per pixel.');
 }
 
+export function validateAtlasRasterOptions(
+  options: AtlasRasterOptions = {},
+  objectId: string | null = null,
+): void {
+  const scale = options.scale ?? 1,
+    sampling = options.sampling ?? 'bilinear';
+  const maxPixels = options.maxPixels ?? ATLAS_MAX_PIXELS;
+  atlasInteger(maxPixels, 1, ATLAS_MAX_PIXELS, 'prepared image pixel budget', objectId);
+  if (!Number.isFinite(scale) || scale <= 0 || scale > 16)
+    atlasFail('ATLAS_INVALID_INPUT', objectId, 'Export scale must be finite, positive and at most sixteen.');
+  if (!['nearest', 'bilinear'].includes(sampling))
+    atlasFail('ATLAS_INVALID_INPUT', objectId, 'Unsupported RGBA sampling mode.');
+  if (options.trim !== undefined && typeof options.trim !== 'boolean')
+    atlasFail('ATLAS_INVALID_INPUT', objectId, 'Image trim flags must be boolean.');
+}
+
 /** Trim changes stored pixels, never logical source dimensions or authored UV/geometry data. */
 export function prepareAtlasImage(
   input: AtlasRasterInput,
@@ -28,15 +45,12 @@ export function prepareAtlasImage(
   stats?: AtlasWorkStats,
 ): PreparedAtlasImage {
   validatePixels(input);
+  validateAtlasRasterOptions(options, input.id);
+  if (input.trim !== undefined && typeof input.trim !== 'boolean')
+    atlasFail('ATLAS_INVALID_INPUT', input.id, 'Image trim flags must be boolean.');
   const scale = options.scale ?? 1,
-    sampling = options.sampling ?? 'bilinear';
-  if (!Number.isFinite(scale) || scale <= 0 || scale > 16)
-    atlasFail('ATLAS_INVALID_INPUT', input.id, 'Export scale must be finite, positive and at most sixteen.');
-  if (!['nearest', 'bilinear'].includes(sampling))
-    atlasFail('ATLAS_INVALID_INPUT', input.id, 'Unsupported RGBA sampling mode.');
-  for (const flag of [input.trim, options.trim])
-    if (flag !== undefined && typeof flag !== 'boolean')
-      atlasFail('ATLAS_INVALID_INPUT', input.id, 'Image trim flags must be boolean.');
+    sampling = options.sampling ?? 'bilinear',
+    maxPixels = options.maxPixels ?? ATLAS_MAX_PIXELS;
   const trim = (options.trim ?? true) && input.trim !== false;
   let left = input.width,
     top = input.height,
@@ -64,6 +78,13 @@ export function prepareAtlasImage(
   const width = Math.max(1, Math.ceil(crop.width * scale)),
     height = Math.max(1, Math.ceil(crop.height * scale));
   validateImageSize({ id: input.id, width, height });
+  if (width * height > maxPixels)
+    atlasFail(
+      'ATLAS_PIXEL_BUDGET',
+      input.id,
+      'Prepared image exceeds its remaining pixel budget.',
+      'Reduce export scale or split the atlas job.',
+    );
   const pixels = new Uint8Array(width * height * 4);
   if (!empty)
     for (let y = 0; y < height; y++)
@@ -117,12 +138,8 @@ export function prepareAtlasImage(
   };
 }
 
-/** RGBA8 page composition with clockwise rotation and edge extrusion across the complete gutter. */
-export function compositeAtlasPages(
-  images: readonly AtlasRasterInput[],
-  layout: AtlasLayout,
-  stats?: AtlasWorkStats,
-): AtlasPagePixels[] {
+/** Checks regions/gutters without decoding or allocating pixel buffers. */
+export function validateAtlasLayout(images: readonly AtlasImageSize[], layout: AtlasLayout): void {
   if (
     !Array.isArray(images) ||
     images.length > ATLAS_MAX_REGIONS ||
@@ -137,10 +154,10 @@ export function compositeAtlasPages(
       null,
       'Layout needs bounded pages and exactly one placement per image.',
     );
-  const byId = new Map<string, AtlasRasterInput>();
+  const byId = new Map<string, AtlasImageSize>();
   let inputPixels = 0;
   for (const image of images) {
-    validatePixels(image);
+    validateImageSize(image);
     inputPixels += image.width * image.height;
     if (inputPixels > 4 * ATLAS_MAX_PIXELS)
       atlasFail('ATLAS_PIXEL_BUDGET', null, 'Prepared image memory exceeds the composition budget.');
@@ -208,6 +225,17 @@ export function compositeAtlasPages(
       }
     }
   }
+}
+
+/** RGBA8 page composition with clockwise rotation and edge extrusion across the complete gutter. */
+export function compositeAtlasPages(
+  images: readonly AtlasRasterInput[],
+  layout: AtlasLayout,
+  stats?: AtlasWorkStats,
+): AtlasPagePixels[] {
+  validateAtlasLayout(images, layout);
+  for (const image of images) validatePixels(image);
+  const byId = new Map(images.map((image) => [image.id, image]));
   const pages = layout.pages.map((page, index) => ({
     id: `page-${index}`,
     width: page.width,

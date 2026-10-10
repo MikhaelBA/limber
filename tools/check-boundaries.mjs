@@ -42,7 +42,11 @@ check(resolve(root, 'packages/mesh/src'), ['mesh'], ['cdt2d']);
 check(resolve(root, 'packages/atlas/src'), ['atlas']);
 check(resolve(root, 'packages/core/src'), ['core', 'mesh']);
 check(resolve(root, 'packages/runtime/src'), ['core', 'runtime']);
-check(resolve(root, 'packages/runtime-web/src'), ['core', 'runtime', 'runtime-web'], ['pixi.js']);
+check(
+  resolve(root, 'packages/runtime-web/src'),
+  ['atlas', 'core', 'runtime', 'runtime-web'],
+  ['pixi.js', '@resvg/resvg-wasm'],
+);
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;

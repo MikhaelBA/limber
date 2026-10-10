@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      '@limber/atlas': fileURLToPath(new URL('../atlas/src/index.ts', import.meta.url)),
       '@limber/runtime-web': fileURLToPath(new URL('../runtime-web/src/index.ts', import.meta.url)),
       '@limber/runtime': fileURLToPath(new URL('../runtime/src/index.ts', import.meta.url)),
       '@limber/mesh/triangulate': fileURLToPath(new URL('../mesh/src/triangulate.ts', import.meta.url)),

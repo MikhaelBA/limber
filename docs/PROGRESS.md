@@ -1159,9 +1159,46 @@ alpha-aware scaling, deterministic permutation ties and invalid-layout atomicity
 Atlas tests are semantically checked by TypeScript. The workspace is included in
 root builds and Linux Docker installation/builds. All 627 tests in 80 files, lint,
 boundaries, formatting, semantic TypeScript and package/editor builds passed locally.
-Remote CI follows publication of this increment; browser/rendering code is unchanged.
+Commit `7a65aa4` passed CI 38046613090: Test & Build (including 31 browser suites),
+Docker, VPS and GitHub Pages succeeded. Browser/rendering code is unchanged.
 
 This is the portable preparation/layout stage. Actual worker SVG decode, PNG page
 encoding, packed native manifest/load/render acceptance and packaged fonts remain
 required before the asset-pipeline checklist can close. Next task: cancellable worker
 jobs with real raster/SVG decoding. Sol 6.1 / High is suitable; no user decision needed.
+
+## 10 October 2026 Phase 9D2 real image/SVG and cancellable atlas worker
+
+An owned browser worker now preflights and decodes complete PNG/JPEG/WebP bodies,
+converts actual SVG with resvg/WASM, prepares RGBA, packs/extrudes pages and encodes
+real PNG output. Original source buffers stay attached and unchanged. Logical crops,
+scale, rotation, physical page placement, straight-alpha metadata and measured work/
+stage timings are returned without publishing host textures. Raster header dimensions
+and aggregate/remaining resized/page budgets are checked before output allocation.
+Missing external SVG resources, missing explicit SVG text fonts, damaged image bodies,
+animation imports and oversized jobs produce coded object/remedy findings.
+
+The portable job client owns worker termination, abort and delivery cleanup. Original
+source identities are captured before host edits; wrong-job, late-after-abort and
+malformed geometry/page/crop/metric messages cannot publish. Progress must be finite
+and monotonic; host callback/worker/clone/post failures clean up exactly once. Worker
+pixel APIs and bundler-specific URLs remain outside portable runtime/core. The resvg
+dependency is pinned, unmodified, and its source/license notices accompany the WASM.
+
+Seven new unit tests cover asynchronous publication, all failure/cleanup paths and
+allocation-free PNG/JPEG/WebP dimension/animation preflight. The new browser suite
+checks exact SVG half-alpha/rotation/gutter pixels, transparent crop semantics,
+scale/trim locks, three real raster encoders/decoders, failure after a valid first image,
+pre/active abort followed by a successful fresh job, and every one of the fifteen
+source projects. Empty-asset projects return empty pages/regions. A separately built
+and served production host verifies emitted worker/WASM paths, distributed notices
+and actual converted red pixels. Existing standalone native source/RTL/stencil/RGBA
+render acceptance also passes after adding worker exports. All 634 tests in 81 files,
+lint/boundaries, formatting, semantic TypeScript and package/editor builds passed
+locally. The Linux Docker image builds successfully with the pinned WASM dependency.
+Remote CI follows publication of this increment.
+
+Phase 9 remains in progress. Next: connect packed page/region metadata to the strict
+native manifest, load shared pages and prove packed export/load/render source parity.
+Packaged fonts, Ship Doctor/profiler/workspace and final acceptance remain open.
+Sol 6.1 / High is suitable; no user decision or model switch is required.

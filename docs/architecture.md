@@ -7,6 +7,8 @@ Pre-release policy (9 October 2026): the user removed backward file compatibilit
 
 ## Boundaries
 
+- `packages/atlas`: deterministic rectangle packing and RGBA trim/scale/rotation/composition;
+  no browser, renderer, core, runtime or editor dependency.
 - `packages/mesh`: renderer-independent mesh/influence algorithms; no core, editor or runtime dependency.
 - `packages/core`: portable model, transforms, animation, constraints, skinning and serialization.
   May use mesh algorithms; no React, Pixi, editor or external runtime dependency. Enforced by `npm run check:boundaries`.
@@ -15,7 +17,7 @@ Pre-release policy (9 October 2026): the user removed backward file compatibilit
 - `packages/runtime`: evaluator consuming core data; no editor dependency. The legacy wireframe helper
   uses a caller-provided canvas context; loading/evaluation remains usable in Node.
 - `packages/runtime-web`: browser pixel/font publication and shared Pixi scene/rig rendering.
-  May use core/runtime and Pixi; no editor or React dependency. The editor injects its registry
+  May use atlas/core/runtime, Pixi and the isolated resvg WASM converter; no editor or React dependency. The editor injects its registry
   and guides, while native playback injects strict staged resources and a transparent production view.
 - New scene/project modules initially live in core. Extract packages when ownership becomes useful,
   rather than introducing empty packages or breaking existing imports.
@@ -33,6 +35,14 @@ Project and runtime compilation are separate contracts. Spine export remains an 
 Retain Pixi/WebGL initially. Extract a renderer adapter incrementally; the existing ViewportCanvas
 owns the character editing path. SceneViewport consumes portable evaluated scene transforms and setup skeletal poses. Legacy history commands bind to their originating rig; project commands resynchronize the active reference adapter. Heavy import/export/mesh work
 will move into workers as those features are implemented.
+
+Native atlas export owns one worker per request. Real raster body decode, SVG conversion,
+RGBA preparation, packing, extrusion and PNG encoding happen there. The host supplies
+bundler-specific worker/WASM URLs. Abort terminates computation and closes delivery;
+job IDs, monotonic progress and allocation-free layout/result checks reject stale or
+malformed messages. Source buffers are cloned, not detached from the open project.
+No resource is installed in the host during this preparation stage. Packed native
+manifest ingestion and font packaging are subsequent requirements.
 
 Recovery writes complete OPFS generations and atomically switches IndexedDB pointers; the previous
 readable snapshot remains available. IndexedDB document-plus-texture records are the fallback for

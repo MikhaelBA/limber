@@ -33,7 +33,7 @@ Loading stages every required image and nongeneric font before publishing resour
 PNG/JPEG/WebP bodies must decode into real pixels; malformed data receives `IMAGE_DECODE`.
 Missing font sources receive `MISSING_FONT`; broken font sources receive `FONT_DECODE`.
 Generic CSS families explicitly use the host's system fonts. Font packaging in `.bbb`
-and SVG rasterization remain asset-pipeline work; this API requires supplied font bytes
+and packed atlas ingestion remain asset-pipeline work; this API requires supplied font bytes
 or font URLs. Nothing substitutes a placeholder for missing image IDs. Authored
 untextured regions intentionally use white, tinted by their slot color.
 
@@ -60,4 +60,38 @@ The browser gate downloads and reloads independent `.bbb` bytes, checks actual
 source/native raster and RTL pixels, clipping/color goldens, geometry/text cache reuse,
 responsive resize, interaction ownership, atomic decode/cancellation and resource cleanup.
 Thirteen raster/native corpus projects pass initial-view pixel parity; two SVG corpus
-projects retain explicit conversion diagnostics until the asset worker stage.
+projects retain explicit conversion diagnostics in the pure compiler; the worker now
+converts their actual SVG pixels. Packed native export/load/render integration follows.
+
+## Cancellable atlas preparation
+
+`buildAtlasInWorker(input, { createWorker, signal, progress })` owns and terminates one
+worker per job. The host creates a module worker whose entry imports
+`@limber/runtime-web/asset-worker`, and supplies `input.wasmUrl` for SVG. The editor
+host demonstrates Vite's explicit WASM asset import and worker source path in
+`src/engine/nativeAtlasJob.ts`; runtime-web contains no Vite-specific imports.
+
+Inputs contain stable IDs, MIME, original `ArrayBuffer` bytes and optional per-image
+trim locks. Layout/raster options come from `@limber/atlas`. Source buffers are cloned
+by worker messaging; they remain attached to the author's project. Raster dimensions
+are preflighted before real worker body decode. SVG uses unmodified resvg/WASM and
+its PNG interchange, followed by real bitmap decode. Unresolved external SVG images
+fail explicitly; SVG text needs supplied font buffers. Animated PNG/WebP are rejected
+with an individual-frame import remedy instead of silently shipping a first frame.
+
+Progress is monotonic across decode/prepare/pack/compose/encode. Results contain only
+logical region/crop/scale metadata, physical layouts, actual PNG page bytes and measured
+work/timing evidence. Pixel pages remain straight-alpha (`premultiplied: false`). No
+resource is installed in the host while preparing. The consumer validates dimensions,
+crop/source bounds, frame/gutter occupancy, PNG headers, identities and metrics before
+accepting a result. A pre-aborted request creates no worker; active cancellation
+terminates synchronous WASM/packing too. Errors retain codes, object IDs and remedies.
+
+Default/hard decoded and prepared budgets are 64 Mi pixels per stage, capped again
+before resized/page output allocation. Images are limited to 16 MiB each and 64 MiB
+in aggregate; SVG font bytes to 16 MiB; encoded pages to 128 MiB. The independent
+browser gate verifies RGBA/rotation/gutter/trim goldens, all three raster formats,
+damaged body/resource/font/budget findings, cancellation and all fifteen source
+projects (including asset-free ones and Fox). It also builds and serves a production
+host to prove emitted worker/WASM paths and real output pixels. Upstream source/license
+notices are retained in this package and distributed under the editor's `licenses/`.

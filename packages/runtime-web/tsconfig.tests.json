@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": { "@limber/atlas": ["../atlas/src/index.ts"] }
+  },
+  "include": ["tests/**/*.test.ts"]
+}

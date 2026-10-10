@@ -13,6 +13,7 @@
       "node"
     ],
     "paths": {
+      "@limber/atlas": ["../atlas/src/index.ts"],
       "@limber/runtime-web": ["../runtime-web/src/index.ts"],
       "@limber/runtime": ["../runtime/src/index.ts"],
       "@limber/core": [

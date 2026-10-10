@@ -10,13 +10,14 @@
   },
   "dependencies": {
     "@limber/core": "*",
+    "@limber/mesh": "*",
     "@limber/runtime-web": "*",
+    "@resvg/resvg-wasm": "2.6.2",
     "pixi.js": "^8.6.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-resizable-panels": "^2.1.7",
-    "zustand": "^5.0.3",
-    "@limber/mesh": "*"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@esotericsoftware/spine-core": "4.2.120",

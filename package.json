@@ -12,7 +12,7 @@
     "dev": "npm run dev -w @limber/editor",
     "smoke": "node packages/editor/tests/smoke.mjs",
     "smoke:viewport": "node packages/editor/tests/viewport-feedback.mjs",
-    "typecheck": "tsc -p packages/editor && tsc -p packages/runtime/tsconfig.tests.json && tsc -p packages/atlas/tsconfig.tests.json",
+    "typecheck": "tsc -p packages/editor && tsc -p packages/runtime/tsconfig.tests.json && tsc -p packages/atlas/tsconfig.tests.json && tsc -p packages/runtime-web/tsconfig.tests.json",
     "docker:build": "docker build -t limber:latest .",
     "docker:run": "docker run --rm -p 8080:80 limber:latest",
     "clean": "node -e \"const fs=require('node:fs');for(const d of ['packages/atlas/dist','packages/mesh/dist','packages/core/dist','packages/runtime/dist','packages/runtime-web/dist'])fs.rmSync(d,{recursive:true,force:true});\"",

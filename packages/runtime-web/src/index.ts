@@ -4,3 +4,5 @@ export * from './RigSceneDisplay';
 export * from './UITextAdapter';
 export * from './NativeWebAssets';
 export * from './NativeWebRenderer';
+export * from './atlasProtocol';
+export * from './atlasJob';
