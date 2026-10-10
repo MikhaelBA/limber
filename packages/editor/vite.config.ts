@@ -5,6 +5,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The first owned SVG worker must not trigger optimizer discovery and reload its host page.
+  optimizeDeps: { include: ['@resvg/resvg-wasm'] },
   resolve: {
     alias: {
       '@limber/atlas': fileURLToPath(new URL('../atlas/src/index.ts', import.meta.url)),

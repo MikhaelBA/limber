@@ -1196,7 +1196,11 @@ and actual converted red pixels. Existing standalone native source/RTL/stencil/R
 render acceptance also passes after adding worker exports. All 634 tests in 81 files,
 lint/boundaries, formatting, semantic TypeScript and package/editor builds passed
 locally. The Linux Docker image builds successfully with the pinned WASM dependency.
-Remote CI follows publication of this increment.
+Commit `c8b8f80` passed local checks but CI 38048056398 failed in the new browser suite:
+first-use worker dependency optimization reloaded the host page during its test.
+The converter is now explicitly prebundled at dev-server startup. A fresh-cache
+browser acceptance verifies this repair; the remote gate must be rerun before this
+increment is considered CI accepted.
 
 Phase 9 remains in progress. Next: connect packed page/region metadata to the strict
 native manifest, load shared pages and prove packed export/load/render source parity.
