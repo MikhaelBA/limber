@@ -1379,3 +1379,34 @@ The Linux Docker image `limber:phase9d4c` built successfully with the pinned XML
 This raises complete browser acceptance to 35 suites; remote CI follows publication.
 The font subphase is complete. Ship Doctor/budgets/profiler, Ship workspace and the final
 Phase 9 gate remain open. Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `e5374b0` passed CI 38059200106: all 35 browser suites, Test & Build, Docker,
+VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9E1 Ship Doctor inventory and warning policies
+
+The portable native SDK now exposes detached on-demand inventory/resource reports and
+strict Mobile Low/High, Desktop, Web and Custom warning policies. Artboards expand
+component instances, including hidden characters; geometry owners are counted once per
+rig while independent linked-mesh variant weights remain separate. Reports explicitly
+describe all-variant inventory/potential costs rather than active frame work. Native
+font fallback/glyph/license findings compose with the same diagnostic shape.
+
+Physical page counts and approximate base-level RGBA8 memory deduplicate atlas views.
+Encoded image/font totals remain separate. The allocation-free image header parser moves
+into portable atlas with a Web re-export, preserving the existing real decode pipeline.
+Invalid/missing header dimensions produce object-specific coded remedies and unknown
+memory totals, never a misleading zero. Body validity still requires worker/host decode.
+Budget validation owns all thresholds, rejects missing/extra/nonfinite/negative/fractional
+count fields and warns only above a limit; unavailable measurements remain unknown.
+
+Five unit tests verify repeated rigs, shared geometry, mixed influences, physical page
+deduplication, source/asset ownership, malformed images, equality boundaries and invalid
+policies/work metrics. The new browser gate prepares every one of the fifteen actual
+source exports and compares reported memory/dimensions/page identities against real
+decoded Web texture sources, while preserving player/source state and font cleanup.
+All 665 tests in 87 files and complete local checks passed. Doctor, atlas worker/production
+and packed native pixel browser gates passed; full browser acceptance now has 36 suites.
+Remote CI follows publication. Live frame work/draw-call instrumentation, bounded measured
+profiling, saved custom policies and Ship inspector/export workflow remain open.
+Sol 6.1 / High remains suitable; no user decision is required.

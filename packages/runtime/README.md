@@ -187,3 +187,22 @@ Structural preflight covers bounded encoding, sfnt table bounds and Unicode cmap
 sequences. Actual decoding/publication belongs to worker/host adapters. Font budgets
 are 32 files, 4 MiB each and 16 MiB total; static glyph diagnostics inspect at most
 262144 text scalars. Actual dynamic/localized text must be previewed in the host.
+
+## Ship Doctor inventory and budgets
+
+`inspectRuntimeInventory(asset, createRuntimeBudget('web'))` returns detached per-artboard
+expanded character inventory, physical texture/page/encoded font counts and coded findings.
+It includes every skin/attachment variant and hidden character; these are **inventory**
+costs, not measured active frame work. Shared geometry is counted once per independent
+rig. Atlas views share physical page memory. Approximate texture memory is base-level
+RGBA8, excluding mipmaps, text rasters, CPU copies and driver/font-engine allocations.
+Unavailable dimensions/memory remain `null` with an object-specific header finding.
+
+Presets are initial warning policies, not device performance guarantees. Custom thresholds
+and labels pass `validateRuntimeBudget`, returning an owned complete record.
+`checkRuntimeBudget(values, budget, objectId, scope)` checks known actual counts/timings,
+leaves unknown fields unmeasured and returns warnings strictly above a threshold. Scopes
+distinguish inventory, frame, resources and profile. Each finding retains code, severity,
+object reference and remedy; font findings compose automatically. The report does not
+decode pixels, install resources or mutate playback. Live measured profiling and saved
+workspace policies remain separate tasks; see ADR 0025.

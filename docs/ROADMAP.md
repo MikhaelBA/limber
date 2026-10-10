@@ -122,6 +122,9 @@ Before each implementation task, recommend a model and reasoning effort suited t
   - [x] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
   - [x] Authoring font import, project preview/history and SVG text-font matching acceptance.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
+  - [x] Portable native inventory, physical resource metrics and strict preset/custom warning policies.
+  - [ ] Live frame work counts, actual draw calls and bounded measured CPU profiler.
+  - [ ] Ship/Rig findings, saved custom policies and actionable inspector integration.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 

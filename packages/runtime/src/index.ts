@@ -11,3 +11,4 @@ export type { NativeAnimationOptions, NativeQueuedAnimationOptions } from './nat
 export * from './native/NativeScenePlayer';
 export { NativeRuntimeAsset } from './native/NativeRuntimeAsset';
 export * from './native/NativeArtboardPlayer';
+export * from './native/doctor';
