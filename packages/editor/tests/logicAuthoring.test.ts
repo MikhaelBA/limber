@@ -5,6 +5,7 @@ import {
   deserializeProject,
   validateProject,
   assertSpineProjectSupported,
+  PROJECT_SCHEMA_VERSION,
   type LogicGraph,
 } from '@limber/core';
 import { EditorEngine } from '../src/engine/EditorEngine';
@@ -53,7 +54,7 @@ describe('native Logic source and atomic graph commands', () => {
     h.execute(new EditLogicCommand(project, rigOwner, { kind: 'create', graph: graph('wave') }));
     const after = serializeProject(project);
     expect(deserializeProject(after)).toEqual(project);
-    expect(project.schemaVersion).toBe(10);
+    expect(project.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
     expect(rig.skeleton).toBe(skeleton);
     expect(rig.animations).toBe(animations);
     expect(board.clips).toBe(clips);

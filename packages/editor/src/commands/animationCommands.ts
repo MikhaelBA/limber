@@ -8,10 +8,19 @@ import type {
   DrawOrderTimeline,
   EventKeyframe,
   EventTimeline,
+  EventPayload,
   NumberKeyframe,
   SlotColorTimeline,
 } from '@limber/core';
-import { defaultCurve, validateDeformTimelines, activeRigNode, validateProject } from '@limber/core';
+import {
+  defaultCurve,
+  validateDeformTimelines,
+  activeRigNode,
+  validateProject,
+  validateEventPayload,
+  validateEventName,
+  validateAnimationEvents,
+} from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 
@@ -916,7 +925,7 @@ function snapshotEvents(anim: Animation): EventSnapshot {
     ? {
         existed: true,
         timelineIndex: anim.timelines.indexOf(tl),
-        keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })),
+        keyframes: structuredClone(tl.keyframes),
       }
     : { existed: false, timelineIndex: -1, keyframes: null };
 }
@@ -924,7 +933,7 @@ function snapshotEvents(anim: Animation): EventSnapshot {
 function restoreEvents(anim: Animation, snap: EventSnapshot): void {
   const tl = findEventTimeline(anim);
   if (snap.existed) {
-    const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve } }));
+    const kfs = structuredClone(snap.keyframes!);
     if (tl) tl.keyframes = kfs;
     else
       anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
@@ -940,27 +949,58 @@ function restoreEvents(anim: Animation, snap: EventSnapshot): void {
 export class KeyEventCommand implements Command {
   readonly label: string;
   private readonly before: EventSnapshot;
+  private readonly time: number;
+  private readonly beforeDuration: number;
+  private readonly payload: EventPayload | undefined;
 
   constructor(
     private engine: EditorEngine,
     readonly eventName: string,
-    private payload?: number | string,
+    payload?: EventPayload,
   ) {
-    this.before = snapshotEvents(requireAnimation(engine));
+    validateEventName(eventName);
+    validateEventPayload(payload);
+    const animation = requireAnimation(engine);
+    this.before = snapshotEvents(animation);
+    this.beforeDuration = animation.duration;
+    this.time = engine.currentTime;
+    if (!Number.isFinite(this.time) || this.time < 0)
+      throw new Error('Event time must be finite and nonnegative.');
+    this.payload = payload === undefined ? undefined : structuredClone(payload);
     this.label = `Key Event ${eventName}`;
   }
 
   do(): void {
     const anim = requireAnimation(this.engine);
+    const proposal = structuredClone(anim);
+    this.keyInto(proposal);
+    validateAnimationEvents([proposal]);
+    // Validate eventful Logic loop limits before changing source or history.
+    const rig = activeRigNode(this.engine.project);
+    if (rig?.logic)
+      validateProject({
+        ...this.engine.project,
+        artboards: this.engine.project.artboards.map((board) => ({
+          ...board,
+          nodes: board.nodes.map((node) =>
+            node === rig
+              ? { ...rig, animations: rig.animations.map((a) => (a === anim ? proposal : a)) }
+              : node,
+          ),
+        })),
+      });
+    this.keyInto(anim);
+  }
+  private keyInto(anim: Animation): void {
     let tl = findEventTimeline(anim);
     if (!tl) {
       tl = { kind: 'event', keyframes: [] };
       anim.timelines.push(tl);
     }
     const kf: EventKeyframe = {
-      time: this.engine.currentTime,
+      time: this.time,
       eventName: this.eventName,
-      ...(this.payload !== undefined ? { payload: this.payload } : {}),
+      ...(this.payload !== undefined ? { payload: structuredClone(this.payload) } : {}),
       curve: steppedCurve(),
     };
     const at = tl.keyframes.findIndex(
@@ -977,6 +1017,7 @@ export class KeyEventCommand implements Command {
 
   undo(): void {
     restoreEvents(requireAnimation(this.engine), this.before);
+    requireAnimation(this.engine).duration = this.beforeDuration;
   }
 }
 

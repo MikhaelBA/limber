@@ -7,6 +7,7 @@
  * uint32 — none of these fit `value: number`.
  */
 
+import type { EventPayload } from './events';
 export type CurveType = 'linear' | 'stepped' | 'bezier';
 
 export interface Curve {
@@ -54,7 +55,7 @@ export interface DeformKeyframe extends KeyframeBase {
 
 export interface EventKeyframe extends KeyframeBase {
   eventName: string;
-  payload?: number | string;
+  payload?: EventPayload;
 }
 
 // ---- Timeline union ----

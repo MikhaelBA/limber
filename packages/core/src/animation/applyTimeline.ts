@@ -3,6 +3,7 @@ import type { EventFrame } from '../types/events';
 import type { Timeline } from '../types/animation';
 import { findKeyframeIndex, interpolateNumber, lerpColor } from './keyframes';
 import { solveBezier } from './bezier';
+import { runtimeEventPayload } from './eventPayload';
 
 /**
  * Applies one timeline at track-time with blending weight `alpha`
@@ -89,7 +90,7 @@ export function applyTimeline(
           outEvents.push({
             animationName,
             eventName: kf.eventName,
-            payload: kf.payload,
+            payload: kf.payload === undefined ? undefined : runtimeEventPayload(kf.payload),
             time: kf.time,
           });
         }

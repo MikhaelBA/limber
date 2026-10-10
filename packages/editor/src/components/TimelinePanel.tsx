@@ -14,6 +14,8 @@ import {
 } from '../commands/animationCommands';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
+import { EventComposer } from './EventComposer';
+import { formatEventPayload } from '@limber/core';
 
 const PPS = 100; // Pixels per second.
 const ROW_H = 24;
@@ -114,14 +116,6 @@ export function TimelinePanel() {
     setStatus('Draw order keyed at playhead');
   };
 
-  // ---- Event keying (Phase 7): name typed inline, keyed at the playhead ----
-  const [eventName, setEventName] = useState('footstep');
-  const onKeyEvent = () => {
-    if (!active || mode !== 'animate' || !eventName.trim()) return;
-    execute(new KeyEventCommand(engine, eventName.trim()));
-    setStatus(`Event "${eventName.trim()}" keyed at playhead`);
-  };
-
   // ---- Ruler scrubbing ----
   const scrubbingRef = useRef(false);
   const scrubFromEvent = (e: React.PointerEvent) => {
@@ -130,10 +124,24 @@ export function TimelinePanel() {
   };
 
   // ---- Keyframe dragging ----
-  const dragKfRef = useRef<{ boneId: string; property: BonePropertyName; fromTime: number; moved: boolean } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ property: BonePropertyName; fromTime: number; dx: number } | null>(null);
+  const dragKfRef = useRef<{
+    boneId: string;
+    property: BonePropertyName;
+    fromTime: number;
+    moved: boolean;
+  } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    property: BonePropertyName;
+    fromTime: number;
+    dx: number;
+  } | null>(null);
 
-  const onKfPointerDown = (e: React.PointerEvent, boneId: string, property: BonePropertyName, time: number) => {
+  const onKfPointerDown = (
+    e: React.PointerEvent,
+    boneId: string,
+    property: BonePropertyName,
+    time: number,
+  ) => {
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragKfRef.current = { boneId, property, fromTime: time, moved: false };
@@ -179,11 +187,16 @@ export function TimelinePanel() {
   const bones = engine.skeleton.data.bones;
   const slots = engine.skeleton.data.slots;
   const slotColorKeyframes = (slotId: string) =>
-    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'slotColor' }> => tl.kind === 'slotColor' && tl.slotId === slotId)?.keyframes ?? [];
+    (active?.timelines ?? []).find(
+      (tl): tl is Extract<Timeline, { kind: 'slotColor' }> => tl.kind === 'slotColor' && tl.slotId === slotId,
+    )?.keyframes ?? [];
   const drawOrderKeyframes =
-    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'drawOrder' }> => tl.kind === 'drawOrder')?.keyframes ?? [];
+    (active?.timelines ?? []).find(
+      (tl): tl is Extract<Timeline, { kind: 'drawOrder' }> => tl.kind === 'drawOrder',
+    )?.keyframes ?? [];
   const eventKeyframes =
-    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'event' }> => tl.kind === 'event')?.keyframes ?? [];
+    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'event' }> => tl.kind === 'event')
+      ?.keyframes ?? [];
   /** The MESH attachment a slot currently shows (deform row source), if any. */
   const shownMeshAttachmentId = (slotId: string): string | null => {
     const slotIndex = engine.skeleton.slotIndexMap.get(slotId);
@@ -194,7 +207,10 @@ export function TimelinePanel() {
     return attachment?.type === 'mesh' ? attId : null;
   };
   const deformKeyframesOf = (attachmentId: string) =>
-    (active?.timelines ?? []).find((tl): tl is Extract<Timeline, { kind: 'deform' }> => tl.kind === 'deform' && tl.attachmentId === attachmentId)?.keyframes ?? [];
+    (active?.timelines ?? []).find(
+      (tl): tl is Extract<Timeline, { kind: 'deform' }> =>
+        tl.kind === 'deform' && tl.attachmentId === attachmentId,
+    )?.keyframes ?? [];
   const depthById = new Map<string, number>();
   for (const bone of bones) {
     depthById.set(bone.id, bone.parentId === null ? 0 : (depthById.get(bone.parentId) ?? 0) + 1);
@@ -224,7 +240,11 @@ export function TimelinePanel() {
             </option>
           ))}
         </select>
-        <button className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800" title="New animation" onClick={onNewAnimation}>
+        <button
+          className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+          title="New animation"
+          onClick={onNewAnimation}
+        >
           ＋
         </button>
         <button
@@ -276,22 +296,14 @@ export function TimelinePanel() {
         >
           ◆ Order
         </button>
-        <input
-          type="text"
-          value={eventName}
-          onChange={(e) => setEventName(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()} // Keep global shortcuts away.
-          title="Event name"
-          className="w-20 rounded bg-neutral-800 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+        <EventComposer
+          prefix="Character"
+          disabled={!active || mode !== 'animate'}
+          onKey={(name, payload) => {
+            execute(new KeyEventCommand(engine, name, payload));
+            setStatus(`Event "${name}" keyed at playhead`);
+          }}
         />
-        <button
-          className="rounded px-2 text-xs text-neutral-200 ring-1 ring-neutral-700 hover:bg-neutral-800 disabled:opacity-35"
-          title="Key this event at the playhead (fires during playback)"
-          disabled={!active || mode !== 'animate' || !eventName.trim()}
-          onClick={onKeyEvent}
-        >
-          ⚡ Event
-        </button>
         {active && (
           <>
             <label className="ml-1 flex items-center gap-1 text-xs text-neutral-400">
@@ -318,7 +330,9 @@ export function TimelinePanel() {
               <input
                 type="checkbox"
                 checked={active.loop}
-                onChange={(e) => execute(new SetAnimationMetaCommand(engine, active.name, { loop: e.target.checked }))}
+                onChange={(e) =>
+                  execute(new SetAnimationMetaCommand(engine, active.name, { loop: e.target.checked }))
+                }
               />
               loop
             </label>
@@ -342,14 +356,25 @@ export function TimelinePanel() {
               />
             </label>
             {selectedKeyframe &&
-              (selectedKeyframe.kind === 'bone' || selectedKeyframe.kind === 'slotColor' || selectedKeyframe.kind === 'deform') && (
-                <label className="flex items-center gap-1 text-xs text-neutral-400" title="Curve leaving the selected keyframe">
+              (selectedKeyframe.kind === 'bone' ||
+                selectedKeyframe.kind === 'slotColor' ||
+                selectedKeyframe.kind === 'deform') && (
+                <label
+                  className="flex items-center gap-1 text-xs text-neutral-400"
+                  title="Curve leaving the selected keyframe"
+                >
                   ⌒
                   <select
                     onChange={(e) => {
                       const preset = CURVE_PRESETS.find((p) => p.id === e.target.value);
                       if (preset) {
-                        execute(new SetKeyframeCurveCommand(engine, selectedKeyframe, structuredClone(preset.curve)));
+                        execute(
+                          new SetKeyframeCurveCommand(
+                            engine,
+                            selectedKeyframe,
+                            structuredClone(preset.curve),
+                          ),
+                        );
                         setStatus(`Curve set to ${preset.label}`);
                       }
                       e.target.value = ''; // Re-selectable for consecutive keys.
@@ -367,7 +392,9 @@ export function TimelinePanel() {
               )}
           </>
         )}
-        {!hasAnim && <span className="text-xs text-neutral-500">Create an animation to start keyframing</span>}
+        {!hasAnim && (
+          <span className="text-xs text-neutral-500">Create an animation to start keyframing</span>
+        )}
       </div>
 
       {/* Dopesheet */}
@@ -406,12 +433,18 @@ export function TimelinePanel() {
 
           {/* Draw order + slot color rows (Phase 4) */}
           {slots.length > 0 && (
-            <div className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-amber-300/80" style={{ height: ROW_H }}>
+            <div
+              className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-amber-300/80"
+              style={{ height: ROW_H }}
+            >
               ◆ draw order
             </div>
           )}
           {eventKeyframes.length > 0 && (
-            <div className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-violet-300/80" style={{ height: ROW_H }}>
+            <div
+              className="flex items-center gap-1 border-t border-neutral-800 text-[11px] text-violet-300/80"
+              style={{ height: ROW_H }}
+            >
               ⚡ events
             </div>
           )}
@@ -421,13 +454,18 @@ export function TimelinePanel() {
                 onClick={() => selectSlot(slot.id)}
                 style={{ height: PROP_ROW_H, paddingLeft: 6 }}
                 className={`flex cursor-default items-center gap-1 text-[11px] ${
-                  slot.id === selectedSlotId ? 'bg-sky-600/25 text-sky-100' : 'text-neutral-500 hover:bg-neutral-800'
+                  slot.id === selectedSlotId
+                    ? 'bg-sky-600/25 text-sky-100'
+                    : 'text-neutral-500 hover:bg-neutral-800'
                 }`}
               >
                 ▣ {slot.name}
               </div>
               {slot.id === selectedSlotId && shownMeshAttachmentId(slot.id) && (
-                <div style={{ height: PROP_ROW_H, paddingLeft: 20 }} className="flex items-center text-[11px] text-emerald-300/70">
+                <div
+                  style={{ height: PROP_ROW_H, paddingLeft: 20 }}
+                  className="flex items-center text-[11px] text-emerald-300/70"
+                >
                   ◈ deform
                 </div>
               )}
@@ -473,7 +511,9 @@ export function TimelinePanel() {
                     className="absolute bottom-0 border-l border-neutral-700"
                     style={{ left: t * PPS, height: major ? 10 : 5 }}
                   >
-                    {major && <span className="absolute -top-0.5 left-1 text-[10px] text-neutral-500">{t}s</span>}
+                    {major && (
+                      <span className="absolute -top-0.5 left-1 text-[10px] text-neutral-500">{t}s</span>
+                    )}
                   </div>
                 );
               })}
@@ -493,13 +533,15 @@ export function TimelinePanel() {
                     {boneTimelines.length > 0 &&
                       boneTimelines.some((tl) => tl.keyframes.length > 0) &&
                       // Ghost diamonds: merged keys of all properties.
-                      Array.from(new Set(boneTimelines.flatMap((tl) => tl.keyframes.map((k) => k.time)))).map((t) => (
-                        <div
-                          key={t}
-                          className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border border-sky-500/60 bg-neutral-700"
-                          style={{ left: t * PPS - 4 }}
-                        />
-                      ))}
+                      Array.from(new Set(boneTimelines.flatMap((tl) => tl.keyframes.map((k) => k.time)))).map(
+                        (t) => (
+                          <div
+                            key={t}
+                            className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border border-sky-500/60 bg-neutral-700"
+                            style={{ left: t * PPS - 4 }}
+                          />
+                        ),
+                      )}
                   </div>
                   {expanded &&
                     PROPERTIES.map((p) => {
@@ -518,7 +560,8 @@ export function TimelinePanel() {
                               selectedKeyframe.property === p.id &&
                               Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
                             const isDragging =
-                              dragPreview?.property === p.id && Math.abs(dragPreview.fromTime - kf.time) < 1e-6;
+                              dragPreview?.property === p.id &&
+                              Math.abs(dragPreview.fromTime - kf.time) < 1e-6;
                             const left = kf.time * PPS - 4 + (isDragging ? dragPreview.dx : 0);
                             return (
                               <div
@@ -546,7 +589,8 @@ export function TimelinePanel() {
               <div className="relative border-t border-neutral-800" style={{ height: ROW_H }}>
                 {drawOrderKeyframes.map((kf) => {
                   const isSelKf =
-                    selectedKeyframe?.kind === 'drawOrder' && Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
+                    selectedKeyframe?.kind === 'drawOrder' &&
+                    Math.abs(selectedKeyframe.time - kf.time) < 1e-6;
                   return (
                     <div
                       key={kf.time}
@@ -584,7 +628,7 @@ export function TimelinePanel() {
                         e.stopPropagation();
                         setKeyframeSelection({ kind: 'event', time: kf.time, eventName: kf.eventName });
                       }}
-                      title={`event "${kf.eventName}" @ ${fmtTime(kf.time)}${kf.payload !== undefined ? ` = ${String(kf.payload)}` : ''}`}
+                      title={`event "${kf.eventName}" @ ${fmtTime(kf.time)}${kf.payload !== undefined ? ` = ${formatEventPayload(kf.payload)}` : ''}`}
                     />
                   );
                 })}
@@ -596,7 +640,10 @@ export function TimelinePanel() {
               const meshAttId = shownMeshAttachmentId(slot.id);
               return (
                 <div key={slot.id}>
-                  <div style={{ height: PROP_ROW_H }} className="relative border-b border-neutral-800/30 bg-neutral-900/40">
+                  <div
+                    style={{ height: PROP_ROW_H }}
+                    className="relative border-b border-neutral-800/30 bg-neutral-900/40"
+                  >
                     {slotColorKeyframes(slot.id).map((kf) => {
                       const isSelKf =
                         selectedKeyframe?.kind === 'slotColor' &&
@@ -622,7 +669,10 @@ export function TimelinePanel() {
                   </div>
                   {/* Deform keyframes for the mesh this slot shows (selected slot only). */}
                   {slot.id === selectedSlotId && meshAttId && (
-                    <div style={{ height: PROP_ROW_H }} className="relative border-b border-neutral-800/30 bg-neutral-900/40">
+                    <div
+                      style={{ height: PROP_ROW_H }}
+                      className="relative border-b border-neutral-800/30 bg-neutral-900/40"
+                    >
                       {deformKeyframesOf(meshAttId).map((kf) => {
                         const isSelKf =
                           selectedKeyframe?.kind === 'deform' &&
@@ -637,7 +687,11 @@ export function TimelinePanel() {
                             style={{ left: kf.time * PPS - 4 }}
                             onPointerDown={(e) => {
                               e.stopPropagation();
-                              setKeyframeSelection({ kind: 'deform', attachmentId: meshAttId, time: kf.time });
+                              setKeyframeSelection({
+                                kind: 'deform',
+                                attachmentId: meshAttId,
+                                time: kf.time,
+                              });
                               selectSlot(slot.id);
                             }}
                             title={`deform @ ${fmtTime(kf.time)}${kf.offsets ? ` (${kf.offsets.length / 2} vertices)` : ' (setup)'} — drag mesh vertices in Animate mode to key`}

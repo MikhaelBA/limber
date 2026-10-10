@@ -97,7 +97,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Typed parameters and deterministic graph/transition contract with recorded-input goldens (ADR 0023).
 - [x] Native source/validation and atomic graph/parameter/state/transition commands.
 - [x] Portable scene/character playback with blend/interruption and fixed-step event sampling.
-- [ ] Strengthened typed event payloads and native/editor event authoring.
+- [x] Strengthened typed event payloads and native/editor event authoring.
 - [ ] One-way bindings to exposed properties with source preservation.
 - [ ] Logic graph editing, pointer/focus/test preview and debug overlay.
 - [ ] Disabled-logic/raw-animation parity, native/history/browser fixtures and full Phase 8 CI gate.

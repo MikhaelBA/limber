@@ -1,0 +1,119 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 11,
+  "projectId": "bf49243a-8fb8-4cc1-9dab-4141a85956ff",
+  "name": "Untitled",
+  "artboards": [
+    {
+      "id": "4b5c64f8-f261-4637-99d4-d41ede487811",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "1628af63-8efd-4784-bce3-947704ee7202",
+          "name": "Character rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "677ea9e6-7e6b-4d41-97af-a1d61efbd1c0",
+                "name": "root",
+                "parentId": null,
+                "length": 80,
+                "setupPose": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [],
+            "attachments": [],
+            "ikConstraints": [],
+            "skins": [],
+            "activeSkin": ""
+          },
+          "animations": [
+            {
+              "name": "animation",
+              "duration": 1.5,
+              "loop": true,
+              "timelines": [
+                {
+                  "kind": "event",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "eventName": "AttackHit",
+                      "payload": {
+                        "type": "int",
+                        "value": 17
+                      },
+                      "curve": {
+                        "type": "stepped"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "clips": [
+        {
+          "id": "2e15c515-5356-40c4-b2cc-b492c3fc3c48",
+          "name": "Clip 1",
+          "duration": 2,
+          "loop": true,
+          "fps": 30,
+          "tracks": [],
+          "events": [
+            {
+              "id": "95207b89-7351-402c-8524-c447ecbdee91",
+              "name": "UIConfirm",
+              "time": 0,
+              "payload": {
+                "type": "bool",
+                "value": true
+              }
+            },
+            {
+              "id": "e9633e4a-fc63-4ab2-8354-45a275986994",
+              "name": "LocalizedCue",
+              "time": 0,
+              "payload": {
+                "type": "string",
+                "value": "سلام 🌿"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {},
+  "editor": {
+    "activeArtboardId": "4b5c64f8-f261-4637-99d4-d41ede487811",
+    "activeRigId": "1628af63-8efd-4784-bce3-947704ee7202"
+  }
+}

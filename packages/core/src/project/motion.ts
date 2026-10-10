@@ -1,6 +1,8 @@
 import { findKeyframeIndex, interpolateNumber } from '../animation/keyframes';
 import type { Curve } from '../types/animation';
 import type { Artboard, SceneTransform } from './model';
+import type { EventPayload } from '../types/events';
+import { runtimeEventPayload } from '../animation/eventPayload';
 
 export const SCENE_PROPERTIES = [
   'x',
@@ -31,7 +33,7 @@ export interface SceneEvent {
   id: string;
   time: number;
   name: string;
-  payload?: number | string;
+  payload?: EventPayload;
 }
 export interface SceneClip {
   id: string;
@@ -147,7 +149,16 @@ export class SceneClock {
       this.clip.events.forEach((event, index) => {
         const at = cycle * duration + event.time;
         if ((at > this.elapsed + 1e-10 || (this.initial && at === 0)) && at <= end + 1e-10)
-          fired.push({ at, index, event: { ...event, clipId: this.clip.id, cycle } });
+          fired.push({
+            at,
+            index,
+            event: {
+              ...event,
+              ...(event.payload === undefined ? {} : { payload: runtimeEventPayload(event.payload) }),
+              clipId: this.clip.id,
+              cycle,
+            },
+          });
       });
     }
     fired.sort((a, b) => a.at - b.at || a.event.cycle - b.event.cycle || a.index - b.index);

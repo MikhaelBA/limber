@@ -7,6 +7,9 @@ import { PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, projectFromLegacy, type BoneByB
 import { validateLogicGraph } from '../logic/validate';
 import type { Animation } from '../types/animation';
 import type { SceneClip } from './motion';
+import { validateEventPayload, validateEventName } from '../animation/eventPayload';
+import { LogicEventSampler } from '../logic/eventSampling';
+import type { LogicGraph } from '../logic/model';
 
 export class ProjectFormatError extends Error {
   constructor(
@@ -90,21 +93,17 @@ function validateClips(value: unknown, nodeIds: Set<string>, ids: Set<string>): 
       }
     }
     let previous = -1;
+    if (array(clip.events, 'Scene events').length > 512)
+      fail('EVENT_LIMIT', 'A clip supports at most 512 event keys.', id);
     for (const item of array(clip.events, 'Scene events')) {
       const event = record(item, 'Scene event');
       const eventId = takeId(event.id, 'Event ID');
-      text(event.name, 'Event name');
+      validateEventName(event.name);
       finite(event.time, 'Event time', 0);
       if (Number(event.time) < previous || Number(event.time) > Number(clip.duration))
         fail('INVALID_EVENT_TIME', 'Events must be ordered within clip duration.', eventId);
       previous = Number(event.time);
-      if (
-        event.payload !== undefined &&
-        typeof event.payload !== 'string' &&
-        typeof event.payload !== 'number'
-      )
-        fail('INVALID_EVENT', 'Event payload must be a string or number.', eventId);
-      if (typeof event.payload === 'number') finite(event.payload, 'Event payload');
+      validateEventPayload(event.payload);
     }
   }
 }
@@ -204,6 +203,14 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           if (names.size !== animations.length)
             fail('DUPLICATE_CLIP_NAME', 'Logic rigs require unique animation names.', node.id);
           validateLogicGraph(node.logic, new Map(animations.map((a) => [a.name, { duration: a.duration }])));
+          for (const state of (node.logic as LogicGraph).states)
+            if (state.clip !== null) {
+              const clip = animations.find((a) => a.name === state.clip)!;
+              new LogicEventSampler(
+                clip.duration,
+                clip.timelines.flatMap((t) => (t.kind === 'event' ? t.keyframes : [])),
+              ).validateLoop(state.loop);
+            }
         }
       } else if (!['group', 'text', 'shape', 'mask', 'instance'].includes(String(node.type)))
         fail('UNKNOWN_NODE', `Unsupported scene node type ${String(node.type)}.`, node.id);
@@ -216,6 +223,14 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
         artboard.logic,
         new Map(((artboard.clips ?? []) as SceneClip[]).map((c) => [c.id, { duration: c.duration }])),
       );
+      for (const state of (artboard.logic as LogicGraph).states)
+        if (state.clip !== null) {
+          const clip = (artboard.clips as SceneClip[]).find((c) => c.id === state.clip)!;
+          new LogicEventSampler(
+            clip.duration,
+            clip.events.map((e) => ({ time: e.time, eventName: e.name, payload: e.payload })),
+          ).validateLoop(state.loop);
+        }
     }
     // Each ancestor path is visited once, including already-completed paths.
     const done = new Set<string>();
@@ -273,7 +288,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
     project.schemaVersion === 6 ||
     project.schemaVersion === 7 ||
     project.schemaVersion === 8 ||
-    project.schemaVersion === 9
+    project.schemaVersion === 9 ||
+    project.schemaVersion === 10
   )
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);

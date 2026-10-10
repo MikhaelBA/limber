@@ -770,10 +770,49 @@ editor builds passed. The new targeted browser playback suite and fresh complete
 twenty-four-suite browser regression passed with unchanged scene/RTL golden
 tolerances. Standard/Heavy combined CPU p95 was 2.20/5.80ms, with 10000/40004
 weighted transforms and exact source preservation. Software-graphics frame-gap
-p95 was 24.40/58.30ms, separate from hardware GPU 60fps claims. Remote CI follows
-this source commit/push.
+p95 was 24.40/58.30ms, separate from hardware GPU 60fps claims. Commit `06190d6`
+passed CI 38012611665: Test & Build (all twenty-four browser suites), Docker, VPS
+and GitHub Pages all succeeded.
 
 Phase 8 remains partial. The editor does not yet execute graphs through these adapters;
 typed payload strengthening/event UI, one-way bindings, graph editing, interaction and
 debug preview remain. Source stays schema 10 and legacy queue/mixer behavior stays as
 before. Next is the event payload/authoring increment, with Sol 6.1 / High suitable.
+
+## 10 October 2026 Phase 8C2 typed event data and authoring
+
+Source schema 11 adds explicit bool/float/int/string event payload records alongside
+valid scalar payloads. Unknown fields, nested objects, type coercion, nonfinite/
+Float32-range invalid floats, non-int32 integers and oversized strings reject before
+publication. All scene/rig clips validate event data, including dormant clips. Graph
+eventful loops also validate bounded cycle work before native load/authoring. Source
+keeps authored float precision; Logic, SceneClock and raw RuntimePlayer copy emitted
+records and canonicalize typed floats to binary32. Compatibility export explicitly
+rejects typed payloads instead of losing their meaning.
+
+Both timelines have an event payload dialog with explicit type/value controls and
+editable Footstep/AttackHit/SpawnProjectile/SFX/Haptic/UIConfirm starting templates.
+Invalid drafts disable keying and commands validate again. Rig key commands capture
+time and payload, deep-copy event history, and undo restores the preceding clip length.
+The native dialog prevents clipping inside resizable timeline panels. Global shortcuts
+remain available on event buttons; editable fields/open dialogs isolate keyboard input.
+No audio, haptic or game action executes automatically; games consume generic events.
+
+Ten new tests cover payload types/ranges, authored/runtime Float32 distinction, emission
+isolation, scene/rig/raw payload parity, dormant-source validation, cycle/count limits,
+compatibility rejection and exact scene/rig history. The actual editor-saved schema-11
+fixture contains AttackHit int, UIConfirm bool and a custom Persian/emoji string cue;
+core replay verifies entry payloads and source preservation. The targeted browser suite
+passed templates/custom values, invalid drafts/import, exact Undo/Redo/Save/Open and
+both compatibility exports. Character/scene dialog screenshots were visually verified.
+All 502 unit tests in 70 files, lint/boundaries, formatting, TypeScript and package/
+editor builds passed. The complete fresh twenty-five-suite browser regression passed
+after correcting a real event-button keyboard propagation regression found by smoke.
+Scene/RTL golden tolerances were unchanged. Standard/Heavy combined CPU p95 was
+1.90/5.50ms, with 10000/40004 weighted transforms; software frame-gap p95 was
+21.50/56.90ms, separate from hardware GPU claims. Remote CI follows commit/push.
+
+Phase 8 remains partial: one-way exposed-property/direct-text bindings, graph editing,
+pointer/focus/test inputs, debug preview and the final integrated gate remain. The
+portable graph adapters are not yet connected to editor Logic preview. The next
+binding increment is suitable for Sol 6.1 / High; no user decision currently blocks it.

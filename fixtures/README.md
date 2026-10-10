@@ -70,3 +70,9 @@ Spine export failure. Portable scene/rig adapters now replay its full poses, mat
 and vertices identically across six display groupings in core and Chromium. Editor
 interaction/graph UI integration remains a later Phase 8 increment.
 `logicSourceFixture` in tools/logic-fixtures.mjs reproduces this source.
+
+`bbbproj-v11-typed-events.json` is the actual editor Save/Open result with a
+character AttackHit int payload, scene UIConfirm bool payload and a custom Persian/
+emoji string cue. Browser coverage exercises both event composers/templates,
+invalid drafts/import isolation, exact history and compatibility-export rejection.
+Core playback verifies all three entry payloads while preserving authored source.

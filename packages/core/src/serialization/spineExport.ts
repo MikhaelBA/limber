@@ -6,6 +6,7 @@ import { solveFK } from '../skeleton/FKSolver';
 import { Skeleton } from '../skeleton/Skeleton';
 import { validateDeformTimelines } from '../animation/validateDeforms';
 import { activeRigNode, type BoneByBoneProject } from '../project/model';
+import { validateAnimationEvents } from '../animation/eventPayload';
 
 /** Guard before converting a project to the legacy rig-only export view. */
 export function assertSpineProjectSupported(project: BoneByBoneProject): void {
@@ -52,6 +53,19 @@ export function exportSpineJson(
   texturePaths?: Map<string, string>,
   warnings?: string[],
 ): string {
+  validateAnimationEvents(doc.animations);
+  if (
+    doc.animations.some((animation) =>
+      animation.timelines.some(
+        (timeline) =>
+          timeline.kind === 'event' &&
+          timeline.keyframes.some((key) => key.payload !== undefined && typeof key.payload === 'object'),
+      ),
+    )
+  )
+    throw new Error(
+      'Native typed event payloads cannot be represented by Spine export; save the native project.',
+    );
   if (doc.skeleton.paths?.length || doc.skeleton.pathConstraints?.length)
     throw new Error(
       'Native paths require BoneByBone project save; this compatibility export cannot preserve their semantics.',

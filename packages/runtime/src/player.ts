@@ -7,6 +7,7 @@ import {
   solveConstraints,
   updateSkinning,
   validateDeformTimelines,
+  validateAnimationEvents,
   FixedStepClock,
   SECONDARY_STEP_SECONDS,
 } from '@limber/core';
@@ -66,6 +67,7 @@ export class RuntimePlayer {
     opts: RuntimePlayerOptions = {},
   ) {
     validateDeformTimelines(doc.skeleton, doc.animations);
+    validateAnimationEvents(doc.animations);
     this.skeleton = new Skeleton(doc.skeleton);
     this.animations = doc.animations;
     this.loopDefault = opts.loopDefault ?? true;

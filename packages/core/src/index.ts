@@ -37,6 +37,7 @@ export * from './animation/applyTimeline';
 export * from './animation/AnimationState';
 export * from './animation/FixedStepClock';
 export * from './animation/validateDeforms';
+export * from './animation/eventPayload';
 
 // Serialization
 export * from './serialization/serialize';

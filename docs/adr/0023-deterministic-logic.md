@@ -3,8 +3,9 @@
 Status: portable parameter/state/transition kernel implemented in Phase 8A after
 the Phase 7 gate. Phase 8B adds native schema 10 graph ownership, validation and
 atomic authoring commands. Phase 8C1 implements portable scene/rig pose adapters and
-chronological fixed-step event delivery. Typed payload strengthening, bindings,
-interaction and graph UI below remain required later increments.
+chronological fixed-step event delivery. Phase 8C2 adds explicit typed event payloads,
+source validation and scene/rig event authoring. Bindings, interaction and graph UI
+below remain required later increments.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -101,7 +102,22 @@ equal-time ties. The preceding loop's endpoint precedes the next loop's time-zer
 keys; accepted steps preserve step order. This is an explicit Logic contract and
 does not rewrite the legacy animation queue/mixer's event ordering. Pausing, reset, disabled graphs and dropped stall
 time emit no events. Per-step event buffers must never duplicate held-frame output.
-Typed payload strengthening belongs to this phase's event increment.
+New authoring emits explicit `{type,value}` payload records: bool, Float32-range
+float, signed 32-bit int or string up to 4096 UTF-16 units. Types do not coerce and
+unknown fields/nested objects are invalid. Existing number/string scalars remain
+supported. Authored float precision stays in source; emitted typed floats canonicalize
+to binary32. Baking/emission copies records so listeners cannot change future events
+or source. Every native scene/rig clip validates events even when graphless/unreferenced;
+Logic eventful-loop limits also validate before import/authoring publication. Source
+schema 11 adds these payloads. Compatibility export rejects typed payloads explicitly.
+
+Both timeline event composers provide explicit type/value controls and editable
+Footstep/AttackHit/SpawnProjectile/SFX/Haptic/UIConfirm starting templates. Invalid
+drafts disable key creation; key commands validate again before mutation. Rig event
+commands capture input/time and deep-copy payload history, restoring the preceding
+clip duration on undo so later playhead movement cannot alter redo. This increment
+does not automatically execute audio/haptic/game actions; consumers handle emitted
+generic named events according to their game.
 
 SceneLogicPlayer and RigLogicPlayer drive the shared clock/kernel without DOM or
 renderer dependencies. Initialization/reset samples entry without events; each

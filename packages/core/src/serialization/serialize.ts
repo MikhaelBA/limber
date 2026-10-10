@@ -2,6 +2,7 @@ import { FORMAT_VERSION } from '../types/data';
 import type { EditorDocument, ExportedDocument } from '../types/document';
 import { runMigrations, type Migration } from './migrations';
 import { validateDeformTimelines } from '../animation/validateDeforms';
+import { validateAnimationEvents } from '../animation/eventPayload';
 import { meshJSONReplacer } from '../skeleton/meshLinks';
 
 /**
@@ -45,6 +46,7 @@ export function deserializeDocument(json: string): EditorDocument {
   const { version: _version, ...doc } = migrated;
   const typed = doc as unknown as EditorDocument;
   validateDeformTimelines(typed.skeleton, typed.animations);
+  validateAnimationEvents(typed.animations);
   return doc as unknown as EditorDocument;
 }
 

@@ -1,5 +1,6 @@
 import type { EventFrame } from '../types/events';
 import { LOGIC_STEP_SECONDS } from './LogicMachine';
+import { validateEventName, validateEventPayload, runtimeEventPayload } from '../animation/eventPayload';
 export interface LogicClipEvent {
   time: number;
   eventName: string;
@@ -28,19 +29,14 @@ export class LogicEventSampler {
       .map((event, sequence) => {
         if (!event || !Number.isFinite(event.time) || event.time < 0 || event.time > duration)
           throw new Error('Logic event time must stay within its clip.');
-        if (typeof event.eventName !== 'string' || !event.eventName.trim() || event.eventName.length > 128)
-          throw new Error('Logic event name must have 1–128 characters.');
+        validateEventName(event.eventName);
         const payload = event.payload;
-        if (
-          payload !== undefined &&
-          ((typeof payload === 'number' && !Number.isFinite(Math.fround(payload))) ||
-            (typeof payload === 'string' && payload.length > 4096) ||
-            !['number', 'string'].includes(typeof payload))
-        )
-          throw new Error(
-            'Logic event payload must be a finite Float32-range number or a string of at most 4096 characters.',
-          );
-        return { ...event, sequence };
+        validateEventPayload(payload);
+        return {
+          ...event,
+          payload: payload === undefined ? undefined : runtimeEventPayload(payload),
+          sequence,
+        };
       })
       .sort((a, b) => a.time - b.time || a.sequence - b.sequence);
   }
@@ -83,7 +79,7 @@ export class LogicEventSampler {
             cycle,
             eventName: event.eventName,
             time: event.time,
-            payload: event.payload,
+            payload: event.payload === undefined ? undefined : runtimeEventPayload(event.payload),
           });
       }
     return result;

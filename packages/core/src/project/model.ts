@@ -7,7 +7,7 @@ import type { UILayout, UIComponent, UIOverrideValue, UIInsets } from './ui';
 import type { LogicGraph } from '../logic/model';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 10;
+export const PROJECT_SCHEMA_VERSION = 11;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */

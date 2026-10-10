@@ -1,5 +1,6 @@
 import { sceneSubtreeIds } from '../commands/sceneCommands';
 import { SceneCurveEditor } from './SceneCurveEditor';
+import { EventComposer } from './EventComposer';
 import { useEffect, useRef, useState } from 'react';
 import {
   SCENE_PROPERTIES,
@@ -34,8 +35,7 @@ export function SceneTimeline({ project, artboard, revision, session, selectedNo
   const [property, setProperty] = useState<SceneProperty>('x'),
     [filter, setFilter] = useState(''),
     [keyIds, setKeyIds] = useState<string[]>([]),
-    [zoom, setZoom] = useState(180),
-    [eventName, setEventName] = useState('event');
+    [zoom, setZoom] = useState(180);
   const time = useRef<HTMLInputElement>(null),
     playhead = useRef<HTMLDivElement>(null),
     events = useRef<HTMLOutputElement>(null),
@@ -599,27 +599,24 @@ export function SceneTimeline({ project, artboard, revision, session, selectedNo
               {graph()}
             </>
           )}
-          <div className="mt-2 flex gap-1">
-            <input
-              aria-label="Scene event name"
-              className={`${input} w-24`}
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-            />
-            <button
-              className={button}
-              disabled={!clip || !eventName.trim()}
-              onClick={() => {
+          <div className="mt-2">
+            <EventComposer
+              prefix="Scene"
+              disabled={!clip}
+              onKey={(name, payload) => {
                 if (clip)
                   edit({
                     kind: 'event',
                     clipId: clip.id,
-                    event: { id: uuid(), name: eventName, time: session.time },
+                    event: {
+                      id: uuid(),
+                      name,
+                      time: session.time,
+                      ...(payload === undefined ? {} : { payload }),
+                    },
                   });
               }}
-            >
-              Key event
-            </button>
+            />
           </div>
           <output ref={events} aria-label="Scene events" className="block text-xs text-amber-300" />
         </aside>

@@ -7,6 +7,7 @@ import { solveConstraints } from '../skeleton/constraints';
 import { updateSkinning } from '../skeleton/skinning';
 import { validateDeformTimelines } from '../animation/validateDeforms';
 import { applyTimeline } from '../animation/applyTimeline';
+import { validateAnimationEvents } from '../animation/eventPayload';
 import { RigLogicPoseBuffer } from './poseBlend';
 import { LogicPlayback } from './LogicPlayback';
 import type { LogicSnapshot } from './LogicMachine';
@@ -28,6 +29,7 @@ export class RigLogicPlayer extends LogicPlayback {
     if (target && source.skeleton !== target.data)
       throw new Error("Injected Logic skeleton must use the rig owner's published source.");
     validateDeformTimelines(skeleton.data, clips);
+    validateAnimationEvents(clips);
     super(source.logic, new Map(clips.map((c) => [c.name, { duration: c.duration }])));
     this.skeleton = skeleton;
     this.data = skeleton.data;

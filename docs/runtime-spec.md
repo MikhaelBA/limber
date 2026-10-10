@@ -250,5 +250,24 @@ ticks and relative seam handling avoid duplicate held-frame delivery and binary 
 seam loss. Events carry clip ID/name, cycle, key name/time and current number/string
 payload. Limits are 512 keys/clip and at most 1000 loop cycles/fixed step. Callback input
 is committed next step; reset/pause/disable cancels stale dispatch and recursive update
-is rejected. Stronger typed payload records, bindings and editor graph/interaction/debug
-preview remain outstanding. This increment does not close Phase 8 or provide a .bbb.
+is rejected. At this increment typed payload records, bindings and editor graph/
+interaction/debug preview were outstanding. It does not close Phase 8 or provide a .bbb.
+
+## Explicit event payloads and schema 11 (Phase 8C2)
+
+EventPayload accepts previous number/string scalars and explicit typed records with
+exactly type/value: bool, float, int or string. Values validate without coercion;
+numbers must fit finite Float32 range, int is signed 32-bit, string length is at most
+4096 UTF-16 units. Typed floats canonicalize on emission, keeping source precision.
+Events retain stable names (1–128 characters); source libraries cap each clip at
+512 keys across event timelines. Payload records bake and emit as isolated copies.
+
+Native scene/rig clips validate events before publication, including dormant clips;
+graph loops validate the maximum 1000 cycles/fixed step during source load/editing.
+Existing source headers advance to 11 without rewriting valid scalar payloads. Both
+timeline composers offer explicit types and editable generic event templates. Invalid
+drafts disable keying; commands validate before mutation and preserve exact history,
+including fixed rig key time and preceding clip duration. Typed payload compatibility
+export fails explicitly. Logic, SceneClock and legacy RuntimePlayer emit the same typed
+values without changing the legacy players' time-zero/queue ordering. No audio/haptic
+side effects execute automatically. Bindings and Logic UI/interaction/debug remain.
