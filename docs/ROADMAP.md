@@ -128,13 +128,14 @@ Before each implementation task, recommend a model and reasoning effort suited t
   - [ ] Actionable source focus, Rig findings and compatibility report.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
   - [x] Worker preparation/cancellation, atlas inspection, packaged native preview and .bbb Save/Open.
-  - [ ] Typed Logic inputs, character interaction and complete inspection workflow.
+  - [x] Typed Logic inputs, scene/character pointer/keyboard interaction and responsive preview.
+  - [ ] Complete actionable inspection and compatibility workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
 projects. Font import, isolated preview, native packaging and explicit SVG text-font
 matching pass actual browser acceptance. Ship preview, atlas inspection and saved warning
-policies pass development and production builds. Actionable findings, typed native inputs
+policies and typed native inputs pass development and production builds. Actionable findings
 and the complete acceptance gate remain open. The existing legacy player is not the native
 artboard player gate.
 

@@ -61,6 +61,7 @@ try {
     'native-doctor.mjs',
     'native-profiler.mjs',
     'ship-workspace.mjs',
+    'ship-inputs.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

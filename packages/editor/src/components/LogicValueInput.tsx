@@ -18,7 +18,7 @@ export function LogicValueInput({
   type: LogicParameter['type'];
   value: LogicValue;
   label: string;
-  onChange: (value: LogicValue) => void;
+  onChange: (value: LogicValue) => void | boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value, type]);
@@ -42,7 +42,7 @@ export function LogicValueInput({
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => {
         try {
-          onChange(parseLogicValue(type, draft));
+          if (onChange(parseLogicValue(type, draft)) === false) setDraft(String(value));
         } catch {
           setDraft(String(value));
         }

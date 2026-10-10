@@ -25,14 +25,18 @@ export interface NativePreviewStatistics {
 interface Props {
   asset: NativeRuntimeAsset;
   artboardId: string;
+  inputOwner?: string;
+  viewport?: { width: number; height: number };
   onReady: (handle: NativePreviewHandle | null) => void;
   onStatistics: (statistics: NativePreviewStatistics) => void;
   onError: (message: string) => void;
+  onInputError?: (message: string) => void;
 }
 /** The same packaged asset/font/render path used by the independent Web acceptance gates. */
 export function NativePreview(props: Props) {
   const host = useRef<HTMLDivElement>(null),
-    current = useRef(props);
+    current = useRef(props),
+    reframe = useRef<(() => void) | null>(null);
   current.current = props;
   useEffect(() => {
     const element = host.current!,
@@ -47,6 +51,7 @@ export function NativePreview(props: Props) {
     const detach: (() => void)[] = [];
     const cleanup = () => {
       element.dataset.ready = 'false';
+      reframe.current = null;
       cancelAnimationFrame(raf);
       resize?.disconnect();
       for (const remove of detach.splice(0)) remove();
@@ -80,6 +85,7 @@ export function NativePreview(props: Props) {
         return;
       }
       const player = new NativeArtboardPlayer(props.asset, { artboardId: props.artboardId, autoplay: true });
+      const authoredSize = { width: player.getView().width, height: player.getView().height };
       const native = new NativeWebRenderer(player, assets);
       view = native;
       const profiler = new NativeWebFrameProfiler(native),
@@ -114,6 +120,8 @@ export function NativePreview(props: Props) {
         statistics();
       };
       const frame = () => {
+        const size = current.current.viewport ?? authoredSize;
+        player.resize(size.width, size.height);
         app.renderer.resize(Math.max(1, element.clientWidth), Math.max(1, element.clientHeight));
         const board = player.getView(),
           scale = Math.max(
@@ -125,12 +133,19 @@ export function NativePreview(props: Props) {
         refresh();
       };
       const send = (event: LogicRouteEvent, id: string | null = null) => {
-        if (player.scene.mode !== 'logic') return;
         try {
-          player.dispatch(event, id);
+          const owner = current.current.inputOwner;
+          if (owner) {
+            const rig = player.getRig(owner);
+            if (id !== null || rig.mode !== 'logic') return;
+            rig.dispatch(event);
+          } else {
+            if (player.scene.mode !== 'logic') return;
+            player.dispatch(event, id);
+          }
           refresh();
         } catch (error) {
-          current.current.onError((error as Error).message);
+          current.current.onInputError?.((error as Error).message);
         }
       };
       const hit = (event: PointerEvent | MouseEvent) => {
@@ -190,6 +205,7 @@ export function NativePreview(props: Props) {
         [
           'pointercancel',
           () => {
+            if (pressed !== null) send('pointerUp', pressed);
             pressed = null;
             hover(null);
             send('pointerUp');
@@ -203,12 +219,23 @@ export function NativePreview(props: Props) {
             send('blur');
           },
         ],
+        [
+          'keydown',
+          ((event: KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              send('click');
+            }
+          }) as EventListener,
+        ],
       ];
       for (const [event, listener] of listeners) {
         canvas.addEventListener(event, listener);
         detach.push(() => canvas.removeEventListener(event, listener));
       }
       resize = new ResizeObserver(frame);
+      reframe.current = frame;
       resize.observe(element);
       frame();
       let previous = performance.now(),
@@ -245,6 +272,7 @@ export function NativePreview(props: Props) {
       current.current.onReady(null);
     };
   }, [props.asset, props.artboardId]);
+  useEffect(() => reframe.current?.(), [props.viewport]);
   return (
     <div
       ref={host}

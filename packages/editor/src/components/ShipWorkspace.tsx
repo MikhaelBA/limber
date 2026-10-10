@@ -23,9 +23,17 @@ import { useEditorStore } from '../store/editorStore';
 import { captureProjectSnapshot, downloadProjectArtifact } from '../persistence/projectSnapshot';
 import { readShipBudget, saveShipBudget } from '../persistence/shipSettings';
 import { NativePreview, type NativePreviewHandle, type NativePreviewStatistics } from './NativePreview';
+import { NativeLogicControls } from './NativeLogicControls';
 
 const button = 'rounded border border-neutral-600 px-2 py-1 text-xs hover:bg-neutral-700 disabled:opacity-40';
 const field = 'w-full rounded border border-neutral-600 bg-neutral-900 p-1 text-xs';
+const PREVIEW_SIZES: Record<string, { width: number; height: number } | undefined> = {
+  authored: undefined,
+  'phone-portrait': { width: 390, height: 844 },
+  'phone-landscape': { width: 844, height: 390 },
+  tablet: { width: 1024, height: 768 },
+  desktop: { width: 1920, height: 1080 },
+};
 interface Publication {
   asset: NativeRuntimeAsset;
   program: RuntimeProgram;
@@ -65,6 +73,8 @@ export function ShipWorkspace() {
   const [publication, setPublication] = useState<Publication | null>(null),
     [entryArtboardId, setEntryArtboardId] = useState(engine.project.artboards[0]!.id),
     [artboardId, setArtboardId] = useState(''),
+    [inputOwner, setInputOwner] = useState(''),
+    [viewportPreset, setViewportPreset] = useState('authored'),
     [busy, setBusy] = useState(false),
     [progress, setProgress] = useState({ fraction: 0, stage: '' }),
     [error, setError] = useState<RuntimeDiagnostic | null>(null),
@@ -179,6 +189,7 @@ export function ShipWorkspace() {
       asset = new NativeRuntimeAsset(program);
     setPublication({ asset, program, bytes, kind, compileDiagnostics });
     setArtboardId(program.defaultArtboardId);
+    setInputOwner('');
     setPageIndex(0);
     setStatistics(null);
     setReady(false);
@@ -416,6 +427,21 @@ export function ShipWorkspace() {
           <p className="mt-2 text-xs text-neutral-400">
             Policies warn about cost. Confirm performance on your target device.
           </p>
+          <label className="mt-3 block text-xs">
+            Native viewport
+            <select
+              className={field}
+              aria-label="Native viewport preset"
+              value={viewportPreset}
+              onChange={(e) => setViewportPreset(e.target.value)}
+            >
+              {Object.entries(PREVIEW_SIZES).map(([id, size]) => (
+                <option key={id} value={id}>
+                  {id} {size ? `· ${size.width}×${size.height}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
           <details className="mt-4 text-xs">
             <summary>Atlas settings</summary>
             <label className="mt-2 block">
@@ -527,6 +553,7 @@ export function ShipWorkspace() {
                   value={artboardId}
                   onChange={(e) => {
                     setArtboardId(e.target.value);
+                    setInputOwner('');
                     setReady(false);
                     setStatistics(null);
                   }}
@@ -563,6 +590,13 @@ export function ShipWorkspace() {
                   onClick={() => control(({ player }) => player.stop())}
                 >
                   Stop native
+                </button>
+                <button
+                  className={button}
+                  disabled={!ready}
+                  onClick={() => control(({ player }) => player.reset())}
+                >
+                  Reset native
                 </button>
                 {ready && handle.current && (
                   <select
@@ -634,6 +668,9 @@ export function ShipWorkspace() {
               <NativePreview
                 asset={publication.asset}
                 artboardId={artboardId}
+                inputOwner={inputOwner}
+                viewport={PREVIEW_SIZES[viewportPreset]}
+                onInputError={setStatus}
                 onReady={(native) => {
                   handle.current = native;
                   setReady(Boolean(native));
@@ -766,6 +803,42 @@ export function ShipWorkspace() {
             </div>
           ))}
           {diagnostics.length > 200 && <p>Showing the first 200 of {diagnostics.length} findings.</p>}
+          {ready && handle.current && publication && (
+            <details className="mt-4" open>
+              <summary>Packaged Logic inputs</summary>
+              <label className="block">
+                Input owner
+                <select
+                  className={field}
+                  aria-label="Native input owner"
+                  value={inputOwner}
+                  onChange={(e) => setInputOwner(e.target.value)}
+                >
+                  <option value="">Scene</option>
+                  {handle.current.player.getRigIds().map((id) => (
+                    <option key={id} value={id}>
+                      {handle.current!.player.getView().nodes.find((n) => n.id === id)?.name ?? id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <NativeLogicControls
+                key={`${artboardId}:${inputOwner}`}
+                player={handle.current.player}
+                owner={inputOwner}
+                refresh={handle.current.refresh}
+                onError={setStatus}
+                graph={
+                  inputOwner
+                    ? (() => {
+                        const node = handle.current!.player.getView().nodes.find((n) => n.id === inputOwner);
+                        return node?.type === 'rig' ? node.logic : undefined;
+                      })()
+                    : publication.program.artboards.find((board) => board.id === artboardId)?.logic
+                }
+              />
+            </details>
+          )}
           {statistics && (
             <div className="mt-4" aria-label="Measured native profile">
               <h2 className="font-semibold">Current posed rig workload</h2>

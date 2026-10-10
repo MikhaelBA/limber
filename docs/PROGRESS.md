@@ -1480,3 +1480,30 @@ The Linux Docker image `limber:phase9e3a` built successfully. Complete browser a
 now has 38 suites; remote CI follows publication. Actionable source/Rig findings,
 typed native inputs, compatibility report and final Phase 9 acceptance remain open.
 Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `7dfdc96` passed CI 38064925191: all 38 browser suites, Test & Build,
+Docker, VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9E3b typed native interaction and responsive inspection
+
+Packaged preview now selects the scene or an independent expanded character as input
+owner. Bool/float/int/string controls use the native SDK; triggers can fire/reset and
+authored route batches have explicit test buttons. Changes queue until an accepted
+native tick. Invalid values retain native truth, show the error and restore the field.
+The native snapshot shows state/transition/parameters without source mutation. Raw
+animation owners can return to their packaged Logic graph. Pointer/focus and keyboard
+Enter/Space dispatch to the selected owner; cancelled pointers release both the viewport
+and captured target. Input failures remain distinct from packaged resource failures.
+
+Phone portrait/landscape, tablet, desktop and authored viewport presets resize responsive
+native layout without resetting clocks or replacing resources. Reset restores all owner
+parameters and clocks separately from Stop. The new actual browser suite checks all four
+typed values, queued publication, invalid binding ranges, test routes, scene keyboard
+confirm, character keyboard/pointer transition, owner isolation, Reset and all five resize
+presets with unchanged authoring Save data. Ship and existing Logic workspace regressions
+passed. Complete local checks passed with 674 tests in 90 files; one initial existing
+font-test timeout under concurrent obsolete owned Vite processes passed after cleanup,
+without changing its timeout/assertions. Typecheck/build passed after the final Reset
+control addition. Complete browser acceptance now has 39 suites; remote CI follows
+publication. Actionable source/Rig findings, compatibility report and final Phase 9
+acceptance remain open. Sol 6.1 / High remains suitable; no user decision is required.

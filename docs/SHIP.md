@@ -12,8 +12,12 @@ Use **Open native .bbb** to play an existing asset while retaining the source do
 These runtime files are distinct from editable `.bbbproj` documents saved through Save.
 
 Use the native artboard and clip selectors, Play/Pause, Step while paused, and Stop to
-inspect actual packaged playback. Scene pointer/focus routes are delivered through the
-preview canvas. Typed input controls and source focus are being completed in Phase 9.
+inspect actual packaged playback. Reset restores initial Logic parameters and clocks.
+Select the input owner under **Packaged Logic inputs** to test scene or character typed
+parameters, triggers and routes. Values queue for the next accepted tick; Pause and Step
+to inspect them. Physical pointer/focus and Enter/Space confirm go to the selected owner.
+Viewport presets resize responsive UI without resetting clocks. Source focus is being
+completed in Phase 9.
 The Web SDK is available; Unity/Cocos integration is still pending its engine gates.
 
 Expand **Atlas settings** for page size, padding, scale, trim, rotation and power-of-two
