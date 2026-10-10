@@ -26,8 +26,8 @@ export type KeyframeSelection =
  */
 interface UIState {
   documentEpoch: number;
-  workspace: 'rig' | 'scene';
-  setWorkspace: (workspace: 'rig' | 'scene') => void;
+  workspace: 'rig' | 'scene' | 'logic';
+  setWorkspace: (workspace: 'rig' | 'scene' | 'logic') => void;
   selectedBoneId: string | null;
   /** Slot selection is exclusive with bone selection (§5.7 picking order). */
   selectedSlotId: string | null;

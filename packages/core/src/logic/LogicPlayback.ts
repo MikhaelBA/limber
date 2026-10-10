@@ -1,4 +1,5 @@
 import { FixedStepClock } from '../animation/FixedStepClock';
+import { LOGIC_STEP_SECONDS } from './LogicMachine';
 import type { LogicGraph, LogicClipCatalog, LogicInput, LogicValue, LogicRouteEvent } from './model';
 import { LogicInputRouter } from './LogicInputRouter';
 import { LogicMachine, type LogicSnapshot, type LogicChange } from './LogicMachine';
@@ -38,6 +39,9 @@ export abstract class LogicPlayback {
   get playing(): boolean {
     return this.playingValue;
   }
+  get currentTick(): number {
+    return this.machine.currentTick;
+  }
   play(): void {
     if (this.playingValue) return;
     this.playingValue = true;
@@ -54,6 +58,19 @@ export abstract class LogicPlayback {
       this.sample(this.machine.snapshot(), false);
       this.evaluate(false, true);
       this.finishFrame();
+    }
+  }
+  /** Debug stepping preserves inertia between accepted ticks, unlike an explicit pause. */
+  step(): number {
+    if (this.advancing) throw new Error('Logic playback step cannot be reentrant.');
+    if (this.playingValue) throw new Error('Pause Logic playback before stepping.');
+    this.clock.reset();
+    this.playingValue = true;
+    try {
+      return this.update(LOGIC_STEP_SECONDS);
+    } finally {
+      this.playingValue = false;
+      this.clock.reset();
     }
   }
   reset(): void {

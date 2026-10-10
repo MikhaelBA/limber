@@ -79,8 +79,10 @@ export class LogicInputRouter {
       this.tracedInputs -= this.trace.shift()!.inputs.length;
     return routes.length;
   }
-  recentDispatches(): readonly LogicDispatch[] {
-    return structuredClone(this.trace);
+  recentDispatches(limit = 256): readonly LogicDispatch[] {
+    if (!Number.isInteger(limit) || limit < 0 || limit > 256)
+      throw new Error('Trace limit must be an integer in [0,256].');
+    return limit === 0 ? [] : structuredClone(this.trace.slice(-limit));
   }
   resetTrace(): void {
     this.trace.length = 0;

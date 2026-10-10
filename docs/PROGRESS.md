@@ -878,8 +878,39 @@ target/domain/trigger import isolation. Its actual saved schema-13 fixture is re
 The complete fresh twenty-seven-suite browser regression passed, retaining Scene/RTL
 golden tolerances. Standard/Heavy combined CPU p95 was 1.80/5.30ms with 10000/40004
 weighted transforms and exact source preservation. Software frame-gap p95 was
-21.80/58.60ms, separate from hardware GPU claims. Remote CI follows commit/push.
+21.80/58.60ms, separate from hardware GPU claims. Commit `2a0f9dd` passed CI
+38016440963: Test & Build, Docker, VPS and GitHub Pages all succeeded.
 
 Phase 8 remains partial. Visual graph authoring, pointer/focus preview delivery,
 debug overlay and the final integrated gate remain. The next UI/session/renderer
 increment is suitable for Sol 6.1 / High, with no material user question outstanding.
+
+## 10 October 2026 Phase 8E2 editor Logic authoring and preview
+
+The resizable Logic workspace edits parameters, states/clips, transitions/guards,
+bindings and interaction routes through atomic native commands. State drags publish
+once with Escape/pointer-cancel isolation. Owner changes and source history create
+fresh paused preview sessions; test inputs, enablement, traces and events are transient.
+Scene graphs run alongside independent rig graphs. Pointer/focus and keyboard inputs
+share portable dispatch; debug state/blends, receipts and typed events remain visible.
+
+The Pixi adapter consumes cloned bound views and posed skeletons, caching hidden
+displays, text rasters and slot geometry. Read-only evidence verifies actual rendered
+text and mesh/world buffers without frame-copy overhead. Raw animation shortcuts are
+isolated from Logic. Review found that the old Step path rebased secondary motion after
+every tick; the new paused core Step preserves inertia and matches the independently
+predicted critical spring response plus uninterrupted accepted-tick poses. Lifecycle
+tests cover disabled pending input, events, callback reset and reentrancy.
+
+All 528 tests in 75 files, lint/boundaries, formatting, TypeScript and package/editor
+builds passed. Targeted Chromium previously passed the complete authoring/interaction
+workflow, actual cached rendering, exact history/native Save/Open and raw-source
+preservation. The actual saved schema-13 interactive fixture is retained. The complete
+fresh twenty-eight-suite browser regression passed after the Step correction, retaining
+Scene/RTL golden tolerances. Standard/Heavy combined CPU p95 was 1.80/5.20ms, with
+10000/40004 weighted transforms and exact source preservation. Software frame-gap p95
+was 22.00/56.60ms, separate from hardware GPU claims. Remote CI is pending.
+
+Phase 8 remains partial until its final Standard/Heavy Logic-renderer parity and
+performance gate plus remote CI pass. Sol 6.1 / High remains suitable; no material
+user question currently blocks that verification.

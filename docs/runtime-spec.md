@@ -304,3 +304,23 @@ contain tick, sequence, signal, target, route IDs and inputs, bounded to 256 rec
 and 1024 total writes. Structural deletion/duplication and parameter history preserve
 valid references. Native validation includes disabled graphs; source advances to 13.
 Visual graph authoring, pointer/focus preview delivery and debug overlay remain separate.
+
+## Editor parity adapter (Phase 8E2)
+
+LogicPreviewSession uses cloned native source and the same SceneLogicPlayer/RigLogicPlayer
+as the portable runtime. Artboard preview evaluates its scene graph plus independent
+rig graphs; a rig owner tests its viewport routes independently. Source edits and owner
+changes construct fresh paused sessions. Test inputs never enter undo/source history.
+Raw editor clocks pause when entering Logic, and clips/setup remain untouched.
+Paused debug Step advances one accepted 120Hz tick without rebasing secondary motion,
+then remains paused. Repeated Steps match continuous accepted ticks, including spring
+poses and events. Explicit Pause retains its documented inertia-rebase policy.
+
+The cached Pixi adapter consumes bound views before layout and posed skeleton vertices
+after all constraints. Hidden displays can be revealed without rebuilds; text rasters
+change only with content/style/box. Slot geometry, textures, ordering and clipping update
+from the same pose buffers. Pointer delivery orders viewport then hit/captured node;
+rig owners receive viewport signals once. Focus/blur and keyboard Enter/Space are
+viewport inputs. Graph authoring validates before publication, and state drags coalesce
+to one history command with cancellation. This adds no runtime file or schema bump;
+the Phase 8 combined gate remains required before compiler/integration phases.

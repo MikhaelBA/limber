@@ -158,6 +158,10 @@ describe('portable typed interaction routes', () => {
     expect(() => player.dispatch('executeCode' as never)).toThrow();
     expect(() => player.dispatch('click', '')).toThrow();
     expect(player.inputRouter.recentDispatches()).toHaveLength(256);
+    expect(player.inputRouter.recentDispatches(0)).toEqual([]);
+    expect(player.inputRouter.recentDispatches(2).map((r) => r.sequence)).toEqual([258, 259]);
+    for (const limit of [-1, 0.5, 257])
+      expect(() => player.inputRouter.recentDispatches(limit)).toThrow(/Trace limit/);
   });
   it('bounds total traced writes when a signal has many routes', () => {
     const p = source(),

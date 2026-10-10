@@ -91,3 +91,13 @@ rig viewport route. Core and Chromium replay scene/rig output identically under 
 frame groupings, preserve source and reject invalid target/type/domain/trigger imports.
 The fixture tests portable routing; visual graph/interaction UI follows in Phase 8E2.
 `logicRoutesFixture` in tools/logic-routes-fixture.mjs reproduces its source.
+
+`bbbproj-v13-interactive.json` is the actual editor Save/Open result from the Logic
+workspace workflow. It has exposed RTL text/visibility/opacity/tint, an animated reveal
+with a typed UIConfirm event, pointer/focus/test routes, an Any State celebrate trigger
+and an independent character graph. Browser coverage edits parameters, states, guards,
+transitions, bindings and input routes; tests real pointer/focus and exact history,
+graph drag/cancellation, removal/recreation, raw clip preservation and native reopening.
+Read-only renderer capture matches actual mesh positions with portable core posing and
+verifies bound raster text, hidden/revealed displays and stable caches. Its reproducible
+starting source is tools/logic-workspace-fixture.mjs; authored changes happen in the UI.

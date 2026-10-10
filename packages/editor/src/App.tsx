@@ -1,4 +1,5 @@
 import { SceneWorkspace } from './components/SceneWorkspace';
+import { LogicWorkspace } from './components/LogicWorkspace';
 import { useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { Transform } from '@limber/core';
@@ -95,7 +96,7 @@ function Shell() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         st.redo();
-      } else if (st.workspace === 'scene' || !engine.project.editor.activeRigId) {
+      } else if (st.workspace === 'scene' || st.workspace === 'logic' || !engine.project.editor.activeRigId) {
         return;
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         // Copy the selected bone's local transform.
@@ -154,8 +155,11 @@ function Shell() {
         } else if (st.selectedSlotId) {
           st.execute(new RemoveSlotCommand(engine, st.selectedSlotId));
         } else if (st.selectedBoneId) {
-          try { st.execute(new RemoveBoneCommand(engine, st.selectedBoneId)); }
-          catch (error) { st.setStatus((error as Error).message); }
+          try {
+            st.execute(new RemoveBoneCommand(engine, st.selectedBoneId));
+          } catch (error) {
+            st.setStatus((error as Error).message);
+          }
         }
       } else if (e.key === ' ') {
         e.preventDefault();
@@ -214,8 +218,20 @@ function Shell() {
         >
           Character
         </button>
+        <button
+          className={workspace === 'logic' ? 'text-emerald-300' : 'text-neutral-400'}
+          onClick={() => {
+            engine.pause();
+            useEditorStore.getState().setPlaying(false);
+            useEditorStore.getState().setWorkspace('logic');
+          }}
+        >
+          Logic
+        </button>
       </nav>
-      {workspace === 'scene' || !engine.project.editor.activeRigId ? (
+      {workspace === 'logic' ? (
+        <LogicWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
+      ) : workspace === 'scene' || !engine.project.editor.activeRigId ? (
         <SceneWorkspace key={`${engine.project.projectId}:${documentEpoch}`} />
       ) : (
         <>

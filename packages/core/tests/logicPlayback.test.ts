@@ -466,8 +466,17 @@ describe('Logic scene/character fixed-step posing adapters', () => {
       },
     ];
     const before = structuredClone(source),
-      p = new RigLogicPlayer(source);
+      p = new RigLogicPlayer(source),
+      stepped = new RigLogicPlayer(source);
+    stepped.pause();
+    for (let tick = 0; tick < 12; tick++) {
+      expect(stepped.step()).toBe(1);
+      expect(stepped.playing).toBe(false);
+    }
     p.update(0.1);
+    expect(stepped.snapshot()).toEqual(p.snapshot());
+    expect(stepped.skeleton.pose).toEqual(p.skeleton.pose);
+    expect(stepped.getWorldTransforms()).toEqual(p.getWorldTransforms());
     const heading = () => Math.atan2(p.getWorldTransforms()[1]!, p.getWorldTransforms()[0]!);
     expect(heading()).toBeCloseTo(1 - (1 + 0.2) * Math.exp(-0.2), 6);
     const held = p.getWorldTransforms().slice();
@@ -478,6 +487,36 @@ describe('Logic scene/character fixed-step posing adapters', () => {
     p.update(0);
     expect(heading()).toBeCloseTo(1, 6);
     expect(source).toEqual(before);
+  });
+  it('steps paused inputs/events exactly once and preserves lifecycle isolation', () => {
+    const p = new SceneLogicPlayer(scene());
+    const before = p.snapshot();
+    expect(() => p.step()).toThrow(/Pause/);
+    expect(p.snapshot()).toEqual(before);
+    p.pause();
+    p.fire('go');
+    p.setEnabled(false);
+    expect(p.step()).toBe(0);
+    expect(p.currentTick).toBe(0);
+    p.setEnabled(true);
+    const trace: string[] = [];
+    p.onEvent((event) => {
+      trace.push(event.eventName);
+      expect(() => p.step()).toThrow(/reentrant/);
+      if (event.eventName === 'move-late') p.reset();
+    });
+    expect(p.step()).toBe(1);
+    expect(p.snapshot().stateId).toBe('move');
+    expect(p.playing).toBe(false);
+    expect(trace).toEqual(['move-entry']);
+    expect(p.step()).toBe(1);
+    expect(trace).toEqual(['move-entry', 'move-late']);
+    expect(p.currentTick).toBe(0);
+    expect(p.snapshot().stateId).toBe('idle');
+    expect(p.playing).toBe(false);
+    expect(p.events).toEqual([]);
+    expect(p.step()).toBe(1);
+    expect(p.currentTick).toBe(1);
   });
   it('chooses destination attachment/draw order immediately, including incomplete blends', () => {
     const source = rig();

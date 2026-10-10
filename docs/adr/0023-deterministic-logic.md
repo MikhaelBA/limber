@@ -6,7 +6,8 @@ atomic authoring commands. Phase 8C1 implements portable scene/rig pose adapters
 chronological fixed-step event delivery. Phase 8C2 adds explicit typed event payloads,
 source validation and scene/rig event authoring. Phase 8D adds one-way scene bindings
 and reference-safe authoring history. Phase 8E1 implements portable interaction routing;
-graph UI and visual interaction preview remain later increments.
+Phase 8E2 connects source editing, graph canvas, scene/character preview and debug UI.
+The integrated Phase 8 acceptance gate remains required before Phase 9.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -189,6 +190,37 @@ Receipt trace is limited to 256 dispatches and 1024 total writes; copied records
 the received tick/sequence, signal, target, route IDs and authored typed inputs. The
 same portable dispatch API is used by editor and native adapters; no DOM event or
 external action is part of the core model. Visual preview delivery follows in 8E2.
+
+## Editor Logic workspace (8E2)
+
+Logic is a separate resizable workspace with a transient artboard/rig owner picker.
+Source graph forms edit parameters, states/clips, transitions/guards, bindings and
+routes through the same atomic commands. Graph drags publish once on release; Escape
+and pointer cancellation discard the draft. Graph creation can resolve existing
+direct-text names with initial string values; graph removal leaves raw assets intact.
+Global rig mutation shortcuts are inactive in Logic; Undo/Redo remains available.
+
+Entering Logic pauses the raw editor clock. Source edits/undo and owner changes create
+a fresh paused LogicPreviewSession using cloned artboard/rig sources. Artboard preview
+runs independent rig graphs alongside its scene graph; character preview selects its
+rig graph while showing other authored scene content. Test values, enablement, pending
+input, step/play/pause/reset and debug history are transient. Browser pointer signals
+are delivered in received order, viewport first then hit/captured scene node; rig
+owners receive the viewport signal only. Focus/blur maps the viewport; Enter/Space
+provides a keyboard viewport click. Authored input buttons group matching event/target
+routes and use the same dispatch API. Paused tests commit only on Step or Play.
+Debug Step accepts exactly one 120Hz tick and returns paused without rebasing spring
+inertia. Repeated steps match uninterrupted accepted ticks. Explicit Pause continues
+to drop fractional time and rebase inertia; stepping while playing or reentrantly
+rejects before mutation. Disable keeps queued inputs dormant and reset clears them.
+
+The renderer allocates displays for initially hidden nodes. Bound text rasters update
+only when text/style/box changes, and geometry/slot masks survive steady frames and
+attachment switches through caches. Posed slot order, vertices, colors and clipping
+come from the preview Skeleton. On-demand read-only browser evidence copies actual
+rendered mesh positions and raster text; no per-frame copy or source mutation occurs.
+The debug overlay shows state, tick, blend, changes, receipts and typed events. Debug
+React updates are limited to 10Hz; posing/rendering stays in the viewport frame loop.
 
 ## Validation and acceptance
 

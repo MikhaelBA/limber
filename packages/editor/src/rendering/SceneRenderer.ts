@@ -1,5 +1,6 @@
 import { Container, Graphics, Matrix, Mesh, MeshGeometry, Sprite, Texture } from 'pixi.js';
 import { rasterizeUIText, type LocalizationPreview } from './UITextAdapter';
+import { RigSceneDisplay } from './RigSceneDisplay';
 import {
   evaluateScene,
   inverseSceneMatrix,
@@ -18,6 +19,29 @@ import {
 } from '@limber/core';
 import { textureRegistry } from '../engine/TextureRegistry';
 const ownedTextures = new WeakMap<Container, Texture>();
+interface TextDisplay {
+  sprite: Sprite;
+  signature: string;
+  overflow: boolean;
+}
+function textSignature(
+  node: Extract<Artboard['nodes'][number], { type: 'text' }>,
+  box: { width: number; height: number },
+  localization: LocalizationPreview,
+): string {
+  return JSON.stringify([
+    node.text,
+    node.fontFamilies,
+    node.fontSize,
+    node.lineHeight,
+    node.direction,
+    node.align,
+    node.color,
+    box.width,
+    box.height,
+    localization,
+  ]);
+}
 function disposeScene(container: Container): void {
   const queue: Container[] = [container];
   for (let i = 0; i < queue.length; i++) {
@@ -35,6 +59,9 @@ function sceneDisplay(
   displays: Map<string, Container>,
   overflow: string[],
   localization: LocalizationPreview,
+  skeletons: ReadonlyMap<string, Skeleton>,
+  rigs: Map<string, RigSceneDisplay>,
+  texts: Map<string, TextDisplay>,
 ): Container {
   const world = new Container();
   world.addChild(
@@ -54,7 +81,6 @@ function sceneDisplay(
   const clipping = new Map<string, Container>();
   for (const entry of evaluateScene(artboard)) {
     const node = entry.node;
-    if (!entry.visible) continue;
     const container =
       node.type === 'mask'
         ? new Graphics()
@@ -64,6 +90,7 @@ function sceneDisplay(
     container.setFromMatrix(new Matrix(...entry.world));
     container.alpha = entry.opacity;
     container.tint = entry.tint;
+    container.visible = entry.visible;
     container.label = node.id;
     const parent = node.parentId ? (clipping.get(node.parentId) ?? world) : world;
     if (node.type === 'mask') {
@@ -135,64 +162,21 @@ function sceneDisplay(
       sprite.width = entry.box.width;
       sprite.height = entry.box.height;
       container.addChild(sprite);
+      texts.set(node.id, {
+        sprite,
+        signature: textSignature(node, entry.box, localization),
+        overflow: rendered.overflow,
+      });
     } else if (node.type === 'rig') {
-      const skeleton = new Skeleton(node.skeleton);
-      solveFK(skeleton.data, skeleton.boneIndexMap, skeleton.pose);
-      solveConstraints(skeleton);
-      updateSkinning(skeleton);
-      const attachments = new Map(node.skeleton.attachments.map((a) => [a.id, a]));
-      let clip: Graphics | null = null;
-      let endSlot: string | undefined;
-      for (const index of skeleton.pose.slotOrder) {
-        const slot = node.skeleton.slots[index]!;
-        const pose = skeleton.pose.slots[index]!;
-        if (slot.id === endSlot) {
-          clip = null;
-          endSlot = undefined;
-        }
-        const attachment = pose.attachmentId ? attachments.get(pose.attachmentId) : undefined;
-        const state = attachment ? skeleton.pose.attachments.get(attachment.id) : undefined;
-        if (!attachment || !state) continue;
-        if (attachment.type === 'clipping') {
-          clip = new Graphics().poly(Array.from(state.verts)).fill(0xffffff);
-          container.addChild(clip);
-          endSlot = attachment.endSlotId ?? undefined;
-          continue;
-        }
-        if (attachment.type !== 'region' && attachment.type !== 'mesh') continue;
-        const geometry = new MeshGeometry({
-          positions: new Float32Array(state.verts),
-          uvs: new Float32Array(
-            attachment.type === 'region'
-              ? (attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1])
-              : (attachment.meshUVs ?? []),
-          ),
-          indices: new Uint32Array(
-            attachment.type === 'region' ? [0, 1, 2, 0, 2, 3] : (attachment.meshTriangles ?? []),
-          ),
-        });
-        const mesh = new Mesh({
-          geometry,
-          texture: textureRegistry.get(attachment.textureId) ?? textureRegistry.placeholder,
-        });
-        mesh.tint = pose.color & 0xffffff;
-        mesh.alpha = (pose.color >>> 24) / 255;
-        mesh.blendMode = slot.blendMode === 'add' ? 'add' : 'normal';
-        mesh.mask = clip;
-        container.addChild(mesh);
+      const skeleton = skeletons.get(node.id) ?? new Skeleton(node.skeleton);
+      if (!skeletons.has(node.id)) {
+        solveFK(skeleton.data, skeleton.boneIndexMap, skeleton.pose);
+        solveConstraints(skeleton);
+        updateSkinning(skeleton);
       }
-      if (!node.skeleton.slots.length) {
-        const bones = new Graphics();
-        node.skeleton.bones.forEach((bone, i) => {
-          const m = skeleton.pose.worldMatrices,
-            o = i * 6;
-          bones
-            .moveTo(m[o + 4]!, m[o + 5]!)
-            .lineTo(m[o + 4]! + m[o]! * bone.length, m[o + 5]! + m[o + 1]! * bone.length)
-            .stroke({ color: 0x54c7ec, width: 5 });
-        });
-        container.addChild(bones);
-      }
+      const display = new RigSceneDisplay(skeleton);
+      rigs.set(node.id, display);
+      container.addChild(display.container);
     } else if (node.type === 'group' && !node.layout) {
       container.addChild(new Graphics().circle(0, 0, 7).stroke({ color: 0x8b7cff, width: 2 }));
     }
@@ -227,23 +211,40 @@ export class PixiSceneRenderer implements SceneRenderer {
   private selected: string[] = [];
   private tool = 'move';
   private components: UIComponent[] = [];
+  private localization: LocalizationPreview = 'expected';
+  private rigs = new Map<string, RigSceneDisplay>();
+  private texts = new Map<string, TextDisplay>();
   private owners = new Map<string, string>();
   readonly textOverflow: string[] = [];
   rebuilds = 0;
+  textRasters = 0;
   setScene(
     artboard: Artboard,
     components: UIComponent[] = [],
     localization: LocalizationPreview = 'expected',
+    skeletons: ReadonlyMap<string, Skeleton> = new Map(),
   ): void {
     this.world.removeChild(this.content);
     disposeScene(this.content);
     this.artboard = artboard;
     this.components = components;
+    this.localization = localization;
+    this.rigs = new Map();
+    this.texts = new Map();
     const expanded = expandUIComponents({ components }, artboard);
     this.owners = expanded.owners;
     this.displays = new Map();
     this.textOverflow.length = 0;
-    this.content = sceneDisplay(expanded.artboard, this.displays, this.textOverflow, localization);
+    this.content = sceneDisplay(
+      expanded.artboard,
+      this.displays,
+      this.textOverflow,
+      localization,
+      skeletons,
+      this.rigs,
+      this.texts,
+    );
+    this.textRasters += this.texts.size;
     this.world.addChildAt(this.content, 0);
     if (!this.overlay.parent) this.world.addChild(this.overlay);
     this.rebuilds++;
@@ -266,6 +267,10 @@ export class PixiSceneRenderer implements SceneRenderer {
             ),
           }
         : this.artboard;
+    this.previewView(artboard);
+  }
+  /** Transient bound view and posed skeletons; geometry survives animation frames. */
+  previewView(artboard: Artboard, skeletons?: ReadonlyMap<string, Skeleton>): void {
     const expanded = expandUIComponents({ components: this.components }, artboard);
     this.entries = evaluateScene(expanded.artboard);
     for (const entry of this.entries) {
@@ -275,6 +280,30 @@ export class PixiSceneRenderer implements SceneRenderer {
       display.alpha = entry.opacity;
       display.tint = entry.tint;
       display.visible = entry.visible;
+      if (entry.node.type === 'text') {
+        const cached = this.texts.get(entry.node.id),
+          signature = textSignature(entry.node, entry.box, this.localization);
+        if (cached && cached.signature !== signature) {
+          const rendered = rasterizeUIText(entry.node, entry.box, this.localization),
+            texture = Texture.from(rendered.canvas, true);
+          ownedTextures.get(cached.sprite)?.destroy(true);
+          cached.sprite.texture = texture;
+          ownedTextures.set(cached.sprite, texture);
+          cached.sprite.width = entry.box.width;
+          cached.sprite.height = entry.box.height;
+          cached.signature = signature;
+          cached.overflow = rendered.overflow;
+          this.textRasters++;
+        }
+      }
+    }
+    this.textOverflow.length = 0;
+    for (const entry of this.entries)
+      if (entry.visible && this.texts.get(entry.node.id)?.overflow) this.textOverflow.push(entry.node.name);
+    for (const [id, rig] of this.rigs) {
+      if (skeletons?.has(id) && skeletons.get(id) !== rig.skeleton)
+        throw new Error('Rebuild the renderer after Logic session publication.');
+      rig.update();
     }
     this.highlight(this.selected, this.tool);
   }
@@ -376,6 +405,19 @@ export class PixiSceneRenderer implements SceneRenderer {
       }
     }
     return null;
+  }
+  inspectRigs() {
+    return [...this.rigs].map(([id, rig]) => ({ id, ...rig.inspect() }));
+  }
+  inspectView() {
+    return this.entries.map((entry) => ({
+      id: entry.node.id,
+      type: entry.node.type,
+      visible: this.displays.get(entry.node.id)?.visible ?? false,
+      renderedText: this.texts.has(entry.node.id)
+        ? (JSON.parse(this.texts.get(entry.node.id)!.signature) as unknown[])[0]
+        : undefined,
+    }));
   }
   destroy(): void {
     disposeScene(this.content);

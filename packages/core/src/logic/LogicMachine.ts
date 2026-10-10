@@ -108,6 +108,9 @@ export class LogicMachine {
   get currentStateTick(): number {
     return this.stateTicks;
   }
+  get currentTick(): number {
+    return this.ticks;
+  }
   setEnabled(value: boolean): void {
     if (typeof value !== 'boolean') throw new Error('Logic enabled must be boolean.');
     if (value === this.enabledValue) return;

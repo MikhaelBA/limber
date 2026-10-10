@@ -50,6 +50,7 @@ try {
     'typed-events.mjs',
     'logic-bindings.mjs',
     'logic-routes.mjs',
+    'logic-workspace.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',
