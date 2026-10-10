@@ -29,3 +29,13 @@ renderer/user-agent metadata accompany raw results in
 are uploaded by CI. The overall Phase 7 gate also requires the complete local and
 remote regression, recorded in PROGRESS.md. Hardware profiling remains a later
 platform/release requirement.
+
+## Remote acceptance gate
+
+Commit `17b4557` passed [CI 38008404463](https://github.com/MikhaelBA/limber/actions/runs/38008404463).
+All 453 unit tests, twenty-two browser suites, package/editor builds, Docker and both
+deployments succeeded. Clean Linux Standard/Heavy core p95 was 1.10/5.40ms and total
+CPU p95 was 2.60/7.20ms. Actual software-graphics frame-gap p95 was 35.40/102.80ms;
+these are disclosed graphics-cadence limits, not hardware GPU 60fps evidence. Source
+preservation, vertex work counters and the numeric/browser fixture gates all passed.
+Phase 7's acceptance gate is complete; later release hardware checks remain required.

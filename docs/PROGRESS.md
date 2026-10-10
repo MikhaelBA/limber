@@ -654,3 +654,19 @@ commit/push; Phase 7 is not marked complete before its remote gate passes.
 Next phase is typed Logic/state-machine semantics, then runtime/compiler/platform
 work through Phase 12. Sol 6.1 / High remains suitable; no unresolved user decision
 currently blocks the roadmap.
+
+## 10 October 2026 Phase 7 complete
+
+Commit `17b4557` passed [CI 38008404463](https://github.com/MikhaelBA/limber/actions/runs/38008404463):
+Test & Build, Docker image, VPS and GitHub Pages all succeeded. The clean Linux gate
+passed all 453 unit tests and all twenty-two browser workflows. Combined Standard/Heavy
+core p95 was 1.10/5.40ms and total CPU update/render-submit p95 was 2.60/7.20ms, below
+the 16.7ms budget. Actual software-graphics frame-gap p95 was 35.40/102.80ms and remains
+explicitly separate from hardware GPU performance claims. Scene/RTL golden tolerances
+were unchanged. IK/follow/path/spring ordering, saved source and weighted output passed.
+
+This closes Character Alpha's implemented acceptance gate. Direct Bezier handle dragging
+is a later UX improvement; numeric curve authoring is delivered. Hardware/GPU profiling
+remains a platform/release task. Next is Phase 8A: specify/test the portable typed parameter
+and state-machine kernel before source/UI integration. Sol 6.1 / High remains suitable.
+Phases 8–12 remain outstanding; Phase 13 commercial services remain conditional.

@@ -12,7 +12,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed |
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
-| 7     | Robust IK, transform/path constraints and secondary motion           | Implemented; final CI pending   |
+| 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
 | 8     | Logic, typed parameters, state machine and bindings                  | Pending                         |
 | 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas     |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
@@ -90,7 +90,16 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Portable damped-spring kernel and bounded 120Hz clock with numerical goldens (ADR 0022).
 - [x] Fixed-step secondary motion after its solver contract is stable.
 - [x] Serialized IK ordering UI and representative hand/foot Pin browser fixture.
-- [ ] Combined ordering, remaining solver fixtures and full Phase 7 CI gate.
+- [x] Combined ordering, remaining solver fixtures and full Phase 7 CI gate.
+
+## Upcoming Interactive Alpha checklist
+
+- [ ] Typed parameters and deterministic graph/transition contract with recorded-input goldens (ADR 0023).
+- [ ] Native source/validation and atomic graph/parameter/state/transition commands.
+- [ ] Scene and character playback, blends/interruption and typed events.
+- [ ] One-way bindings to exposed properties with source preservation.
+- [ ] Logic graph editing, pointer/focus/test preview and debug overlay.
+- [ ] Disabled-logic/raw-animation parity, native/history/browser fixtures and full Phase 8 CI gate.
 
 ## Layered character sample (10 October 2026)
 
