@@ -51,3 +51,8 @@ export * from './project/format';
 export * from './project/scene';
 export * from './project/motion';
 export * from './project/ui';
+
+// Portable behavior kernel (source/preview adapters are separate).
+export * from './logic/model';
+export * from './logic/validate';
+export * from './logic/LogicMachine';

@@ -177,3 +177,25 @@ per bone and a 128-spring cap. Primary creation inserts before secondary entries
 a bone cleans its spring. Native schema 9 stores all coefficients. Absent arrays mean no
 secondary motion; historical source identifiers advance to 9. The optional Spine adapter
 rejects native springs. ADR 0022 defines numerical ranges, limits and reset semantics.
+
+## Portable Logic kernel (Phase 8A)
+
+Core exposes `LogicGraph`, typed parameter/condition/state/transition records,
+`validateLogicGraph` and `LogicMachine` under ADR 0023. The renderer-free kernel owns
+a validated cloned graph and baked clip durations. `step()` advances exactly one
+120Hz tick; an adapter drives display accumulation. Setters validate types/ranges
+before enqueueing inputs; getters read the preceding committed tick. Float values
+and comparison literals canonicalize to Float32. Triggers latch until consumption
+or explicit reset. A winning transition consumes only its fired-condition triggers.
+
+Priorities are unique globally, lower first, including Any State. Each tick selects
+at most one transition. Exit time reads the preceding completed state time. Active
+blends either defer candidates or admit only a strictly higher-priority interrupt.
+Snapshots expose destination/clip time and blend metadata; pose blending itself is
+not part of this kernel increment. Unconditional immediate cycles fail validation;
+conditioned/positive-exit cycles remain valid. Debug metadata is bounded and copied.
+
+Source ownership/serialization, scene/rig adapters, typed event strengthening,
+property binding and Logic UI/interaction are outstanding Phase 8 increments.
+Source remains schema 9, and the existing player/editor behavior is unchanged by
+these exports. A portable kernel does not close Interactive Alpha or provide a `.bbb`.

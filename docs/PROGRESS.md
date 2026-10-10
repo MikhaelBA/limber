@@ -670,3 +670,33 @@ is a later UX improvement; numeric curve authoring is delivered. Hardware/GPU pr
 remains a platform/release task. Next is Phase 8A: specify/test the portable typed parameter
 and state-machine kernel before source/UI integration. Sol 6.1 / High remains suitable.
 Phases 8–12 remain outstanding; Phase 13 commercial services remain conditional.
+
+## 10 October 2026 Phase 8A deterministic Logic foundations
+
+ADR 0023 specifies graph ownership, transition priority, trigger consumption,
+exit/blend/interruption, input/event ordering, one-way binding, interaction and
+disabled-logic semantics before source/UI integration. The implemented portable
+kernel validates typed parameters and bounded graphs without mutating source,
+clones/bakes runtime data, queues validated input for accepted 120Hz ticks and
+canonicalizes float conditions/values to Float32 for native/Web parity. Triggers
+latch; only winning fired guards consume them. One transition can execute per tick;
+Any State competes globally, self targets are skipped and unconditional immediate
+cycles produce actionable diagnostics. Active blends defer transitions or permit
+strictly higher-priority interruption. Snapshots/debug metadata are isolated copies.
+
+Eleven targeted tests passed, including independent state-trace goldens, exact recorded
+input replay under 10/60/120/144/240/1000Hz grouping, trigger AND/priority/failed guards,
+exit/loop boundaries, interruption, wrong-type/range rejection, reset/disablement,
+bounded pending inputs/debug history, all typed comparisons, malformed graphs and source
+preservation. All 464 unit tests in 63 files, lint/boundaries, formatting, TypeScript
+and package/editor builds passed; the final kernel/test changes passed lint, all unit
+tests and package rebuild again. Editor output remains identical because this kernel
+has no preview adapter yet. The unchanged workflows passed all twenty-two browser
+suites in the preceding source milestone and docs CI 38008956634 also passed all jobs.
+Remote CI for this kernel follows push.
+
+This is a partial Phase 8 increment: source remains schema 9 and existing player/editor
+behavior is unchanged. Native ownership/commands, actual scene/rig pose blending,
+typed events, bindings, graph editing and interaction/debug preview remain required.
+The project goal remains active through Phase 12. Sol 6.1 / High remains suitable
+for the next source/authoring increment; no unresolved user decision blocks progress.

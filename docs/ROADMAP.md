@@ -13,7 +13,7 @@ is historical. A partial implementation never implies the corresponding product 
 | 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
 | 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
 | 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
-| 8     | Logic, typed parameters, state machine and bindings                  | Pending                         |
+| 8     | Logic, typed parameters, state machine and bindings                  | Partial; portable graph kernel  |
 | 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | Partial legacy player/atlas     |
 | 10    | Unity importer, world and UGUI runtime                               | Pending                         |
 | 11    | Cocos Creator integration and parity                                 | Pending                         |
@@ -94,7 +94,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 
 ## Upcoming Interactive Alpha checklist
 
-- [ ] Typed parameters and deterministic graph/transition contract with recorded-input goldens (ADR 0023).
+- [x] Typed parameters and deterministic graph/transition contract with recorded-input goldens (ADR 0023).
 - [ ] Native source/validation and atomic graph/parameter/state/transition commands.
 - [ ] Scene and character playback, blends/interruption and typed events.
 - [ ] One-way bindings to exposed properties with source preservation.
