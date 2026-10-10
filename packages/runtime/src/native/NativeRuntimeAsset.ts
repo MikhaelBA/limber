@@ -1,7 +1,7 @@
 import { expandUIComponents, type BoneByBoneProject, type RigNode } from '@limber/core';
 import { materializeRuntimeProject } from './adapt';
 import { validateRuntimeProgram } from './validate';
-import { runtimeFail, type RuntimeProgram, type RuntimeTexture } from './model';
+import { runtimeFail, type RuntimeProgram, type RuntimeTexture, type RuntimeAtlasPage } from './model';
 
 interface AssetState {
   program: RuntimeProgram;
@@ -31,10 +31,13 @@ export class NativeRuntimeAsset {
   getTexture(id: string): RuntimeTexture {
     const texture = nativeAssetState(this).program.textures.find((texture) => texture.id === id);
     if (!texture) runtimeFail('MISSING_PIXELS', 'Requested native texture does not exist.', id);
-    return { ...texture };
+    return structuredClone(texture);
   }
   getTextures(): readonly RuntimeTexture[] {
-    return nativeAssetState(this).program.textures.map((texture) => ({ ...texture }));
+    return structuredClone(nativeAssetState(this).program.textures);
+  }
+  getAtlasPages(): readonly RuntimeAtlasPage[] {
+    return nativeAssetState(this).program.atlasPages.map((page) => ({ ...page }));
   }
   getFontRequirements(): readonly { nodeId: string; families: readonly string[] }[] {
     const program = nativeAssetState(this).program;

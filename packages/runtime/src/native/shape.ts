@@ -377,7 +377,37 @@ export const runtimeShape = object({
   defaultArtboardId: str,
   features: strings,
   textures: array(
-    object({ id: str, mime: enumeration('image/png', 'image/jpeg', 'image/webp'), base64: str }),
+    tagged('type', {
+      image: object({
+        id: str,
+        type: enumeration('image'),
+        mime: enumeration('image/png', 'image/jpeg', 'image/webp'),
+        base64: str,
+      }),
+      atlas: object({
+        id: str,
+        type: enumeration('atlas'),
+        pageId: str,
+        sourceWidth: num,
+        sourceHeight: num,
+        crop: object({ x: num, y: num, width: num, height: num }),
+        frame: object({ x: num, y: num, width: num, height: num }),
+        rotated: bool,
+        scale: num,
+        empty: bool,
+      }),
+    }),
+  ),
+  atlasPages: array(
+    object({
+      id: str,
+      mime: enumeration('image/png'),
+      base64: str,
+      width: num,
+      height: num,
+      padding: num,
+      premultiplied: enumeration(false),
+    }),
   ),
   artboards: array(object(boardCommon, { safeArea: insets, clips: array(clip), logic: graph })),
   components: array(

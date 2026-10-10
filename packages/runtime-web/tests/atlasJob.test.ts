@@ -9,6 +9,9 @@ import {
   type AtlasWorkerResult,
 } from '../src/atlasProtocol';
 import { readRasterSize } from '../src/imageHeader';
+import { nativeSourceImages } from '../src/nativeSourceImages';
+import { deserializeProject } from '@limber/core';
+import { readFileSync } from 'node:fs';
 
 const png = () =>
   Uint8Array.from(
@@ -251,5 +254,39 @@ describe('raster header preflight', () => {
     expect(() => readRasterSize(new Uint8Array([255, 216, 255, 224, 255, 255]), 'image/jpeg', 'bad')).toThrow(
       AtlasError,
     );
+  });
+});
+
+describe('native source extraction in the worker', () => {
+  it('keeps canonical SVG/raster bytes, protects full-domain consumers and never mutates the source', () => {
+    const project = deserializeProject(
+      readFileSync(new URL('../../../fixtures/bbbproj-v2-motion.json', import.meta.url), 'utf8'),
+    );
+    const before = structuredClone(project),
+      images = nativeSourceImages(project);
+    expect(images.map((i) => ({ id: i.id, mime: i.mime, trim: i.trim }))).toEqual([
+      { id: 'white', mime: 'image/svg+xml', trim: true },
+    ]);
+    expect(new TextDecoder().decode(images[0]!.bytes)).toContain('<svg');
+    new Uint8Array(images[0]!.bytes).fill(0);
+    expect(project).toEqual(before);
+    const rig = deserializeProject(
+      readFileSync(new URL('../../../fixtures/bbbproj-v1-demo.json', import.meta.url), 'utf8'),
+    );
+    expect(nativeSourceImages(rig).every((i) => i.trim === false && i.mime === 'image/png')).toBe(true);
+    delete project.assetManifest.white!.dataUrl;
+    expect(() => nativeSourceImages(project)).toThrow(/no embedded export pixels/);
+  });
+  it('rejects unsupported/source-atlas/noncanonical inputs before publishing image buffers', () => {
+    const project = deserializeProject(
+      readFileSync(new URL('../../../fixtures/bbbproj-v2-motion.json', import.meta.url), 'utf8'),
+    );
+    project.assetManifest.white!.source = 'atlas';
+    expect(() => nativeSourceImages(project)).toThrow(/original images/);
+    project.assetManifest.white!.source = 'embedded';
+    project.assetManifest.white!.dataUrl = 'data:image/gif;base64,AA==';
+    expect(() => nativeSourceImages(project)).toThrow(/PNG, JPEG, WebP or SVG/);
+    project.assetManifest.white!.dataUrl = 'data:image/svg+xml;base64,AB==';
+    expect(() => nativeSourceImages(project)).toThrow(/canonical base64/);
   });
 });

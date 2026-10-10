@@ -145,5 +145,27 @@ markerId)` and `getMarker(rigId, markerId)` compose responsive scene world trans
 remain explicit through `getRig(id).dispatch(event)`. Component-local graphs remain
 outside the current authoring contract; instanced characters support raw clips.
 
-The shared Web render adapter stages real image pixels and supplied host fonts. SVG/
-font packaging, atlas workers and the integrated shipping workflow remain Phase 9 gates.
+The shared Web render adapter stages real image/page pixels and supplied host fonts.
+SVG rasterization and packed native compilation run in an owned browser worker; font
+packaging and the integrated shipping workspace remain Phase 9 gates.
+
+## Packed native resources
+
+Unreleased v1 texture records discriminate `type: 'image'` (MIME/base64 pixels) from
+`type: 'atlas'` (page ID, source dimensions, logical crop, physical frame, clockwise
+rotation, scale and empty flag). The required `atlasPages` table stores shared PNG
+bytes, dimensions, padding and honest `premultiplied: false` metadata. This pre-release
+contract is intentionally updated without backward-reader adapters.
+
+`compilePackedRuntime(source, { textures, pages }, options)` is the pure compiler
+entry for prepared assets; image records may coexist with atlas regions. It validates
+source/runtime semantics and every packed reference/frame/crop/gutter/budget, but does
+not claim to decode PNG bodies. Body conversion/decode belongs to the browser worker/
+host. `runtimeTextureRequirements` discovers referenced IDs and whether each permits
+trim. Mesh/rig/nine-slice images must retain the entire authored UV domain. Source
+atlas region flattening remains an explicit unsupported export finding.
+
+`NativeRuntimeAsset.getTextures`, `getTexture` and `getAtlasPages` publish detached
+metadata, including nested crop/frame rectangles. Playback does not decode resources
+or rewrite source UVs/geometry. `@limber/runtime-web` creates logical views over unique
+page uploads, preserving original logical size and source clamp-to-edge sampling.

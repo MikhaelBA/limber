@@ -11,6 +11,7 @@
     }
   },
   "dependencies": {
+    "@limber/atlas": "^0.1.0",
     "@limber/core": "*"
   },
   "scripts": {

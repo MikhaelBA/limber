@@ -1,4 +1,5 @@
 import { AtlasError } from '@limber/atlas';
+import { runtimeTextureRequirements } from '@limber/runtime';
 import {
   validAtlasWorkerResult,
   type AtlasJobWorker,
@@ -23,8 +24,16 @@ export function buildAtlasInWorker(
       reject(cancelled());
       return;
     }
-    const ids = new Set(input.images.map((image) => image.id));
-    const sourceCount = input.images.length;
+    const sourceIds = input.project
+      ? runtimeTextureRequirements({
+          artboards: input.project.artboards,
+          components: input.project.components ?? [],
+        }).map((r) => r.id)
+      : input.images.map((image) => image.id);
+    const ids = new Set(sourceIds);
+    const sourceCount = sourceIds.length;
+    const needsRuntime = input.project !== undefined;
+    const projectId = input.project?.projectId;
     let worker: AtlasJobWorker;
     try {
       worker = options.createWorker();
@@ -58,7 +67,7 @@ export function buildAtlasInWorker(
             !Number.isFinite(data.fraction) ||
             data.fraction < fraction ||
             data.fraction > 1 ||
-            !['decode', 'prepare', 'pack', 'compose', 'encode'].includes(data.stage)
+            !['decode', 'prepare', 'pack', 'compose', 'encode', 'compile'].includes(data.stage)
           )
             throw new Error('Invalid atlas progress.');
           fraction = data.fraction;
@@ -71,6 +80,10 @@ export function buildAtlasInWorker(
             data.result.regions.some((region) => !ids.has(region.id))
           )
             throw new Error('Atlas result does not match source identities.');
+          if (needsRuntime !== (data.result.runtime !== undefined))
+            throw new Error('Atlas result does not match native compilation request.');
+          if (data.result.runtime && data.result.runtime.projectId !== projectId)
+            throw new Error('Native result belongs to another project.');
           finish(undefined, data.result);
         } else if (data.kind === 'error') {
           if (

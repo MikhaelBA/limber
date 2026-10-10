@@ -4,6 +4,7 @@
     "noEmit": true,
     "types": ["node"],
     "paths": {
+      "@limber/atlas": ["../atlas/src/index.ts"],
       "@limber/runtime": ["./src/index.ts"],
       "@limber/core": ["../core/src/index.ts"],
       "@limber/mesh": ["../mesh/src/index.ts"],

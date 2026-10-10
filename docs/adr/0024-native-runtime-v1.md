@@ -4,15 +4,16 @@ Status: Phase 9A defines the portable compiler and strict loader after the Phase
 acceptance gate. Phase 9B1 adds native character playback with raw fade/FIFO and authored
 Logic. Phase 9B2a shares the raw clock with native scene animation and expanded responsive
 UI/bindings/routing. Phase 9B2b adds validated shared assets and owned artboard orchestration;
-Phase 9C1 adds staged Web pixels/host fonts and shared production/editor rendering. Image/
-font workers, SVG/atlas packing, Ship Doctor and the integrated exported-playback gate
-remain required. Sol 6.1 / High is suitable.
+Phase 9C1 adds staged Web pixels/host fonts and shared production/editor rendering.
+Phase 9D1–9D3 add portable atlas kernels, real image/SVG worker conversion and packed
+native export/load/render acceptance. Packaged fonts, Ship Doctor/profiler and the
+integrated Ship workflow remain required. Sol 6.1 / High is suitable.
 
 ## File and ownership contract
 
 `.bbbproj` is editable source. `.bbb` has the independent `bonebybone-runtime` header
 and `version: 1`. Its public envelope contains `id`, `name`, `defaultArtboardId`, sorted
-`features`, `textures`, `artboards` and `components`. It contains no editor selection,
+`features`, `textures`, `atlasPages`, `artboards` and `components`. It contains no editor selection,
 component revision, graph-canvas position, scene track/key/event selection ID or scene
 FPS. Clip/node/graph identities and public names survive because host APIs reference
 them. Scene times remain seconds; playback uses the existing 120 Hz contracts.
@@ -70,14 +71,24 @@ remain explicit rather than silently introducing unsupported source semantics.
 
 ## Asset staging and limitations
 
-Only referenced image IDs ship. Images use independent `{ id, mime, base64 }` records,
-without source filenames, registry state or original paths. Initial compilation accepts
+Only referenced image IDs ship. Independent images use `{ id, type: 'image', mime, base64 }`
+records without source filenames, registry state or original paths. Direct compilation accepts
 embedded PNG, JPEG and WebP, validates canonical base64/padding and MIME signatures,
 and rejects missing pixels or source atlas regions. This is encoding/signature
 validation, not complete pixel decoding. Corrupt image bodies must also fail in the
-worker/renderer before publication. SVG rasterization and native atlas compilation
-follow in the asset pipeline; the two SVG corpus projects currently receive explicit
-conversion diagnostics. No fake pixel replacement is used for parity evidence.
+worker/renderer before publication. The owned asset worker also rasterizes actual SVG,
+packs PNG pages and compiles the source snapshot into `.bbb`. No fake pixel replacement
+is used for parity evidence.
+
+Atlas textures retain original dimensions, crop, frame, page reference, scale, rotation
+and empty status. Pages contain canonical PNG bytes, dimensions, padding and explicit
+straight-alpha metadata. Strict ingestion checks references, budgets, bounds, gutter
+occupancy, header dimensions and full-domain mesh/nine-slice trim locks. This unreleased
+v1 change deliberately does not add compatibility adapters. The Web loader stages each
+physical page once and publishes logical views after all resources succeed. Transparent
+trim guards and a frame-clamp shader preserve filtered source edges and authored UVs
+outside [0,1]. Source comparison covers all fifteen fixture/example projects; exact
+synthetic goldens and bounded one-unit corpus GPU rounding remain separate gates.
 
 Font family/fallback requirements remain authored. The initial compiler reports an
 `EXTERNAL_FONT` warning for text nodes; font packaging and host adapters must make the

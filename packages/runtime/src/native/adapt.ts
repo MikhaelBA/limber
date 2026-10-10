@@ -38,7 +38,7 @@ export function materializeRuntimeProject(program: RuntimeProgram): {
         {
           name: texture.id,
           source: 'embedded' as const,
-          dataUrl: `data:${texture.mime};base64,${texture.base64}`,
+          ...(texture.type === 'image' ? { dataUrl: `data:${texture.mime};base64,${texture.base64}` } : {}),
         },
       ]),
     ),

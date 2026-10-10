@@ -41,8 +41,11 @@ RGBA preparation, packing, extrusion and PNG encoding happen there. The host sup
 bundler-specific worker/WASM URLs. Abort terminates computation and closes delivery;
 job IDs, monotonic progress and allocation-free layout/result checks reject stale or
 malformed messages. Source buffers are cloned, not detached from the open project.
-No resource is installed in the host during this preparation stage. Packed native
-manifest ingestion and font packaging are subsequent requirements.
+No resource is installed in the host during preparation. Native project jobs also
+extract source bytes and compile/encode strict packed `.bbb` in that worker. The
+manifest stores logical views separately from unique physical PNG pages. The host
+stages each page once and preserves original-size/crop/rotation views; mesh UVs outside
+the frame use an owned clamp shader. Font packaging remains a subsequent requirement.
 
 Recovery writes complete OPFS generations and atomically switches IndexedDB pointers; the previous
 readable snapshot remains available. IndexedDB document-plus-texture records are the fallback for

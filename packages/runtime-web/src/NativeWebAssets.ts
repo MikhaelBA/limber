@@ -1,6 +1,7 @@
-import { Texture } from 'pixi.js';
-import { NativeRuntimeAsset, RuntimeFormatError } from '@limber/runtime';
+import { Rectangle, Texture, type Mesh, type MeshGeometry } from 'pixi.js';
+import { NativeRuntimeAsset, RuntimeFormatError, type RuntimeImageTexture } from '@limber/runtime';
 import type { TextureProvider } from './TextureProvider';
+import { AtlasMeshShader } from './AtlasMeshShader';
 
 export interface NativeFontSource {
   family: string;
@@ -47,6 +48,8 @@ function untilAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 /** Staged real pixel/font decode. No texture registry or document font is published on failure. */
 export class NativeWebAssets implements TextureProvider {
   private readonly textures = new Map<string, Texture>();
+  private readonly physical = new Set<Texture>();
+  private readonly atlasTextures = new WeakSet<Texture>();
   private readonly images: HTMLImageElement[] = [];
   private readonly fonts: FontFace[] = [];
   private disposed = false;
@@ -87,7 +90,10 @@ export class NativeWebAssets implements TextureProvider {
         );
     let pixels = 0;
     try {
-      for (const record of asset.getTextures()) {
+      const records = asset.getTextures(),
+        pages = new Map<string, Texture>();
+      const images = records.filter((record): record is RuntimeImageTexture => record.type === 'image');
+      for (const record of [...images, ...asset.getAtlasPages()]) {
         checkAbort(options.signal);
         const bytes = Uint8Array.from(atob(record.base64), (char) => char.charCodeAt(0));
         if (record.mime === 'image/png' && bytes.length >= 24) {
@@ -140,12 +146,41 @@ export class NativeWebAssets implements TextureProvider {
               'Reduce source image dimensions or explicitly increase the host image budget.',
             );
           pixels += width * height;
-          published.textures.set(record.id, Texture.from(image, true));
+          if ('padding' in record && (width !== record.width || height !== record.height))
+            fail(
+              'INVALID_ATLAS_DIMENSIONS',
+              'Decoded atlas page does not match its manifest.',
+              record.id,
+              'Re-export the atlas pages and manifest together.',
+            );
+          const texture = Texture.from(image, true);
+          published.physical.add(texture);
+          if ('padding' in record) pages.set(record.id, texture);
+          else published.textures.set(record.id, texture);
         } finally {
           image.onload = null;
           image.onerror = null;
           URL.revokeObjectURL(url);
         }
+      }
+      for (const record of records) {
+        if (record.type !== 'atlas') continue;
+        const page = pages.get(record.pageId)!;
+        const frame = record.frame,
+          crop = record.crop;
+        const texture = new Texture({
+          source: page.source,
+          label: record.id,
+          frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+          orig: new Rectangle(0, 0, record.sourceWidth, record.sourceHeight),
+          trim:
+            crop.x || crop.y || crop.width !== record.sourceWidth || crop.height !== record.sourceHeight
+              ? new Rectangle(crop.x, crop.y, crop.width, crop.height)
+              : undefined,
+          rotate: record.rotated ? 2 : 0,
+        });
+        published.textures.set(record.id, texture);
+        published.atlasTextures.add(texture);
       }
       for (const [family, nodeId] of required) {
         const source = sources.get(family)!;
@@ -185,6 +220,17 @@ export class NativeWebAssets implements TextureProvider {
       );
     return texture;
   }
+  configureMesh(mesh: Mesh<MeshGeometry>): void {
+    if (this.disposed) throw new Error('Native Web assets have been disposed.');
+    const outside = mesh.geometry.uvs.some((value) => value < 0 || value > 1);
+    if (this.atlasTextures.has(mesh.texture) && outside) {
+      if (mesh.shader instanceof AtlasMeshShader) mesh.shader.texture = mesh.texture;
+      else mesh.shader = new AtlasMeshShader(mesh.texture);
+    } else if (mesh.shader instanceof AtlasMeshShader) {
+      mesh.shader.destroy(false);
+      mesh.shader = null;
+    }
+  }
   inspect() {
     return {
       disposed: this.disposed,
@@ -194,15 +240,19 @@ export class NativeWebAssets implements TextureProvider {
         height: texture.height,
       })),
       fonts: this.fonts.map((font) => font.family),
+      physicalImages: this.physical.size,
     };
   }
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const texture of this.textures.values()) texture.destroy(true);
+    // Logical regions share sources. Destroy views first, then each physical source once.
+    for (const texture of this.textures.values()) if (!this.physical.has(texture)) texture.destroy(false);
+    for (const texture of this.physical) texture.destroy(true);
     for (const image of this.images) image.src = '';
     for (const font of this.fonts) document.fonts.delete(font);
     this.textures.clear();
+    this.physical.clear();
     this.images.length = 0;
     this.fonts.length = 0;
     this.version++;

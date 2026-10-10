@@ -18,6 +18,9 @@ nine-slice) must pass `trim: false` on that image; this overrides global trim. S
 uses ceil dimensions. Bilinear resize interpolates premultiplied intermediates and
 returns straight RGBA8, avoiding fringes from invisible RGB. No alpha threshold,
 lossy encode or irreversible source-image edit is performed.
+Optional `trimMargin` expands the content crop within original bounds. Native sprite
+export retains at least one output texel's transparent filter footprint; an exact
+alpha box would otherwise cut off visible bilinear fringes at the cropped quad edge.
 
 Composition checks every page, placement and extruded gutter for bounds and overlap
 before allocating page buffers. Clockwise rotation is exact, and edge/corner extrusion

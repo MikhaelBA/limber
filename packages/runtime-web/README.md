@@ -33,8 +33,10 @@ Loading stages every required image and nongeneric font before publishing resour
 PNG/JPEG/WebP bodies must decode into real pixels; malformed data receives `IMAGE_DECODE`.
 Missing font sources receive `MISSING_FONT`; broken font sources receive `FONT_DECODE`.
 Generic CSS families explicitly use the host's system fonts. Font packaging in `.bbb`
-and packed atlas ingestion remain asset-pipeline work; this API requires supplied font bytes
-or font URLs. Nothing substitutes a placeholder for missing image IDs. Authored
+remains asset-pipeline work; this API requires supplied font bytes or font URLs.
+Independent images and packed logical regions are supported. Each physical atlas page
+decodes once; logical views preserve original dimensions, crop, scale and clockwise
+rotation. Nothing substitutes a placeholder for missing image IDs. Authored
 untextured regions intentionally use white, tinted by their slot color.
 
 The default image budget is 16384 pixels per dimension and 64 million total pixels.
@@ -59,9 +61,13 @@ skeleton publication or viewport resize rebuilds its owned scene geometry.
 The browser gate downloads and reloads independent `.bbb` bytes, checks actual
 source/native raster and RTL pixels, clipping/color goldens, geometry/text cache reuse,
 responsive resize, interaction ownership, atomic decode/cancellation and resource cleanup.
-Thirteen raster/native corpus projects pass initial-view pixel parity; two SVG corpus
-projects retain explicit conversion diagnostics in the pure compiler; the worker now
-converts their actual SVG pixels. Packed native export/load/render integration follows.
+Packed export/load/render acceptance compares all fifteen source projects against
+independently decoded originals, including both SVG projects and Fox. Synthetic
+rotation/trim/mesh/nine-slice goldens require exact pixels. Corpus comparisons allow
+at most one RGBA8 unit and one percent of visible channels for GPU sampling rounding.
+Meshes with authored UVs outside [0,1] use a frame-clamp shader to preserve original
+edge sampling; ordinary meshes retain batching. Logical views are disposed before
+their unique physical sources, including staging failures.
 
 ## Cancellable atlas preparation
 
@@ -95,3 +101,11 @@ damaged body/resource/font/budget findings, cancellation and all fifteen source
 projects (including asset-free ones and Fox). It also builds and serves a production
 host to prove emitted worker/WASM paths and real output pixels. Upstream source/license
 notices are retained in this package and distributed under the editor's `licenses/`.
+
+`compileNativeInWorker(project, options)` captures source through worker messaging,
+extracts referenced source bytes, prepares pages and strictly compiles/encodes `.bbb`
+in the same worker. Its result adds validated `runtime.bytes`, diagnostics and IDs.
+The host injects its worker factory and SVG WASM URL. Native trim retains a transparent
+filter guard covering at least one output texel; mesh and nine-slice textures retain
+their full logical domain. Progress includes a final `compile` stage. Cancellation
+terminates compilation too; source edits after dispatch do not alter the snapshot.

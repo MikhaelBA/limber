@@ -127,11 +127,14 @@ describe('validated native assets and artboard orchestration', () => {
     const published = asset.getProgram();
     published.artboards[0]!.nodes.length = 0;
     const texture = asset.getTexture('demo-tex');
+    if (texture.type !== 'image') throw new Error('Expected embedded image.');
     texture.base64 = '';
     const a = new NativeArtboardPlayer(asset),
       b = new NativeArtboardPlayer(asset);
     expect(a.getView().nodes.length).toBeGreaterThan(0);
-    expect(asset.getTexture('demo-tex').base64.length).toBeGreaterThan(0);
+    const unchangedTexture = asset.getTexture('demo-tex');
+    if (unchangedTexture.type !== 'image') throw new Error('Expected embedded image.');
+    expect(unchangedTexture.base64.length).toBeGreaterThan(0);
     expect(a.getRig('rig-character').skeleton).not.toBe(b.getRig('rig-character').skeleton);
     a.setString('caption', 'Changed');
     a.getRig('rig-character').fire('open');

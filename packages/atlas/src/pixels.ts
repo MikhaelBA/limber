@@ -30,6 +30,7 @@ export function validateAtlasRasterOptions(
     sampling = options.sampling ?? 'bilinear';
   const maxPixels = options.maxPixels ?? ATLAS_MAX_PIXELS;
   atlasInteger(maxPixels, 1, ATLAS_MAX_PIXELS, 'prepared image pixel budget', objectId);
+  atlasInteger(options.trimMargin ?? 0, 0, 16384, 'transparent trim margin', objectId);
   if (!Number.isFinite(scale) || scale <= 0 || scale > 16)
     atlasFail('ATLAS_INVALID_INPUT', objectId, 'Export scale must be finite, positive and at most sixteen.');
   if (!['nearest', 'bilinear'].includes(sampling))
@@ -71,10 +72,17 @@ export function prepareAtlasImage(
     right = input.width - 1;
     bottom = input.height - 1;
   }
-  const empty = right < left,
-    crop: AtlasRect = empty
-      ? { x: 0, y: 0, width: 1, height: 1 }
-      : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+  const empty = right < left;
+  if (!empty && trim) {
+    const margin = options.trimMargin ?? 0;
+    left = Math.max(0, left - margin);
+    top = Math.max(0, top - margin);
+    right = Math.min(input.width - 1, right + margin);
+    bottom = Math.min(input.height - 1, bottom + margin);
+  }
+  const crop: AtlasRect = empty
+    ? { x: 0, y: 0, width: 1, height: 1 }
+    : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
   const width = Math.max(1, Math.ceil(crop.width * scale)),
     height = Math.max(1, Math.ceil(crop.height * scale));
   validateImageSize({ id: input.id, width, height });

@@ -116,7 +116,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
 - [x] Portable deterministic multipage atlas layout, trim/scale, RGBA rotation and gutter composition.
 - [x] Real PNG/JPEG/WebP/SVG worker decode, staged PNG atlas pages and hard cancellation.
-- [ ] Packed native atlas manifest/load/render and packaged font staging.
+- [x] Packed native atlas manifest, shared-page loading and export/load/render source pixel acceptance.
+- [ ] Packaged font staging, fallback and license metadata.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.

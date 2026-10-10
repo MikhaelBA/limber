@@ -1201,8 +1201,63 @@ first-use worker dependency optimization reloaded the host page during its test.
 The converter is now explicitly prebundled at dev-server startup. A fresh-cache
 browser acceptance verifies this repair; the remote gate must be rerun before this
 increment is considered CI accepted.
+Repair commit `0326c52` passed CI 38050245469: Test & Build (including 32 browser
+suites), Docker, VPS and GitHub Pages succeeded.
 
 Phase 9 remains in progress. Next: connect packed page/region metadata to the strict
 native manifest, load shared pages and prove packed export/load/render source parity.
 Packaged fonts, Ship Doctor/profiler/workspace and final acceptance remain open.
 Sol 6.1 / High is suitable; no user decision or model switch is required.
+
+## 10 October 2026 Phase 9D3 packed native atlas export/load/render
+
+The unreleased native v1 schema now has explicit image/atlas texture variants and a
+physical PNG page table. Logical textures preserve original dimensions, crop, scale,
+rotation and source geometry/UVs; shared pixels are stored once. Strict metadata
+ingestion checks canonical image encoding/header dimensions, references, page/source
+pixel budgets, frame/gutter bounds and overlap, crop/scale/empty rules, unused pages
+and full-domain mesh/rig/nine-slice trim locks. Nested asset publications are detached.
+Independent raster records can coexist with atlas regions in the portable compiler.
+
+Native project jobs capture the source through worker messaging. Original-byte
+extraction/canonicalization, SVG/raster conversion, atlas preparation, strict native
+compile and `.bbb` encoding happen in the same owned worker, with a separate compile
+progress stage. Abort terminates the entire job. Returned native bytes pass strict
+ingestion and project-identity checks before acceptance. Source atlas region flattening
+remains explicitly unsupported; existing legacy import/export paths remain available.
+
+The Web loader decodes each physical page once and stages logical views with original
+dimensions, clockwise rotation and crop offsets. Failure destroys views before their
+unique shared sources; successful publications have independent lifetimes. Ordinary
+UV meshes retain existing batching. Authored UVs outside [0,1] receive a cached-program
+frame-clamp shader, preserving original clamp-to-edge semantics without sampling a
+neighboring region. Shared shader resources are disposed with renderer geometry.
+
+Actual source comparison exposed a significant trim defect: an exact nonzero-alpha
+box removes the sprite's bilinear sampling fringe. Native jobs now retain a bounded
+transparent source-pixel guard covering at least one output texel; source dimensions
+and placement remain unchanged. The original failure (1000 different channels, maximum 178) is zero after this fix. Seeded layout, crop/filter-guard and strict wire tests cover
+the correction. Eight atlas-wire tests and two worker-source extraction tests cover
+mixed resources, safe publications, all malformed metadata and original bytes.
+
+The new browser gate downloads and reloads actual packed `.bbb` bytes and compares
+with independently decoded original image/SVG resources. Rotated sprite/mesh/nine-slice,
+clipping/color, transparent filter fringes, empty sprites and out-of-domain UV goldens
+are exact. All fifteen source projects preserve authoring data and pass initial pixel
+acceptance; interactive source/rig Logic also passes animated pixels. Thirteen initial
+cases are exact. Reward differs in 288 channels and Fox in four channels, each by only
+one RGBA8 unit from GPU packed-UV linear-filter rounding. Corpus acceptance bounds
+both maximum error (one unit) and changed channels (one percent of visible RGBA);
+synthetic geometry/alpha/trim goldens retain zero tolerance. No hardware-FPS claim is
+made. Worker source-snapshot edits and cancellation during compile are accepted;
+damaged second-page loading destroys the first staged source and revokes every URL.
+All 645 tests in 82 files, lint/boundaries, formatting, semantic TypeScript and both
+builds passed. Packed native, atlas worker (including production WASM), independent
+native Web and existing Logic stencil/picking browser suites passed locally. The
+Linux Docker image builds successfully. The added packed suite raises the complete
+browser gate to 33 suites; remote CI confirmation follows publication.
+
+Phase 9 remains in progress. Next: packaged font bytes/fallback/license metadata,
+followed by Ship Doctor/platform budgets, profiler, Ship workspace/atlas inspection
+and the complete Phase 9 acceptance gate. Sol 6.1 / High is suitable; no user decision
+or model switch is needed.

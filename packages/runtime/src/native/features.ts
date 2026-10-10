@@ -2,6 +2,7 @@ import type { RuntimeFeature, RuntimeLogicGraph, RuntimeProgram } from './model'
 
 export function deriveRuntimeFeatures(program: RuntimeProgram): RuntimeFeature[] {
   const features = new Set<RuntimeFeature>(['scene']);
+  if (program.textures.some((texture) => texture.type === 'atlas')) features.add('atlas');
   const graph = (graph: RuntimeLogicGraph | undefined) => {
     if (!graph) return;
     features.add('logic');
@@ -53,6 +54,21 @@ export function referencedRuntimeTextures(
   for (const container of [...program.artboards, ...program.components])
     for (const node of container.nodes) {
       if (node.type === 'image' || node.type === 'nineSlice') ids.add(node.textureId);
+      if (node.type === 'rig')
+        for (const attachment of node.skeleton.attachments)
+          if (attachment.textureId) ids.add(attachment.textureId);
+    }
+  return ids;
+}
+
+/** These users sample authored full-domain UVs and must not receive cropped textures. */
+export function fullDomainRuntimeTextures(
+  program: Pick<RuntimeProgram, 'artboards' | 'components'>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const container of [...program.artboards, ...program.components])
+    for (const node of container.nodes) {
+      if (node.type === 'nineSlice') ids.add(node.textureId);
       if (node.type === 'rig')
         for (const attachment of node.skeleton.attachments)
           if (attachment.textureId) ids.add(attachment.textureId);

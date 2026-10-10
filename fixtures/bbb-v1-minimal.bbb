@@ -6,6 +6,7 @@
   "defaultArtboardId": "board",
   "features": ["scene", "scene-motion", "typed-events"],
   "textures": [],
+  "atlasPages": [],
   "components": [],
   "artboards": [{
     "id": "board", "name": "Main", "width": 320, "height": 240,

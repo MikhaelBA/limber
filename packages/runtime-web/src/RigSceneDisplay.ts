@@ -57,6 +57,7 @@ export class RigSceneDisplay {
       }),
       texture: this.textures.get(attachment.textureId) ?? this.textures.placeholder,
     });
+    this.textures.configureMesh?.(mesh);
     mesh.label = attachment.id;
     mesh.visible = false;
     this.meshes.set(key, mesh);
@@ -66,9 +67,11 @@ export class RigSceneDisplay {
   update(): void {
     const { data, pose } = this.skeleton;
     if (this.textureVersion !== this.textures.version) {
-      for (const mesh of this.meshes.values())
+      for (const mesh of this.meshes.values()) {
         mesh.texture =
           this.textures.get(this.attachments.get(mesh.label)!.textureId) ?? this.textures.placeholder;
+        this.textures.configureMesh?.(mesh);
+      }
       this.textureVersion = this.textures.version;
     }
     for (const mesh of this.meshes.values()) {

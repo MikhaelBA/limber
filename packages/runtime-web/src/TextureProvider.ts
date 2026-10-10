@@ -1,8 +1,10 @@
-import type { Texture } from 'pixi.js';
+import type { Texture, Mesh, MeshGeometry } from 'pixi.js';
 
 /** Explicit resource ownership: rendering never reaches an editor/global asset registry. */
 export interface TextureProvider {
   readonly version: number;
   readonly placeholder: Texture;
   get(id: string): Texture | undefined;
+  /** Optional atlas sampler adaptation. Ordinary full-domain meshes retain batching. */
+  configureMesh?(mesh: Mesh<MeshGeometry>): void;
 }

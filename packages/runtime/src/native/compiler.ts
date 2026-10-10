@@ -1,5 +1,5 @@
 import { validateProject, type BoneByBoneProject } from '@limber/core';
-import { deriveRuntimeFeatures, referencedRuntimeTextures } from './features';
+import { deriveRuntimeFeatures, referencedRuntimeTextures, fullDomainRuntimeTextures } from './features';
 import {
   RUNTIME_FORMAT,
   RUNTIME_VERSION,
@@ -7,6 +7,8 @@ import {
   runtimeFail,
   type RuntimeDiagnostic,
   type RuntimeProgram,
+  type RuntimeImageTexture,
+  type RuntimeAtlasPage,
   type RuntimeTexture,
 } from './model';
 import { projectRuntimeShape } from './shape';
@@ -21,10 +23,7 @@ export interface RuntimeCompilation {
 }
 
 /** Pure deterministic compilation. Editor selection never chooses the runtime entry point. */
-export function compileRuntime(
-  source: BoneByBoneProject,
-  options: CompileRuntimeOptions = {},
-): RuntimeCompilation {
+function compileStructure(source: BoneByBoneProject, options: CompileRuntimeOptions = {}): RuntimeProgram {
   try {
     validateProject(source);
   } catch (error) {
@@ -47,10 +46,18 @@ export function compileRuntime(
     defaultArtboardId: options.defaultArtboardId ?? source.artboards[0]!.id,
     features: [],
     textures: [],
+    atlasPages: [],
     artboards: source.artboards,
     components: source.components ?? [],
   };
-  const program = projectRuntimeShape(candidate, false) as RuntimeProgram;
+  return projectRuntimeShape(candidate, false) as RuntimeProgram;
+}
+
+export function compileRuntime(
+  source: BoneByBoneProject,
+  options: CompileRuntimeOptions = {},
+): RuntimeCompilation {
+  const program = compileStructure(source, options);
   for (const id of [...referencedRuntimeTextures(program)].sort()) {
     const meta = Object.hasOwn(source.assetManifest, id) ? source.assetManifest[id] : undefined;
     if (!meta?.dataUrl)
@@ -75,8 +82,42 @@ export function compileRuntime(
         id,
         'Convert or reimport the image in a supported raster format.',
       );
-    program.textures.push({ id, mime: match[1]!.toLowerCase() as RuntimeTexture['mime'], base64: match[2]! });
+    program.textures.push({
+      id,
+      type: 'image',
+      mime: match[1]!.toLowerCase() as RuntimeImageTexture['mime'],
+      base64: match[2]!,
+    });
   }
+  return finishCompilation(program);
+}
+
+/** Pure asset-stage compilation; prepared page bodies are decoded by the worker/host gate. */
+export function compilePackedRuntime(
+  source: BoneByBoneProject,
+  assets: {
+    textures: readonly RuntimeTexture[];
+    pages: readonly RuntimeAtlasPage[];
+  },
+  options: CompileRuntimeOptions = {},
+): RuntimeCompilation {
+  const program = compileStructure(source, options);
+  program.textures = structuredClone([...assets.textures]).sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+  program.atlasPages = structuredClone([...assets.pages]);
+  return finishCompilation(program);
+}
+
+/** Asset-stage discovery; semantic source validation remains the compiler's responsibility. */
+export function runtimeTextureRequirements(
+  source: Pick<RuntimeProgram, 'artboards' | 'components'>,
+): { id: string; trimAllowed: boolean }[] {
+  const full = fullDomainRuntimeTextures(source);
+  return [...referencedRuntimeTextures(source)].sort().map((id) => ({ id, trimAllowed: !full.has(id) }));
+}
+
+function finishCompilation(program: RuntimeProgram): RuntimeCompilation {
   program.features = deriveRuntimeFeatures(program);
   const validated = validateRuntimeProgram(program);
   const diagnostics: RuntimeDiagnostic[] = [];

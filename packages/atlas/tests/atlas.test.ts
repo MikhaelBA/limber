@@ -172,6 +172,19 @@ describe('portable atlas layout', () => {
 });
 
 describe('portable RGBA atlas preparation', () => {
+  it('preserves a transparent filter footprint without expanding past the logical image', () => {
+    const input = image('filter-guard', 6, 5);
+    input.pixels.fill(0);
+    for (let y = 1; y < 4; y++)
+      for (let x = 2; x < 4; x++) input.pixels.set([255, 0, 0, 128], (y * 6 + x) * 4);
+    const prepared = prepareAtlasImage(input, { trimMargin: 1 });
+    expect(prepared.crop).toEqual({ x: 1, y: 0, width: 4, height: 5 });
+    expect(pixel(prepared.pixels as Uint8Array, 4, 0, 0)).toEqual([0, 0, 0, 0]);
+    expect(pixel(prepared.pixels as Uint8Array, 4, 1, 1)).toEqual([255, 0, 0, 128]);
+    expect(prepareAtlasImage(input, { trimMargin: 16384 }).crop).toEqual({ x: 0, y: 0, width: 6, height: 5 });
+    for (const margin of [-1, 0.5, NaN, 16385])
+      error(() => prepareAtlasImage(input, { trimMargin: margin }), 'ATLAS_INVALID_INPUT');
+  });
   it('retains faint alpha and logical dimensions, detaches exact unscaled pixels and respects per-image trim locks', () => {
     const input = image('trim', 5, 4);
     input.pixels.fill(0);

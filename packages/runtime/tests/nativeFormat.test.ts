@@ -328,10 +328,13 @@ describe('native runtime v1 compilation and strict ingestion', () => {
   it('handles large canonical base64 without recursive regex exhaustion', () => {
     const shipped = program('bbbproj-v1-demo.json');
     const texture = shipped.textures[0]!;
+    if (texture.type !== 'image') throw new Error('Expected embedded image.');
     const unpadded = texture.base64.replace(/=+$/, '');
     // Valid MIME signature/encoding does not claim that this image body decodes.
     texture.base64 = unpadded.slice(0, 32) + 'A'.repeat(1024 * 1024);
-    expect(validateRuntimeProgram(shipped).textures[0]!.base64).toBe(texture.base64);
+    const validatedTexture = validateRuntimeProgram(shipped).textures[0]!;
+    if (validatedTexture.type !== 'image') throw new Error('Expected embedded image.');
+    expect(validatedTexture.base64).toBe(texture.base64);
     texture.base64 = unpadded.slice(0, 32) + 'AB==';
     diagnostic(() => validateRuntimeProgram(shipped), 'INVALID_IMAGE_ENCODING');
   });
@@ -386,9 +389,11 @@ describe('native runtime v1 compilation and strict ingestion', () => {
     const atlas = structuredClone(original);
     atlas.assetManifest[id]!.source = 'atlas';
     diagnostic(() => compileRuntime(atlas), 'SOURCE_ATLAS_UNSUPPORTED', id);
-    shipped.textures[0]!.base64 = 'abcd';
+    const texture = shipped.textures[0]!;
+    if (texture.type !== 'image') throw new Error('Expected embedded image.');
+    texture.base64 = 'abcd';
     diagnostic(() => validateRuntimeProgram(shipped), 'INVALID_IMAGE_SIGNATURE', shipped.textures[0]!.id);
-    shipped.textures[0]!.base64 = 'abc';
+    texture.base64 = 'abc';
     diagnostic(() => validateRuntimeProgram(shipped), 'INVALID_IMAGE_ENCODING');
   });
 

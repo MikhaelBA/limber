@@ -10,6 +10,13 @@ import {
   type AtlasWorkStats,
 } from '@limber/atlas';
 import { readRasterSize } from './imageHeader';
+import type { BoneByBoneProject } from '@limber/core';
+import {
+  loadRuntime,
+  RUNTIME_MAX_BYTES,
+  type CompileRuntimeOptions,
+  type RuntimeDiagnostic,
+} from '@limber/runtime';
 
 export interface AtlasSourceImage {
   id: string;
@@ -26,6 +33,9 @@ export interface AtlasWorkerInput {
   /** Explicit SVG text fonts; no implicit OS font discovery in the worker. */
   svgFonts?: ArrayBuffer[];
   maxDecodedPixels?: number;
+  /** Optional authoring snapshot: compile packed native bytes in this same owned worker. */
+  project?: BoneByBoneProject;
+  runtimeOptions?: CompileRuntimeOptions;
 }
 export interface AtlasRegionMetadata {
   id: string;
@@ -58,6 +68,13 @@ export interface AtlasWorkerResult {
     encode: number;
     total: number;
   };
+  runtime?: {
+    bytes: ArrayBuffer;
+    diagnostics: RuntimeDiagnostic[];
+    durationMs: number;
+    projectId: string;
+    defaultArtboardId: string;
+  };
 }
 export interface AtlasWorkerRequest {
   id: number;
@@ -68,7 +85,7 @@ export type AtlasWorkerMessage =
       id: number;
       kind: 'progress';
       fraction: number;
-      stage: 'decode' | 'prepare' | 'pack' | 'compose' | 'encode';
+      stage: 'decode' | 'prepare' | 'pack' | 'compose' | 'encode' | 'compile';
     }
   | { id: number; kind: 'result'; result: AtlasWorkerResult }
   | { id: number; kind: 'error'; code: string; objectId: string | null; message: string; remedy: string };
@@ -158,6 +175,30 @@ export function validAtlasWorkerResult(value: unknown): value is AtlasWorkerResu
       )
     )
       return false;
+    if (r.runtime) {
+      if (
+        !(r.runtime.bytes instanceof ArrayBuffer) ||
+        !r.runtime.bytes.byteLength ||
+        r.runtime.bytes.byteLength > RUNTIME_MAX_BYTES ||
+        !Number.isFinite(r.runtime.durationMs) ||
+        r.runtime.durationMs < 0 ||
+        !Array.isArray(r.runtime.diagnostics)
+      )
+        return false;
+      const program = loadRuntime(new Uint8Array(r.runtime.bytes));
+      if (program.id !== r.runtime.projectId || program.defaultArtboardId !== r.runtime.defaultArtboardId)
+        return false;
+      for (const d of r.runtime.diagnostics)
+        if (
+          !d ||
+          typeof d.code !== 'string' ||
+          !['error', 'warning'].includes(d.severity) ||
+          !(d.objectId === null || typeof d.objectId === 'string') ||
+          typeof d.explanation !== 'string' ||
+          typeof d.remedy !== 'string'
+        )
+          return false;
+    }
     return true;
   } catch {
     return false;

@@ -12,14 +12,16 @@ import {
   RuntimeFormatError,
   runtimeFail,
   type RuntimeProgram,
-  type RuntimeTexture,
+  type RuntimeImageTexture,
+  type RuntimeAtlasPage,
 } from './model';
 import { projectRuntimeShape } from './shape';
 import { nativeDurationTicks } from './timing';
 import { validateNativeEventWork } from './eventWork';
+import { validateNativeAtlas } from './atlas';
 
 /** Checks canonical encoding and image signatures. Pixel decoding is a renderer/worker responsibility. */
-export function validateRuntimeTexture(texture: RuntimeTexture): void {
+export function validateRuntimeTexture(texture: RuntimeImageTexture | RuntimeAtlasPage): void {
   const { base64, id, mime } = texture;
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   if (!base64.length || base64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
@@ -208,8 +210,10 @@ export function validateRuntimeProgram(input: unknown): RuntimeProgram {
     if (!texture.id.trim() || textures.has(texture.id))
       runtimeFail('DUPLICATE_ASSET', 'Texture IDs must be nonempty and unique.', texture.id);
     textures.add(texture.id);
-    validateRuntimeTexture(texture);
+    if (texture.type === 'image') validateRuntimeTexture(texture);
   }
+  for (const page of program.atlasPages) validateRuntimeTexture(page);
+  validateNativeAtlas(program);
   const referenced = referencedRuntimeTextures(program);
   for (const id of referenced)
     if (!textures.has(id))

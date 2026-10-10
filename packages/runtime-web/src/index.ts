@@ -6,3 +6,4 @@ export * from './NativeWebAssets';
 export * from './NativeWebRenderer';
 export * from './atlasProtocol';
 export * from './atlasJob';
+export * from './nativeCompilationJob';

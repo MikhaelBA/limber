@@ -46,7 +46,10 @@ function disposeScene(container: Container): void {
   const queue: Container[] = [container];
   for (let i = 0; i < queue.length; i++) {
     const child = queue[i]!;
-    if (child instanceof Mesh) child.geometry.destroy();
+    if (child instanceof Mesh) {
+      child.geometry.destroy();
+      child.shader?.destroy(false);
+    }
     ownedTextures.get(child)?.destroy(true);
     queue.push(...child.children);
   }
