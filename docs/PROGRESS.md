@@ -1340,3 +1340,42 @@ remote CI follows publication. Authoring font import,
 project preview/history and stricter SVG text-font matching remain required before
 closing the complete font stage. Ship Doctor/profiler/workspace and final Phase 9
 acceptance remain open. Sol 6.1 / High is suitable; no user decision is required.
+
+Commit `f1bc340` passed CI 38056149590: all 34 browser suites, Test & Build, Docker,
+VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9D4c authoring fonts and explicit SVG text
+
+Game UI now has a collapsed project font library. TTF/OTF import reads bounded internal
+Unicode family names and performs actual browser font-body decode before its history
+command. Replacement preserves a family's resource ID; removal, fallback selection and
+license name/text/source URL/status use validated reversible commands. Source bytes and
+metadata round-trip through Save/Open. Late imports cannot mutate another project.
+Scene and Logic preview stage private aliases atomically and discard obsolete loads;
+failed initial font staging destroys its initialized renderer application.
+
+SVG preflight uses pinned xmldom 0.9.12, with MIT notices shipped in the editor/runtime
+package. Strict bounded XML resolves inherited literal family declarations, inline
+families and generic first-buffer fallback against actual internal font names before
+resvg rasterization. Worker font-body decode, canonical family names and scalar coverage
+prevent absent text from silently shipping. Missing glyphs/families, ambiguous faces,
+variation selectors, text stylesheets, unsupported shorthand/escaped CSS and malformed
+XML return coded remedies. This does not claim complete browser CSS/SVG text layout parity;
+unsupported styling needs inline supported attributes or path conversion.
+
+Five new unit tests cover command ownership/undo/redo/failed publication and SVG XML,
+family inheritance/case/entities/CDATA, missing glyphs and work limits. The new browser
+gate imports real modified Noto bytes, verifies a changed glyph scale, exact Undo and
+Save/Open pixels, complete license text and preserved redo after invalid import. It
+delays actual decoding across a project change and races preview loads to prove stale
+results cannot publish. Real worker/resvg RTL/mixed-script pixels are nonempty and
+identical across canonical, inherited case-folded and generic family declarations;
+missing/ambiguous resources and unresolved styling fail explicitly.
+
+All 660 tests in 86 files, lint/boundaries, formatting, semantic TypeScript and both
+builds passed. The new authoring suite plus Scene UI, Logic workspace/rendering, native
+Web, packed atlas, native fonts and atlas worker/production browser gates passed locally.
+The Linux Docker image `limber:phase9d4c` built successfully with the pinned XML dependency.
+This raises complete browser acceptance to 35 suites; remote CI follows publication.
+The font subphase is complete. Ship Doctor/budgets/profiler, Ship workspace and the final
+Phase 9 gate remain open. Sol 6.1 / High remains suitable; no user decision is required.

@@ -95,6 +95,8 @@ referenced TTF/OTF bytes and license metadata in a detached font table. Structur
 ingestion validates bounded canonical bytes, sfnt tables and supported Unicode cmap;
 it does not claim font-engine decoding. The compiler reports missing packaged glyphs,
 external/system fallback, unknown/restricted redistribution, embedding flags and
-variation sequences as explicit findings. Actual font staging, isolated renderer
-publication and contextual/RTL parity remain required. Phase 9 is not accepted until
+variation sequences as explicit findings. Actual worker font staging, isolated native
+and source-preview publication, offline RTL pixels and authoring history now pass browser
+acceptance. SVG text matches explicit internal family names and rejects unresolved text
+CSS/resources; this is not complete browser SVG layout parity. Phase 9 is not accepted until
 the worker/Ship workflow and exported rendering satisfy the full asset/playback gate.

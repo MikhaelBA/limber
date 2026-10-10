@@ -85,7 +85,17 @@ trim locks. Layout/raster options come from `@limber/atlas`. Source buffers are 
 by worker messaging; they remain attached to the author's project. Raster dimensions
 are preflighted before real worker body decode. SVG uses unmodified resvg/WASM and
 its PNG interchange, followed by real bitmap decode. Unresolved external SVG images
-fail explicitly; SVG text needs supplied font buffers. Animated PNG/WebP are rejected
+fail explicitly; SVG text needs supplied font buffers. Strict XML preflight resolves
+literal inherited `font-family` attributes and inline family declarations against each
+font's internal Unicode family names. Named matching uses NFC/case folding; generic
+families select the first explicit buffer. Internal names are canonicalized for resvg.
+Actual worker font-body decoding precedes conversion. Missing families/glyphs, ambiguous
+different faces of one internal family, variation sequences, text stylesheets, font
+shorthand/escaped CSS and malformed or over-budget XML receive explicit diagnostics.
+Use inline literal families or convert unsupported text styling to paths. This gate
+proves supplied-family selection and pixels; it does not claim full browser CSS/SVG
+text layout parity. XML parsing uses pinned xmldom with its distributed MIT notice.
+Animated PNG/WebP are rejected
 with an individual-frame import remedy instead of silently shipping a first frame.
 
 Progress is monotonic across decode/prepare/pack/compose/encode. Results contain only

@@ -265,6 +265,7 @@ export function LogicWorkspace() {
                 </div>
                 <LogicViewport
                   session={session}
+                  fonts={engine.project.fonts}
                   components={engine.project.components}
                   onFrame={update}
                   onError={(message) => {

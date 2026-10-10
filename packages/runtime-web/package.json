@@ -19,6 +19,7 @@
     "@limber/core": "*",
     "@limber/runtime": "*",
     "@resvg/resvg-wasm": "2.6.2",
+    "@xmldom/xmldom": "0.9.12",
     "pixi.js": "^8.6.6"
   }
 }

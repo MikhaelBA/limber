@@ -45,7 +45,7 @@ check(resolve(root, 'packages/runtime/src'), ['atlas', 'core', 'runtime']);
 check(
   resolve(root, 'packages/runtime-web/src'),
   ['atlas', 'core', 'runtime', 'runtime-web'],
-  ['pixi.js', '@resvg/resvg-wasm'],
+  ['pixi.js', '@resvg/resvg-wasm', '@xmldom/xmldom'],
 );
 if (errors.length) {
   console.error(errors.join('\n'));

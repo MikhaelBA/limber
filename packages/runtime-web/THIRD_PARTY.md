@@ -9,3 +9,8 @@ is modified or copied into the Limber portable core.
 
 When distributing a build containing this converter, include this notice and
 the license alongside the WASM, and retain the source link above.
+
+The worker also uses unmodified `@xmldom/xmldom` 0.9.12 for bounded strict SVG XML
+and inherited text-font inspection. Its MIT attribution/license is retained in
+`licenses/xmldom-MIT.txt` and distributed in the editor's `licenses/xmldom/` directory.
+Source: [xmldom v0.9.12](https://github.com/xmldom/xmldom/tree/0.9.12).

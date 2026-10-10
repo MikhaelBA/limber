@@ -83,11 +83,13 @@ function stub(format: 4 | 12 | 13) {
   new DataView(head.buffer).setUint32(12, 0x5f0f3cf5);
   const maxp = new Uint8Array(6);
   new DataView(maxp.buffer).setUint16(4, 8);
+  const fontName = new Uint8Array(6);
+  new DataView(fontName.buffer).setUint16(4, 6);
   const entries = [
     ['head', head],
     ['maxp', maxp],
     ['cmap', cmap],
-    ['name', new Uint8Array(6)],
+    ['name', fontName],
     ['hhea', new Uint8Array(36)],
     ['hmtx', new Uint8Array(4)],
     ['loca', new Uint8Array(2)],
@@ -127,6 +129,7 @@ describe('portable font resources', () => {
       result = inspectOpenType(notoBytes);
     expect(result.format).toBe('ttf');
     expect(result.glyphs).toBeGreaterThan(1000);
+    expect(result.familyNames).toContain('Noto Sans Arabic');
     for (const point of [0x41, 0x31, 0x633, 0x6cc, 0x67e]) expect(result.hasCharacter(point)).toBe(true);
     for (const point of [0x1f98a, -1, 0x110000, 2.5]) expect(result.hasCharacter(point)).toBe(false);
     expect(notoBytes).toEqual(before);
@@ -161,6 +164,7 @@ describe('portable font resources', () => {
     mutate((v) => v.setUint16(4, 257));
     mutate((v) => v.setUint32(20, 1));
     mutate((v, b) => v.setUint32(table(b, 'head').offset + 12, 0));
+    mutate((v, b) => v.setUint16(table(b, 'name').offset + 4, 0));
     mutate((v, b) => v.setUint32(table(b, 'cmap').offset + 8, 0xffffffff));
     const bytes = stub(4),
       v = new DataView(bytes.buffer);

@@ -13,11 +13,12 @@ import {
 } from '@limber/core';
 import { PixiSceneRenderer } from '../rendering/SceneRenderer';
 import { ensureUIFonts, type LocalizationPreview } from '../rendering/UITextAdapter';
-import type { UIComponent } from '@limber/core';
+import type { UIComponent, EmbeddedFont } from '@limber/core';
 import { useEditorStore } from '../store/editorStore';
 
 type Tool = 'move' | 'rotate' | 'scale' | 'pivot';
 interface Props {
+  fonts?: readonly EmbeddedFont[];
   components?: UIComponent[];
   localization?: LocalizationPreview;
   motion: SceneMotionSession;
@@ -73,7 +74,12 @@ export function SceneViewport(props: Props) {
         autoStart: false,
       })
       .then(async () => {
-        await ensureUIFonts();
+        try {
+          await ensureUIFonts(current.current.fonts);
+        } catch (error) {
+          app.destroy(true, { children: true });
+          throw error;
+        }
         if (disposed) {
           app.destroy(true, { children: true });
           return;
@@ -386,6 +392,19 @@ export function SceneViewport(props: Props) {
   useEffect(() => {
     controls.current?.sync();
   }, [props.artboard, props.revision, props.components, props.localization]);
+  useEffect(() => {
+    let stale = false;
+    void ensureUIFonts(props.fonts)
+      .then(() => {
+        if (!stale) controls.current?.sync();
+      })
+      .catch((error) => {
+        if (!stale) useEditorStore.getState().setStatus((error as Error).message);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [props.fonts]);
   useEffect(() => {
     controls.current?.select();
   }, [props.selected, tool]);

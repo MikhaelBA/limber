@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Application } from 'pixi.js';
-import type { UIComponent, LogicRouteEvent } from '@limber/core';
+import type { UIComponent, LogicRouteEvent, EmbeddedFont } from '@limber/core';
 import type { LogicPreviewSession } from '../engine/LogicPreviewSession';
 import { PixiSceneRenderer } from '../rendering/SceneRenderer';
 import { ensureUIFonts } from '../rendering/UITextAdapter';
 interface Props {
+  fonts?: readonly EmbeddedFont[];
   session: LogicPreviewSession;
   components?: UIComponent[];
   onFrame: () => void;
@@ -31,7 +32,12 @@ export function LogicViewport(props: Props) {
         autoStart: false,
       })
       .then(async () => {
-        await ensureUIFonts();
+        try {
+          await ensureUIFonts(current.current.fonts);
+        } catch (error) {
+          app.destroy(true, { children: true });
+          throw error;
+        }
         if (disposed) {
           app.destroy(true, { children: true });
           return;
@@ -224,5 +230,18 @@ export function LogicViewport(props: Props) {
   useEffect(() => {
     publish.current?.();
   }, [props.session, props.components]);
+  useEffect(() => {
+    let stale = false;
+    void ensureUIFonts(props.fonts)
+      .then(() => {
+        if (!stale) publish.current?.();
+      })
+      .catch((error) => {
+        if (!stale) current.current.onError((error as Error).message);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [props.fonts]);
   return <div ref={host} data-testid="logic-preview" className="relative min-h-0 flex-1 overflow-hidden" />;
 }

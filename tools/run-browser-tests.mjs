@@ -57,6 +57,7 @@ try {
     'atlas-worker.mjs',
     'native-atlas.mjs',
     'native-fonts.mjs',
+    'font-authoring.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

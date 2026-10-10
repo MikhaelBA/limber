@@ -10,10 +10,11 @@ Open the self-contained [Fox Adventurer sample](examples/fox-adventurer/Fox-Adve
 to try layered sprites, bound meshes, cloth Deform, skins and hand IK.
 [Sample guide and previews](examples/fox-adventurer/README.md).
 
+[Import and package project fonts](docs/FONTS.md) for Scene/Game UI and Logic preview.
+
 ## Historical Limber documentation
 
 The status below predates the BoneByBone roadmap. It is retained as implementation history, not current gate status.
-
 
 A browser-based 2D skeletal animation editor (Spine clone). The architecture and phased plan live
 in [DESIGN.md](./DESIGN.md).
@@ -50,11 +51,11 @@ in [DESIGN.md](./DESIGN.md).
 
 ## Workspace
 
-| Package | Purpose |
-|---|---|
-| `packages/core` | Framework-agnostic engine: data model, FK/IK, animation mixer, serialization. Pure TS, zero runtime dependencies. |
-| `packages/editor` | React + Zustand + PixiJS editor UI. |
-| `packages/runtime` | Lightweight player over `@sprine/core` for game engines. |
+| Package            | Purpose                                                                                                           |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `packages/core`    | Framework-agnostic engine: data model, FK/IK, animation mixer, serialization. Pure TS, zero runtime dependencies. |
+| `packages/editor`  | React + Zustand + PixiJS editor UI.                                                                               |
+| `packages/runtime` | Lightweight player over `@sprine/core` for game engines.                                                          |
 
 ## Deployment
 
@@ -71,11 +72,11 @@ npm run docker:run     # serve on http://localhost:8080
 
 CI/CD (`.github/workflows/ci.yml`) runs on every push/PR:
 
-| Job | What it does | When |
-|---|---|---|
-| `test` | typecheck → 81 unit tests → editor production build (artifact uploaded) | every push & PR |
+| Job      | What it does                                                                                              | When                                            |
+| -------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `test`   | typecheck → 81 unit tests → editor production build (artifact uploaded)                                   | every push & PR                                 |
 | `docker` | build & **push** the image to `ghcr.io/<owner>/<repo>` (tags: branch, `vX.Y`, sha) with GHA layer caching | every push (push-to-registry on main/tags only) |
-| `pages` | **deploy** the static editor to GitHub Pages | pushes to `main` |
+| `pages`  | **deploy** the static editor to GitHub Pages                                                              | pushes to `main`                                |
 
 **To activate:** create a GitHub repo, push (`git remote add origin … && git push -u origin main`),
 then in repo Settings → Pages set Source to **GitHub Actions**. No extra secrets needed — GHCR

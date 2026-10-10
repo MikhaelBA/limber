@@ -3,22 +3,22 @@
 The product specification is the target. Limber functionality is retained and its milestone numbering
 is historical. A partial implementation never implies the corresponding product gate is complete.
 
-| Phase | Scope                                                                | Status                           |
-| ----- | -------------------------------------------------------------------- | -------------------------------- |
-| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed  |
-| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed  |
-| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed  |
-| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed  |
-| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed  |
-| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed  |
-| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed  |
-| 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed  |
-| 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed  |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: atlas asset workers |
-| 10    | Unity importer, world and UGUI runtime                               | Pending                          |
-| 11    | Cocos Creator integration and parity                                 | Pending                          |
-| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                          |
-| 13    | Commercial services only when validated                              | Pending                          |
+| Phase | Scope                                                                | Status                          |
+| ----- | -------------------------------------------------------------------- | ------------------------------- |
+| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed |
+| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed |
+| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed |
+| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed |
+| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed |
+| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
+| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
+| 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
+| 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: Ship Doctor next   |
+| 10    | Unity importer, world and UGUI runtime                               | Pending                         |
+| 11    | Cocos Creator integration and parity                                 | Pending                         |
+| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
+| 13    | Commercial services only when validated                              | Pending                         |
 
 ## Reporting protocol
 
@@ -117,17 +117,18 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Portable deterministic multipage atlas layout, trim/scale, RGBA rotation and gutter composition.
 - [x] Real PNG/JPEG/WebP/SVG worker decode, staged PNG atlas pages and hard cancellation.
 - [x] Packed native atlas manifest, shared-page loading and export/load/render source pixel acceptance.
-- [ ] Packaged font staging, fallback and license metadata.
+- [x] Packaged font staging, fallback and license metadata.
   - [x] Portable source/runtime OpenType bytes, strict bounds/cmap, license metadata and fallback diagnostics.
   - [x] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
-  - [ ] Authoring font import, project preview/history and SVG text-font matching acceptance.
+  - [x] Authoring font import, project preview/history and SVG text-font matching acceptance.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 
 Native raster/SVG conversion and packed export/load/render now pass all fifteen source
-projects. Font decode/publication, Ship workspace and the complete acceptance gate
-remain open. The existing legacy player is not the native artboard player gate.
+projects. Font import, isolated preview, native packaging and explicit SVG text-font
+matching pass actual browser acceptance. Ship Doctor/profiler/workspace and the complete
+acceptance gate remain open. The existing legacy player is not the native artboard player gate.
 
 ## Layered character sample (10 October 2026)
 

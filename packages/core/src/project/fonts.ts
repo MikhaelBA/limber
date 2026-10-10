@@ -73,6 +73,8 @@ export interface OpenTypeInspection {
   glyphs: number;
   embeddingFlags: number;
   cmapFormat: 4 | 12 | 13;
+  /** Unicode internal family names, preferring English typographic family records. */
+  familyNames: readonly string[];
   /** Unicode scalar lookup only; this does not prove contextual shaping or UVS support. */
   hasCharacter(codepoint: number): boolean;
 }
@@ -114,7 +116,63 @@ export function inspectOpenType(bytes: Uint8Array, id: string | null = null): Op
   const head = required('head', 54),
     maxp = required('maxp', 6),
     cmap = required('cmap', 4);
-  required('name', 6);
+  const name = required('name', 6);
+  const nameVersion = view.getUint16(name.offset),
+    nameCount = view.getUint16(name.offset + 2);
+  const storage = view.getUint16(name.offset + 4),
+    recordsEnd = 6 + nameCount * 12;
+  if (
+    nameVersion > 1 ||
+    nameCount > 4096 ||
+    recordsEnd > name.length ||
+    storage < recordsEnd ||
+    storage > name.length
+  )
+    invalid('Invalid OpenType name directory.');
+  if (nameVersion === 1) {
+    if (recordsEnd + 2 > name.length) invalid('Truncated name language-tag directory.');
+    const tags = view.getUint16(name.offset + recordsEnd);
+    if (tags > 256 || recordsEnd + 2 + tags * 4 > storage) invalid('Invalid font language-tag records.');
+    for (let i = 0; i < tags; i++) {
+      const p = name.offset + recordsEnd + 2 + i * 4;
+      if (storage + view.getUint16(p + 2) + view.getUint16(p) > name.length)
+        invalid('Font language-tag strings are out of bounds.');
+    }
+  }
+  const names: { value: string; priority: number; kind: number }[] = [];
+  for (let i = 0; i < nameCount; i++) {
+    const p = name.offset + 6 + i * 12,
+      platform = view.getUint16(p),
+      encoding = view.getUint16(p + 2);
+    const language = view.getUint16(p + 4),
+      kind = view.getUint16(p + 6),
+      length = view.getUint16(p + 8);
+    const relative = storage + view.getUint16(p + 10);
+    if (relative + length > name.length) invalid('Font name strings are out of bounds.');
+    if (
+      (kind !== 1 && kind !== 16) ||
+      !length ||
+      length > 256 ||
+      !(platform === 0 || (platform === 3 && [0, 1, 10].includes(encoding)))
+    )
+      continue;
+    if (length % 2) invalid('Unicode font name has an odd byte count.');
+    let value: string;
+    try {
+      value = new TextDecoder('utf-16be', { fatal: true })
+        .decode(bytes.subarray(name.offset + relative, name.offset + relative + length))
+        .trim();
+    } catch {
+      return invalid('Unicode font name is invalid UTF-16.');
+    }
+    if (value && !/[\p{Cc}\p{Cf}]/u.test(value))
+      names.push({ value, kind, priority: (language === 0x409 ? 0 : 2) + (kind === 16 ? 0 : 1) });
+  }
+  names.sort((a, b) => a.priority - b.priority || (a.value < b.value ? -1 : a.value > b.value ? 1 : 0));
+  const preferred = names.some((entry) => entry.kind === 16)
+    ? names.filter((entry) => entry.kind === 16)
+    : names;
+  const familyNames = [...new Set(preferred.map((entry) => entry.value))].slice(0, 32);
   required('hhea', 36);
   required('hmtx', 4);
   if (view.getUint32(head.offset + 12) !== 0x5f0f3cf5) invalid('Invalid font head magic.');
@@ -244,7 +302,7 @@ export function inspectOpenType(bytes: Uint8Array, id: string | null = null): Op
       return false;
     };
   }
-  return { format, glyphs, embeddingFlags, cmapFormat, hasCharacter };
+  return { format, glyphs, embeddingFlags, cmapFormat, familyNames, hasCharacter };
 }
 /** Validates and inspects a bounded font publication; never mutates caller records. */
 export function validateEmbeddedFonts(value: unknown): Map<string, OpenTypeInspection> {

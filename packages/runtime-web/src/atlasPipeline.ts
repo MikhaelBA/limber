@@ -14,6 +14,7 @@ import {
   type PreparedAtlasImage,
 } from '@limber/atlas';
 import { readRasterSize } from './imageHeader';
+import { inspectSvgFonts, preflightSvgText, type SvgFontContext } from './svgFontPreflight';
 import type {
   AtlasWorkerInput,
   AtlasWorkerResult,
@@ -60,6 +61,7 @@ export async function prepareEncodedAtlas(
       atlasFail('IMAGE_BYTE_BUDGET', null, 'Source images exceed the 64 MiB encoded byte budget.');
   }
   let fontBytes = 0;
+  let svgFonts: Promise<SvgFontContext> | undefined;
   if (input.svgFonts !== undefined && (!Array.isArray(input.svgFonts) || input.svgFonts.length > 32))
     atlasFail('SVG_FONT_REQUIRED', null, 'SVG fonts need at most 32 explicit font buffers.');
   for (const font of input.svgFonts ?? []) {
@@ -123,13 +125,12 @@ export async function prepareEncodedAtlas(
     } catch {
       return atlasFail('SVG_DECODE', source.id, 'SVG must contain valid UTF-8 XML.');
     }
-    if (/<(?:\w+:)?text(?:\s|>)/i.test(svg) && !input.svgFonts?.length)
-      atlasFail(
-        'SVG_FONT_REQUIRED',
-        source.id,
-        'SVG text requires explicit font bytes for deterministic conversion.',
-        'Provide the SVG font buffers or convert text to paths before import.',
-      );
+    const text = await preflightSvgText(
+      svg,
+      source.id,
+      () => (svgFonts ??= inspectSvgFonts(input.svgFonts ?? [], source.id)),
+    );
+    const { defaultFontFamily } = text;
     if (typeof input.wasmUrl !== 'string' || !input.wasmUrl.length || input.wasmUrl.length > 8192)
       atlasFail('SVG_WASM_REQUIRED', source.id, 'SVG conversion needs the bundled resvg WASM asset URL.');
     try {
@@ -151,8 +152,20 @@ export async function prepareEncodedAtlas(
     let tree: InstanceType<typeof Resvg> | undefined;
     let rendered: ReturnType<InstanceType<typeof Resvg>['render']> | undefined;
     try {
-      tree = new Resvg(svg, {
-        font: { fontBuffers: (input.svgFonts ?? []).map((buffer) => new Uint8Array(buffer)) },
+      tree = new Resvg(text.svg, {
+        font: {
+          fontBuffers: (input.svgFonts ?? []).map((buffer) => new Uint8Array(buffer)),
+          ...(defaultFontFamily
+            ? {
+                defaultFontFamily,
+                serifFamily: defaultFontFamily,
+                sansSerifFamily: defaultFontFamily,
+                cursiveFamily: defaultFontFamily,
+                fantasyFamily: defaultFontFamily,
+                monospaceFamily: defaultFontFamily,
+              }
+            : {}),
+        },
       });
       checkSize(source.id, Math.ceil(tree.width), Math.ceil(tree.height), remaining);
       if (tree.imagesToResolve().length)

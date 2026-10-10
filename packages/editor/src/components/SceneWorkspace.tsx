@@ -4,6 +4,8 @@ import { SceneTimeline } from './SceneTimeline';
 import { SceneTree } from './SceneTree';
 import { UINodeInspector } from './UINodeInspector';
 import { UIComponentLibrary } from './UIComponentLibrary';
+import { FontLibrary } from './FontLibrary';
+import { EditProjectFontsCommand } from '../commands/fontCommands';
 import { EditUICommand } from '../commands/uiCommands';
 import { AddUITemplateCommand, rewardTemplate } from '../commands/uiTemplateCommands';
 import type { LocalizationPreview } from '../rendering/UITextAdapter';
@@ -429,6 +431,7 @@ export function SceneWorkspace() {
           </div>
         </aside>
         <SceneViewport
+          fonts={project.fonts}
           components={project.components}
           localization={localization}
           motion={motion}
@@ -444,6 +447,33 @@ export function SceneWorkspace() {
           aria-label="Scene properties"
         >
           <h2 className="mb-2 text-sm font-semibold">{node ? 'Node properties' : 'Artboard properties'}</h2>
+          {uiOpen && (
+            <FontLibrary
+              project={project}
+              onChange={(fonts) => run(new EditProjectFontsCommand(project, fonts))}
+              onStatus={state.setStatus}
+              onUse={
+                node?.type === 'text'
+                  ? (family) =>
+                      run(
+                        new EditUICommand(project, {
+                          kind: 'node',
+                          artboardId: artboard.id,
+                          node: {
+                            ...node,
+                            fontFamilies: [
+                              family,
+                              ...node.fontFamilies.filter(
+                                (name) => name.toLowerCase() !== family.toLowerCase(),
+                              ),
+                            ],
+                          },
+                        }),
+                      )
+                  : undefined
+              }
+            />
+          )}
           <label className="mb-2 block text-xs">
             Name
             <input

@@ -1,5 +1,6 @@
 import { Texture } from 'pixi.js';
 import { uuid } from '@limber/core';
+import { resolveUIFonts } from '../rendering/UITextAdapter';
 
 export interface LoadedTexture {
   textureId: string;
@@ -28,6 +29,9 @@ export class TextureRegistry {
 
   get(id: string): Texture | undefined {
     return this.textures.get(id);
+  }
+  resolveFontFamilies(families: readonly string[]): string[] {
+    return resolveUIFonts(families);
   }
 
   has(id: string): boolean {
