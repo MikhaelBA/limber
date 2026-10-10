@@ -587,7 +587,8 @@ twenty-suite browser run passed after the sampling precision fix. Standard/Heavy
 CPU update/render-submit p95 was 1.40/2.60ms; weighted transform counts remained
 10000/40004. Heavy worker publication was 40.7ms. SwiftShader frame gaps (21.2/55.5ms
 p95) remain software-graphics evidence, not hardware GPU 60fps certification. Remote
-CI follows the source commit/push; the overall Phase 7 gate is still open.
+CI 38005823707 passed for commit `7e1782b`: Test & Build, Docker, VPS and GitHub Pages.
+The overall Phase 7 gate remains open until secondary motion and combined acceptance.
 
 Phase 7 still needs specified fixed-step secondary motion and the combined gate.
 The next increment first proves the portable spring/clock contract before adding
@@ -613,10 +614,43 @@ compares 10/60/120/144/240/1000 display subdivisions, fractional/stall/reset sem
 and ten thousand nonintegral frames. All 435 tests in 59 files, lint/boundaries,
 formatting, TypeScript and package/editor builds passed. The unchanged authoring
 workflow already passed all twenty browser suites in the preceding path increment.
-Remote verification follows push; this kernel milestone is not a completed secondary
-motion feature or Phase 7 gate.
+Remote CI 38006511542 passed for commit `ccdc5ee`: Test & Build, Docker, VPS and GitHub
+Pages. This kernel milestone is not a completed secondary motion feature or Phase 7 gate.
 
 Next: source secondary constraints, sampled fixed-step playback in editor/runtime,
 semantic presets/Advanced controls, reset/scrub/events, native/history/browser parity
 and a combined profiled constraint fixture. Sol 6.1 / High remains suitable. The
 overall roadmap remains active through Phase 12; commercial Phase 13 is conditional.
+
+## 10 October 2026 Phase 7E2 secondary-motion playback and combined acceptance
+
+Source schema 9 adds explicit Soft/Bouncy/Firm angular springs with strength, maximum
+sway and Advanced coefficients/order. Atomic Setup commands create/edit/remove springs,
+insert primary constraints before the secondary stage and enforce ancestor-first order.
+Native history/Save/Open retains exact source; deleting a bone cleans its spring. The
+optional compatibility export reports unsupported native secondary motion.
+
+Editor/runtime evaluate authored targets at each 120Hz step before applying springs.
+All headings snapshot before writes and affine inversion accounts for reflected/sheared
+bases. Pivot/scale/shear/length stay authored. Singular/collapsed bases hold; Float32
+overflow restores the whole secondary output and rebases. Pause/scrub/stop, clip/queue
+change, publication and explicit runtime reset rebase without lag. Events accumulate
+over accepted steps only. Compensated animation time fixes exact loop-boundary events;
+frozen outgoing clips no longer repeat their last event during a fade.
+
+Numerical tests cover independent critical-angle goldens, 80 seeded affine cases,
+parent/child targets, bounds/degeneracies/overflow, 10/60/120/144/240/1000 display-frame
+subdivision, queue/fade/event semantics and atomic source/order validation. The real
+editor-saved schema-9 fixture is committed. Browser authoring/playback/history/import
+checks passed, as did the profiled combined IK/follow/closed-path/spring fixtures.
+Standard/Heavy CPU p95 was 1.90/5.50ms with 12/22 springs and 10000/40004 weighted
+transforms; exact runtime matrix/vertex parity and source preservation passed. Actual
+frame gaps remain separate from CPU and do not establish hardware GPU 60fps.
+
+All 453 unit tests in 62 files, lint/boundaries, formatting, TypeScript and both
+package/editor builds passed. The fresh complete twenty-two-suite browser regression
+passed on the final code, with unchanged scene/RTL raster tolerances. Remote CI follows
+commit/push; Phase 7 is not marked complete before its remote gate passes.
+Next phase is typed Logic/state-machine semantics, then runtime/compiler/platform
+work through Phase 12. Sol 6.1 / High remains suitable; no unresolved user decision
+currently blocks the roadmap.

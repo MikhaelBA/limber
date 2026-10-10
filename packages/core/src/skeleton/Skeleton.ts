@@ -1,4 +1,10 @@
-import { validateWeights, validateHull, validateMeshTopology, validateInvertibleAffine, decodeWeights } from '@limber/mesh';
+import {
+  validateWeights,
+  validateHull,
+  validateMeshTopology,
+  validateInvertibleAffine,
+  decodeWeights,
+} from '@limber/mesh';
 import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/data';
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
 import { createPose, resetPose } from './pose';
@@ -7,6 +13,7 @@ import { validateMarkers } from './markers';
 import { resolveMeshLinks } from './meshLinks';
 import { validateConstraints, orderedConstraints, type ConstraintEntry } from './constraints';
 import { PathSampler } from './pathSampling';
+import { SecondaryMotion } from './SecondaryMotion';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -26,7 +33,8 @@ export class Skeleton {
   /** Per-instance scratch for finite-output rollback; never serialized or frame allocated. */
   constraintWorldBackup = new Float32Array(0);
   constraintLocalBackup = new Float64Array(0);
-  readonly pathSamplers = new Map<string,PathSampler>();
+  readonly pathSamplers = new Map<string, PathSampler>();
+  secondaryMotion: SecondaryMotion | null = null;
 
   constructor(data: SkeletonData) {
     this.data = data;
@@ -71,8 +79,9 @@ export class Skeleton {
     this.constraintOrder = prepared.constraintOrder;
     this.constraintWorldBackup = prepared.constraintWorldBackup;
     this.constraintLocalBackup = prepared.constraintLocalBackup;
+    this.secondaryMotion = prepared.secondaryMotion;
     this.pathSamplers.clear();
-    for (const [id,sampler] of prepared.pathSamplers) this.pathSamplers.set(id,sampler);
+    for (const [id, sampler] of prepared.pathSamplers) this.pathSamplers.set(id, sampler);
   }
 
   /**
@@ -145,8 +154,11 @@ export class Skeleton {
     );
     this.constraintOrder = orderedConstraints(this.data);
     if (this.data.transformConstraints)
-      this.data.transformConstraints = [...this.data.transformConstraints].sort((a,b) => a.order-b.order);
-    if (this.data.pathConstraints) this.data.pathConstraints = [...this.data.pathConstraints].sort((a,b)=>a.order-b.order);
+      this.data.transformConstraints = [...this.data.transformConstraints].sort((a, b) => a.order - b.order);
+    if (this.data.pathConstraints)
+      this.data.pathConstraints = [...this.data.pathConstraints].sort((a, b) => a.order - b.order);
+    if (this.data.secondaryConstraints)
+      this.data.secondaryConstraints = [...this.data.secondaryConstraints].sort((a, b) => a.order - b.order);
 
     this.boneIndexMap.clear();
     for (let i = 0; i < this.data.bones.length; i++) {
@@ -169,9 +181,12 @@ export class Skeleton {
   }
 
   private bakePaths(): void {
-    this.constraintLocalBackup = new Float64Array(this.data.bones.length*7);
+    this.secondaryMotion = this.data.secondaryConstraints?.length
+      ? new SecondaryMotion(this.data.secondaryConstraints, this.boneIndexMap)
+      : null;
+    this.constraintLocalBackup = new Float64Array(this.data.bones.length * 7);
     this.pathSamplers.clear();
-    for (const path of this.data.paths??[]) this.pathSamplers.set(path.id,new PathSampler(path));
+    for (const path of this.data.paths ?? []) this.pathSamplers.set(path.id, new PathSampler(path));
   }
 
   /** Structural validation with descriptive errors — catches corrupted documents early. */
@@ -216,9 +231,7 @@ export class Skeleton {
           throw new Error(`Skin "${skin.name}" references unknown slotId "${slotId}".`);
         }
         if (!attachmentIds.has(attachmentId)) {
-          throw new Error(
-            `Skin "${skin.name}" references unknown attachmentId "${attachmentId}".`,
-          );
+          throw new Error(`Skin "${skin.name}" references unknown attachmentId "${attachmentId}".`);
         }
       }
     }
@@ -229,36 +242,71 @@ export class Skeleton {
         // that range must fail load rather than create infinite renderer vertices/UVs.
         const local = attachment.type === 'region' ? attachment.vertices : attachment.meshVertices;
         const uvs = attachment.type === 'region' ? attachment.uvs : attachment.meshUVs;
-        for (const values of [local, uvs]) if (Array.isArray(values)) {
-          for (let i = 0; i < values.length; i++) if (!Number.isFinite(Math.fround(values[i]!)))
-            throw new Error('Geometry exceeds finite pose precision.');
-        }
+        for (const values of [local, uvs])
+          if (Array.isArray(values)) {
+            for (let i = 0; i < values.length; i++)
+              if (!Number.isFinite(Math.fround(values[i]!)))
+                throw new Error('Geometry exceeds finite pose precision.');
+          }
         if (attachment.type === 'mesh') {
           if (!attachment.meshUVs) throw new Error('Mesh UVs are required.');
-          validateMeshTopology({ vertices: attachment.meshVertices!, triangles: attachment.meshTriangles!, uvs: attachment.meshUVs, hull: attachment.meshHull });
+          validateMeshTopology({
+            vertices: attachment.meshVertices!,
+            triangles: attachment.meshTriangles!,
+            uvs: attachment.meshUVs,
+            hull: attachment.meshHull,
+          });
         } else if (attachment.type === 'region') {
-          if (attachment.vertices?.length !== 8 || attachment.uvs?.length !== 8) throw new Error('Region needs four vertices and UV pairs.');
-          validateMeshTopology({ vertices: attachment.vertices, triangles: [0, 1, 2, 0, 2, 3], uvs: attachment.uvs });
+          if (attachment.vertices?.length !== 8 || attachment.uvs?.length !== 8)
+            throw new Error('Region needs four vertices and UV pairs.');
+          validateMeshTopology({
+            vertices: attachment.vertices,
+            triangles: [0, 1, 2, 0, 2, 3],
+            uvs: attachment.uvs,
+          });
         } else validateHull(attachment.meshVertices!, attachment.meshHull);
-      } catch (error) { throw new Error(`Attachment "${attachment.name}" has invalid geometry: ${(error as Error).message}`); }
+      } catch (error) {
+        throw new Error(`Attachment "${attachment.name}" has invalid geometry: ${(error as Error).message}`);
+      }
       validateAttachmentWeights(attachment, this.data.bones.length);
       if (attachment.boneBindings !== undefined) {
-        if (attachment.type !== 'mesh' || !Array.isArray(attachment.boneBindings) || !attachment.boneBindings.length) throw new Error('Bone bindings require a mesh and at least one bone.');
+        if (
+          attachment.type !== 'mesh' ||
+          !Array.isArray(attachment.boneBindings) ||
+          !attachment.boneBindings.length
+        )
+          throw new Error('Bone bindings require a mesh and at least one bone.');
         const bound = new Set<string>();
         for (const binding of attachment.boneBindings) {
-          if (!binding || !this.boneIndexMap.has(binding.boneId) || bound.has(binding.boneId)) throw new Error('Bone binding references a missing or duplicate bone.');
+          if (!binding || !this.boneIndexMap.has(binding.boneId) || bound.has(binding.boneId))
+            throw new Error('Bone binding references a missing or duplicate bone.');
           if (!Array.isArray(binding.matrix)) throw new Error('Bone binding matrix must be an array.');
-          if (binding.matrix.some((value) => !Number.isFinite(Math.fround(value)))) throw new Error('Bone binding exceeds finite pose precision.');
-          validateInvertibleAffine(binding.matrix); bound.add(binding.boneId);
+          if (binding.matrix.some((value) => !Number.isFinite(Math.fround(value))))
+            throw new Error('Bone binding exceeds finite pose precision.');
+          validateInvertibleAffine(binding.matrix);
+          bound.add(binding.boneId);
           for (let i = 0; i < attachment.meshVertices!.length; i += 2) {
-            const x = attachment.meshVertices![i]!, y = attachment.meshVertices![i + 1]!;
-            if (!Number.isFinite(Math.fround(binding.matrix[0]! * x + binding.matrix[2]! * y + binding.matrix[4]!)) ||
-                !Number.isFinite(Math.fround(binding.matrix[1]! * x + binding.matrix[3]! * y + binding.matrix[5]!))) throw new Error('Bound vertex exceeds finite pose precision.');
+            const x = attachment.meshVertices![i]!,
+              y = attachment.meshVertices![i + 1]!;
+            if (
+              !Number.isFinite(
+                Math.fround(binding.matrix[0]! * x + binding.matrix[2]! * y + binding.matrix[4]!),
+              ) ||
+              !Number.isFinite(
+                Math.fround(binding.matrix[1]! * x + binding.matrix[3]! * y + binding.matrix[5]!),
+              )
+            )
+              throw new Error('Bound vertex exceeds finite pose precision.');
           }
         }
         if (attachment.weights) {
-          for (const row of decodeWeights(attachment.weights, attachment.meshVertices!.length / 2, this.data.bones.length)) {
-            if (row.some((influence) => !bound.has(this.data.bones[influence.boneIndex]!.id))) throw new Error('Bind every influenced bone before assigning mesh weights.');
+          for (const row of decodeWeights(
+            attachment.weights,
+            attachment.meshVertices!.length / 2,
+            this.data.bones.length,
+          )) {
+            if (row.some((influence) => !bound.has(this.data.bones[influence.boneIndex]!.id)))
+              throw new Error('Bind every influenced bone before assigning mesh weights.');
           }
         }
       }
@@ -301,6 +349,9 @@ export class Skeleton {
 
 function validateAttachmentWeights(attachment: AttachmentData, boneCount: number): void {
   const vertices = attachment.type === 'region' ? attachment.vertices : attachment.meshVertices;
-  try { validateWeights(attachment.weights, (vertices?.length ?? 0) / 2, boneCount); }
-  catch (error) { throw new Error(`Attachment "${attachment.name}" has malformed weights: ${(error as Error).message}`); }
+  try {
+    validateWeights(attachment.weights, (vertices?.length ?? 0) / 2, boneCount);
+  } catch (error) {
+    throw new Error(`Attachment "${attachment.name}" has malformed weights: ${(error as Error).message}`);
+  }
 }

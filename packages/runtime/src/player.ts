@@ -7,6 +7,8 @@ import {
   solveConstraints,
   updateSkinning,
   validateDeformTimelines,
+  FixedStepClock,
+  SECONDARY_STEP_SECONDS,
 } from '@limber/core';
 
 export interface RuntimePlayerOptions {
@@ -50,6 +52,7 @@ export interface WireframeRenderOptions {
 export class RuntimePlayer {
   private readonly skeleton: Skeleton;
   private readonly mixer = new AnimationState();
+  private readonly secondaryClock = new FixedStepClock();
   private readonly listeners = new Set<(e: EventFrame) => void>();
   private readonly loopDefault: boolean;
   /** Events crossed during the last update() — also dispatched to onEvent(). */
@@ -57,7 +60,9 @@ export class RuntimePlayer {
   readonly animations: ExportedDocument['animations'];
 
   constructor(
-    doc: ExportedDocument | { skeleton: ExportedDocument['skeleton']; animations: ExportedDocument['animations'] },
+    doc:
+      | ExportedDocument
+      | { skeleton: ExportedDocument['skeleton']; animations: ExportedDocument['animations'] },
     opts: RuntimePlayerOptions = {},
   ) {
     validateDeformTimelines(doc.skeleton, doc.animations);
@@ -69,6 +74,33 @@ export class RuntimePlayer {
 
   /** Integrates the clock and the whole posing pipeline. Call once per frame. */
   update(deltaSeconds: number): void {
+    const motion = this.skeleton.secondaryMotion;
+    if (motion) {
+      this.events.length = 0;
+      if (!motion.initialized) {
+        this.secondaryClock.reset();
+        this.sample();
+        motion.rebase(this.skeleton);
+      }
+      const steps = this.secondaryClock.consume(deltaSeconds);
+      for (let n = 0; n < steps; n++) {
+        const previous = this.mixer.currentAnimationName;
+        this.mixer.update(SECONDARY_STEP_SECONDS);
+        const fired = this.sample();
+        if (previous !== this.mixer.currentAnimationName) motion.rebase(this.skeleton);
+        motion.evaluate(this.skeleton, true);
+        for (const e of fired) {
+          this.events.push(e);
+          for (const cb of this.listeners) cb(e);
+        }
+      }
+      if (steps === 0) {
+        this.sample();
+        motion.evaluate(this.skeleton, false);
+      }
+      updateSkinning(this.skeleton);
+      return;
+    }
     const dt = Math.min(Math.max(deltaSeconds, 0), 0.1); // Tab-stall guard.
     this.mixer.update(dt);
     const data = this.skeleton.data;
@@ -82,6 +114,19 @@ export class RuntimePlayer {
     solveFK(data, this.skeleton.boneIndexMap, this.skeleton.pose);
     solveConstraints(this.skeleton);
     updateSkinning(this.skeleton);
+  }
+
+  private sample(): EventFrame[] {
+    resetPose(this.skeleton.data, this.skeleton.pose);
+    const events = this.mixer.apply(this.skeleton);
+    solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    solveConstraints(this.skeleton);
+    return events;
+  }
+  /** Rebase inertia at the current animation sample; use after an external teleport. */
+  resetSecondaryMotion(): void {
+    this.secondaryClock.reset();
+    this.skeleton.secondaryMotion?.invalidate();
   }
 
   /**
@@ -138,6 +183,7 @@ export class RuntimePlayer {
       loop: opts.loop ?? this.loopDefault,
       fadeDuration: opts.fadeDuration ?? 0,
     });
+    this.resetSecondaryMotion();
   }
 
   addAnimation(name: string, opts: QueuedAnimationOptions = {}): void {

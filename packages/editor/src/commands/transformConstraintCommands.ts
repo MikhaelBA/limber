@@ -7,7 +7,7 @@ import {
   multiplyAffine,
   invertAffine,
   decomposeAffineInto,
-  orderedConstraints,
+  nextPrimaryConstraintOrder,
   type SkeletonData,
   type Transform,
   type TransformConstraintData,
@@ -69,7 +69,7 @@ export class AddTransformConstraintCommand extends AtomicConstraintCommand {
       mixRotation: 1,
       mixScale: 1,
       mixShear: 1,
-      order: orderedConstraints(data).reduce((max, c) => Math.max(max, c.data.order), -1) + 1,
+      order: nextPrimaryConstraintOrder(data),
     });
   }
 }

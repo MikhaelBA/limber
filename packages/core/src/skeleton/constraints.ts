@@ -3,6 +3,7 @@ import type {
   SkeletonData,
   PathConstraintData,
   TransformConstraintData,
+  SecondaryConstraintData,
 } from '../types/data';
 import type { Skeleton } from './Skeleton';
 import { solveIK } from './IKSolver';
@@ -15,16 +16,32 @@ import { solvePathConstraint } from './PathSolver';
 export type ConstraintEntry =
   | { kind: 'ik'; data: IKConstraintData }
   | { kind: 'transform'; data: TransformConstraintData }
-  | { kind: 'path'; data: PathConstraintData };
+  | { kind: 'path'; data: PathConstraintData }
+  | { kind: 'secondary'; data: SecondaryConstraintData };
+type PrimaryEntry = Exclude<ConstraintEntry, { kind: 'secondary' }>;
 export function orderedConstraints(data: SkeletonData): ConstraintEntry[] {
   if (data.transformConstraints !== undefined && !Array.isArray(data.transformConstraints))
     throw new Error('Transform constraints must be an array.');
   if (data.pathConstraints !== undefined && !Array.isArray(data.pathConstraints))
     throw new Error('Path constraints must be an array.');
+  if (data.secondaryConstraints !== undefined && !Array.isArray(data.secondaryConstraints))
+    throw new Error('Secondary constraints must be an array.');
   const list: ConstraintEntry[] = data.ikConstraints.map((c) => ({ kind: 'ik', data: c }));
   for (const c of data.transformConstraints ?? []) list.push({ kind: 'transform', data: c });
   for (const c of data.pathConstraints ?? []) list.push({ kind: 'path', data: c });
+  for (const c of data.secondaryConstraints ?? []) list.push({ kind: 'secondary', data: c });
   return list.sort((a, b) => a.data.order - b.data.order);
+}
+
+/** Allocate a primary priority before the post-primary secondary stage, on an editor draft. */
+export function nextPrimaryConstraintOrder(data: SkeletonData): number {
+  const next =
+    orderedConstraints(data).reduce(
+      (max, e) => (e.kind === 'secondary' ? max : Math.max(max, e.data.order)),
+      -1,
+    ) + 1;
+  for (const c of data.secondaryConstraints ?? []) if (c.order >= next) c.order++;
+  return next;
 }
 
 /** Editing/load-time validation. Bone hierarchy must already be validated/sorted. */
@@ -167,10 +184,39 @@ export function validateConstraints(data: SkeletonData): void {
       if (!Number.isFinite(c[key]) || c[key] < 0 || c[key] > 1)
         throw new Error(`Path constraint "${c.id}" ${key} must be between 0 and 1.`);
   }
-  const constraints = orderedConstraints(data);
-  const rootOf = (entry: ConstraintEntry): string =>
+  const constraints = orderedConstraints(data).filter((e): e is PrimaryEntry => e.kind !== 'secondary');
+  const controlled = new Set<string>(),
+    maxPrimary = constraints.reduce((max, e) => Math.max(max, e.data.order), -1);
+  if ((data.secondaryConstraints?.length ?? 0) > 128)
+    throw new Error('A rig supports at most 128 secondary constraints.');
+  for (const c of data.secondaryConstraints ?? []) {
+    if (typeof c.id !== 'string' || !c.id.trim() || ids.has(c.id))
+      throw new Error('Secondary constraint IDs must be unique across all constraints.');
+    ids.add(c.id);
+    if (!Number.isSafeInteger(c.order) || c.order < 0 || orders.has(c.order))
+      throw new Error(`Secondary constraint "${c.id}" needs a unique nonnegative integer order.`);
+    orders.add(c.order);
+    if (c.order <= maxPrimary) throw new Error('Secondary motion must run after all primary constraints.');
+    if (!bones.has(c.boneId) || controlled.has(c.boneId))
+      throw new Error('Secondary motion needs an existing bone with only one spring.');
+    controlled.add(c.boneId);
+    if (!['soft', 'bouncy', 'firm'].includes(c.preset)) throw new Error('Unknown secondary motion preset.');
+    if (!Number.isFinite(c.frequency) || c.frequency < 0.1 || c.frequency > 20)
+      throw new Error('Secondary frequency must be 0.1–20 Hz.');
+    if (!Number.isFinite(c.damping) || c.damping < 0 || c.damping > 2)
+      throw new Error('Secondary damping ratio must be between 0 and 2.');
+    if (!Number.isFinite(c.mix) || c.mix < 0 || c.mix > 1)
+      throw new Error('Secondary strength must be between 0 and 1.');
+    if (!Number.isFinite(c.maxAngle) || c.maxAngle < 0 || c.maxAngle > Math.PI)
+      throw new Error('Secondary maximum angle must be between 0 and pi.');
+  }
+  for (const parent of data.secondaryConstraints ?? [])
+    for (const child of data.secondaryConstraints ?? [])
+      if (parent !== child && affected(parent.boneId, child.boneId) && parent.order >= child.order)
+        throw new Error('Secondary parent motion must run before child motion.');
+  const rootOf = (entry: PrimaryEntry): string =>
     entry.kind === 'transform' ? entry.data.boneId : entry.data.bones[0]!;
-  const writesLocal = (entry: ConstraintEntry, id: string): boolean =>
+  const writesLocal = (entry: PrimaryEntry, id: string): boolean =>
     entry.kind === 'transform' ? entry.data.boneId === id : entry.data.bones.includes(id);
   const edges: number[][] = constraints.map(() => []),
     indegree = constraints.map(() => 0);
@@ -227,6 +273,7 @@ export function validateConstraints(data: SkeletonData): void {
 const fields = ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'shearX', 'shearY'] as const;
 export function solveConstraints(skeleton: Skeleton): void {
   for (const entry of skeleton.constraintOrder) {
+    if (entry.kind === 'secondary') continue;
     const count = entry.kind === 'transform' ? 1 : entry.data.bones.length;
     for (let i = 0; i < count; i++) {
       const id = entry.kind === 'transform' ? entry.data.boneId : entry.data.bones[i]!;

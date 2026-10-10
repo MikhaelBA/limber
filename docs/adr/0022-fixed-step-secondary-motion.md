@@ -1,7 +1,7 @@
 # 0022 — Fixed-step angular secondary motion
 
-Status: kernel contract implemented in Phase 7E1; playback integration below is
-the specified next increment, not delivered behavior yet. Source remains schema 8.
+Status: implemented in Phase 7E2 with source schema 9. Local and remote acceptance
+are recorded in PROGRESS.md; Phase 7 closes only after the complete remote gate.
 
 Implement restrained angular spring/inertia presets. World +X heading is the target
 after animation/FK/primary constraints. Preserve pivot, scale, shear and length;
@@ -33,13 +33,16 @@ Numerical verification includes independent analytical and fine RK4 goldens,
 constant-target subdivision across the critical boundary, undamped energy, settling,
 atomic rejection, 10/60/120/144/240/1000 display subdivision and 10000-frame drift.
 
-## Required integration contract
+## Playback integration contract
 
-Optional source secondary constraints will have globally unique IDs/orders and
+Optional source secondary constraints have globally unique IDs/orders and
 run after primary constraints. Each controls one bone with a soft/bouncy/firm preset,
 strength, max deflection and Advanced frequency/damping. Presets author explicit
 coefficients; no runtime dependency on UI defaults. Creation/edit/delete/reorder
-must be Setup-only and atomic, and deleting a bone cleans references.
+are Setup-only and atomic, and deleting a bone cleans references. Limit 128 per rig,
+one spring per bone, strength in [0,1], max deflection in [0,pi]. Secondary orders
+must follow every primary order and place ancestors before descendants. Creating
+a primary constraint inserts it before secondary motion in the same transaction.
 
 Target animation and primary constraints MUST sample once per fixed substep, not
 once per display frame. Present the last completed fixed step without interpolation.

@@ -22,6 +22,7 @@ interface TrackEntry {
   loop: boolean;
   time: number;
   prevTime: number;
+  timeRemainder: number;
   /** 0 while fading in; 1 once complete (or immediately for fadeDuration 0). */
   fadeElapsed: number;
   fadeDuration: number;
@@ -79,6 +80,7 @@ export class AnimationState {
     if (this.current) {
       if (fade > 0) {
         this.current.outgoing = true;
+        this.current.prevTime = this.current.time;
         this.current.fadeElapsed = 0;
         this.current.fadeDuration = fade;
         this.outgoing = this.current;
@@ -109,11 +111,13 @@ export class AnimationState {
     const t = clamp(time, 0, this.current.animation.duration);
     this.current.time = t;
     this.current.prevTime = t;
+    this.current.timeRemainder = 0;
   }
 
   /** Advances time, fades, looping, and the queue. Call once per frame. */
   update(dt: number): void {
     if (this.outgoing) {
+      this.outgoing.prevTime = this.outgoing.time;
       this.outgoing.fadeElapsed += dt;
       if (this.outgoingWeight() <= 0) this.outgoing = null;
     }
@@ -121,7 +125,10 @@ export class AnimationState {
     const cur = this.current;
     if (!cur) return;
     cur.prevTime = cur.time;
-    cur.time += dt;
+    const increment = dt - cur.timeRemainder,
+      total = cur.time + increment;
+    cur.timeRemainder = total - cur.time - increment;
+    cur.time = total;
     cur.fadeElapsed += dt;
 
     const dur = cur.animation.duration;
@@ -193,6 +200,7 @@ function makeEntry(animation: Animation, loop: boolean, fadeDuration: number): T
     loop,
     time: 0,
     prevTime: 0,
+    timeRemainder: 0,
     fadeElapsed: fadeDuration > 0 ? 0 : Number.POSITIVE_INFINITY,
     fadeDuration,
     outgoing: false,

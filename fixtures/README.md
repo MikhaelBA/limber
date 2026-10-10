@@ -46,3 +46,17 @@ IK in the same order namespace. Its straight path has tail-origin golden `(260,1
 suite separately compares curved arc sampling with dense independent integration and verifies
 100 seeded reflected/sheared hierarchies. Browser coverage edits cubic controls, continuity,
 closure, progression keys, ordering, exact history and failed-import isolation.
+
+`bbbproj-v9-secondary-motion.json` is the actual editor-saved parent/child spring project.
+Tail uses tuned Bouncy coefficients and Tip uses Soft; an independent IK precedes both.
+The Body heading is 0.5 radians at t=0.5, the playing Tail lags it, and explicit inertia
+reset reproduces the authored heading. Browser coverage includes presets/Advanced edits,
+invalid-order isolation, pause/scrub/stop, exact history and native Save/Open.
+
+`constraintFixture` in `tools/constraint-fixtures.mjs` generates reproducible Phase 7
+Standard/Heavy native projects. These extend the mesh fixtures to 64/124 bones with 5/10
+IK, one affine follow, one closed path, 12/22 springs, animated progress, markers and the
+same weighted/deform/clipping work. Numeric tests require exact matrix/vertex agreement
+between 10Hz and 60Hz display subdivision. `constraint-performance.mjs` profiles 180
+steady-state frames and source preservation; evidence and limits are in
+docs/performance/phase7-constraints.md. CI uploads raw measurements and screenshots.

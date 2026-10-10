@@ -15,11 +15,17 @@ export * from './skeleton/constraints';
 export * from './skeleton/TransformSolver';
 export * from './skeleton/pathSampling';
 export * from './skeleton/PathSolver';
+export * from './skeleton/SecondaryMotion';
 export * from './math/affine';
 export * from './math/dampedSpring';
 export { exportSpineJson } from './serialization/spineExport';
 export { packAtlas, buildAtlasText, uniqueTexturePaths } from './serialization/atlasPack';
-export type { AtlasImageInput, AtlasLayout, AtlasPlacement, PackAtlasOptions } from './serialization/atlasPack';
+export type {
+  AtlasImageInput,
+  AtlasLayout,
+  AtlasPlacement,
+  PackAtlasOptions,
+} from './serialization/atlasPack';
 export * from './skeleton/skinning';
 export * from './skeleton/markers';
 export * from './skeleton/meshLinks';

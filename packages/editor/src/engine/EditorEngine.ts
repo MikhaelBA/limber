@@ -1,6 +1,8 @@
 import type { Command } from '../history/history';
 import {
   AnimationState,
+  FixedStepClock,
+  SECONDARY_STEP_SECONDS,
   Skeleton,
   createPose,
   resetPose,
@@ -67,6 +69,7 @@ export class EditorEngine {
   readonly lastEvents: EventFrame[] = [];
 
   private transient = new Map<string, Set<TransientListener>>();
+  private readonly secondaryClock = new FixedStepClock();
 
   constructor() {
     const data = emptySkeletonData(true);
@@ -156,6 +159,7 @@ export class EditorEngine {
 
   /** Selects an animation (or null) and rewinds the clock. */
   setAnimation(name: string | null): void {
+    this.resetSecondaryMotion();
     this.activeAnimationName = name;
     this.currentTime = 0;
     const anim = this.currentAnimation;
@@ -169,10 +173,12 @@ export class EditorEngine {
   }
 
   pause(): void {
+    this.resetSecondaryMotion();
     this.playing = false;
   }
 
   stop(): void {
+    this.resetSecondaryMotion();
     this.playing = false;
     this.currentTime = 0;
     this.animState.scrub(0);
@@ -180,6 +186,7 @@ export class EditorEngine {
 
   /** Moves the playhead (pauses playback — scrubbing while playing is chaos). */
   scrub(time: number): void {
+    this.resetSecondaryMotion();
     this.playing = false;
     const dur = this.currentAnimation?.duration ?? 0;
     this.currentTime = Math.min(Math.max(time, 0), dur);
@@ -191,6 +198,41 @@ export class EditorEngine {
    * reset → apply animation (animate mode only) → FK → constraints → skin attachments.
    */
   tick(deltaMS: number, skinningStats?: SkinningStats): void {
+    this.lastEvents.length = 0;
+    const motion = this.skeleton.secondaryMotion;
+    if (motion && this.mode === 'animate' && this.animState.hasCurrent) {
+      this.lastEvents.length = 0;
+      if (this.playing) {
+        if (!motion.initialized) {
+          this.secondaryClock.reset();
+          this.sampleSecondary();
+          motion.rebase(this.skeleton);
+        }
+        const steps = this.secondaryClock.consume((deltaMS / 1000) * this.playbackSpeed);
+        for (let n = 0; n < steps; n++) {
+          const previous = this.animState.currentAnimationName;
+          this.animState.update(SECONDARY_STEP_SECONDS);
+          const events = this.sampleSecondary();
+          if (previous !== this.animState.currentAnimationName) motion.rebase(this.skeleton);
+          motion.evaluate(this.skeleton, true);
+          for (const e of events) this.lastEvents.push(e);
+        }
+        if (steps === 0) {
+          this.sampleSecondary();
+          motion.evaluate(this.skeleton, false);
+        }
+        this.currentTime = this.animState.time;
+      } else {
+        this.secondaryClock.reset();
+        this.animState.scrub(this.currentTime);
+        this.sampleSecondary();
+        motion.rebase(this.skeleton);
+      }
+      updateSkinning(this.skeleton, skinningStats);
+      this.emitTransient('time', this.currentTime);
+      return;
+    }
+    this.resetSecondaryMotion();
     const dt = Math.min(deltaMS, 100) / 1000;
     if (this.playing && this.animState.hasCurrent) {
       this.animState.update(dt * this.playbackSpeed);
@@ -209,6 +251,18 @@ export class EditorEngine {
     solveConstraints(this.skeleton);
     updateSkinning(this.skeleton, skinningStats);
     this.emitTransient('time', this.currentTime);
+  }
+
+  private sampleSecondary(): EventFrame[] {
+    resetPose(this.skeleton.data, this.skeleton.pose);
+    const events = this.animState.apply(this.skeleton);
+    solveFK(this.skeleton.data, this.skeleton.boneIndexMap, this.skeleton.pose);
+    solveConstraints(this.skeleton);
+    return events;
+  }
+  private resetSecondaryMotion(): void {
+    this.secondaryClock.reset();
+    this.skeleton.secondaryMotion?.invalidate();
   }
 
   /**

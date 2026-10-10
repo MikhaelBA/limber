@@ -411,8 +411,16 @@ export class RemoveBoneCommand implements Command {
         proposed.transformConstraints = proposed.transformConstraints.filter(
           (c) => c.boneId !== this.boneId && c.targetId !== this.boneId,
         );
-      if (proposed.paths) proposed.paths=proposed.paths.filter(p=>p.boneId!==this.boneId);
-      if (proposed.pathConstraints) proposed.pathConstraints=proposed.pathConstraints.filter(c=>!c.bones.includes(this.boneId) && c.driverId!==this.boneId && proposed.paths?.some(p=>p.id===c.pathId));
+      if (proposed.paths) proposed.paths = proposed.paths.filter((p) => p.boneId !== this.boneId);
+      if (proposed.secondaryConstraints)
+        proposed.secondaryConstraints = proposed.secondaryConstraints.filter((c) => c.boneId !== this.boneId);
+      if (proposed.pathConstraints)
+        proposed.pathConstraints = proposed.pathConstraints.filter(
+          (c) =>
+            !c.bones.includes(this.boneId) &&
+            c.driverId !== this.boneId &&
+            proposed.paths?.some((p) => p.id === c.pathId),
+        );
       for (const slot of proposed.slots.filter((s) => s.boneId === this.boneId)) {
         if (newParentId === null) removeSlotReferences(proposed, animations, slot.id);
         else slot.boneId = newParentId;
@@ -425,11 +433,14 @@ export class RemoveBoneCommand implements Command {
       proposed.bones = proposed.bones.filter((bone) => bone.id !== this.boneId);
       for (const attachment of proposed.attachments) {
         if (attachment.boneBindings) {
-          attachment.boneBindings = attachment.boneBindings.filter((binding) => binding.boneId !== this.boneId);
+          attachment.boneBindings = attachment.boneBindings.filter(
+            (binding) => binding.boneId !== this.boneId,
+          );
           if (!attachment.boneBindings.length) delete attachment.boneBindings;
         }
       }
-      if (proposed.markers) proposed.markers = proposed.markers.filter((marker) => marker.boneId !== this.boneId);
+      if (proposed.markers)
+        proposed.markers = proposed.markers.filter((marker) => marker.boneId !== this.boneId);
     });
     applyRigSnapshot(this.engine, after);
     this.before = before;

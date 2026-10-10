@@ -3,7 +3,7 @@ import {
   solveFK,
   solveConstraints,
   uuid,
-  orderedConstraints,
+  nextPrimaryConstraintOrder,
   type SkeletonData,
   type PathConstraintData,
 } from '@limber/core';
@@ -69,7 +69,7 @@ export class AddPathConstraintCommand extends AtomicConstraintCommand {
       mixTranslation: 1,
       mixRotation: 1,
       rotationOffset: 0,
-      order: orderedConstraints(data).reduce((max, c) => Math.max(max, c.data.order), -1) + 1,
+      order: nextPrimaryConstraintOrder(data),
     });
   }
 }

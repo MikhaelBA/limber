@@ -1,0 +1,249 @@
+{
+  "format": "bonebybone-project",
+  "schemaVersion": 9,
+  "projectId": "project-demo",
+  "name": "Demo",
+  "artboards": [
+    {
+      "id": "artboard-character",
+      "name": "Character",
+      "width": 1920,
+      "height": 1080,
+      "nodes": [
+        {
+          "id": "rig-character",
+          "name": "Character rig",
+          "type": "rig",
+          "parentId": null,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearX": 0,
+            "shearY": 0,
+            "pivotX": 0,
+            "pivotY": 0
+          },
+          "opacity": 1,
+          "visible": true,
+          "skeleton": {
+            "bones": [
+              {
+                "id": "body",
+                "name": "Body",
+                "parentId": null,
+                "length": 10,
+                "setupPose": {
+                  "x": 100,
+                  "y": 100,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tail",
+                "name": "Tail",
+                "parentId": "body",
+                "length": 50,
+                "setupPose": {
+                  "x": 20,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tip",
+                "name": "Tip",
+                "parentId": "tail",
+                "length": 30,
+                "setupPose": {
+                  "x": 50,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "other",
+                "name": "Other",
+                "parentId": null,
+                "length": 20,
+                "setupPose": {
+                  "x": 30,
+                  "y": 30,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "3b0327d2-5d68-4857-9148-f77f53025802",
+                "name": "Other-ik",
+                "parentId": null,
+                "length": 8,
+                "setupPose": {
+                  "x": 50,
+                  "y": 30,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "slots": [],
+            "attachments": [],
+            "ikConstraints": [
+              {
+                "id": "af59fd22-4a7b-4e94-b6e0-cece6d3f3763",
+                "bones": [
+                  "other"
+                ],
+                "targetId": "3b0327d2-5d68-4857-9148-f77f53025802",
+                "poleVectorId": null,
+                "bendDirection": 1,
+                "mix": 1,
+                "softness": 0,
+                "order": 0
+              }
+            ],
+            "skins": [],
+            "activeSkin": "",
+            "markers": [
+              {
+                "id": "body",
+                "name": "body",
+                "kind": "point",
+                "boneId": "body",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tail",
+                "name": "tail",
+                "kind": "point",
+                "boneId": "tail",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              },
+              {
+                "id": "tip",
+                "name": "tip",
+                "kind": "point",
+                "boneId": "tip",
+                "transform": {
+                  "x": 0,
+                  "y": 0,
+                  "rotation": 0,
+                  "scaleX": 1,
+                  "scaleY": 1,
+                  "shearX": 0,
+                  "shearY": 0
+                }
+              }
+            ],
+            "secondaryConstraints": [
+              {
+                "id": "9ed37858-8a4b-4eae-bbf3-93bb9d483110",
+                "boneId": "tail",
+                "preset": "bouncy",
+                "frequency": 4,
+                "damping": 0.3,
+                "mix": 0.5,
+                "maxAngle": 1.1344640137963142,
+                "order": 1
+              },
+              {
+                "id": "1f5dcff6-ea35-43f1-b736-21c397a9c6bd",
+                "boneId": "tip",
+                "preset": "soft",
+                "frequency": 2,
+                "damping": 0.7,
+                "mix": 1,
+                "maxAngle": 1.5707963267948966,
+                "order": 2
+              }
+            ]
+          },
+          "animations": [
+            {
+              "name": "Turn",
+              "duration": 2,
+              "loop": true,
+              "timelines": [
+                {
+                  "kind": "boneProperty",
+                  "boneId": "body",
+                  "property": "rotation",
+                  "keyframes": [
+                    {
+                      "time": 0,
+                      "value": 0,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    },
+                    {
+                      "time": 1,
+                      "value": 1,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    },
+                    {
+                      "time": 2,
+                      "value": 0,
+                      "curve": {
+                        "type": "linear"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assetManifest": {
+    "demo-tex": {
+      "name": "demo-limb.png",
+      "source": "embedded",
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAC10lEQVR42u3dzU0DQRBEYSfEkdtGQgykQC6TAsk4DSQSAIFkZCGw92emp7rrlTQJ7Pduu6M9nRhjjDHGiu3x3D5+n/fXZdfhaSbE7oVPFEnBR+ITRAL0SHxiEISfhU8IAvAK+G/PTz8HzUB4NXxCCIRXxieEwfBZ8AlhAHxGfOsQwDeOAHzTCHrDV8MvHQL4xhGAbxwB+MYRgG8cAfjGEYDf/zy8nL8P+Mb48hGAPx5fNgLw4/DlIgA/Hl8mAvDn4UtEAP5c/KkBgD8ff1oE4Ovgh0cAvh5+aATga+KHBAC+Ln5IBOBr4w8NAHx9/KERgJ8Df0gA4OfBHxIB+LnwuwYAfj78rhGAnxO/SwDg58W/OEwJAHwN/EMBgJ8f/1AE4NfADwsAfE38XQGAXwd/VwTg18IfFgD4OfCHBAB+HvxNAYBfD39TBODXxO8SAPh58Q8HAH5u/EMBgJ8ff1UA4NfFXxUB+LXxNwUAfj381QGAXxN/VQDg18W/GwD4tfGlAwC/+QYAfvMNAPzmGwD4zTcA8JtvAOA33wDAb74BgD8X/+7/jMGvjT8tAPA18KcEAL4OfngA4GvhhwYAvh7+3QB6RQB+UvweAYCviR8SAPi6+MMDAF8bf2gA4Ovjrw5gawTgF8PfEgD4OfCHBAB+HvzuAYCfC39zALciAN8A/78AwM+H3y0A8HPi7w7gOgLwDfEvAYCfF/9wAF8D3xh/ZgDgLxoBzIgAfCH86ADAX/QCiIoAfFH8iADAX7QDGBkB+AnwRwUA/pIngN4RgJ8Mv2cA4C85A+gRAfiJ8Y9GAH4B/L0RgF8If2sA4C/1AlgbAfhF8ddEAH5x/FsRgG+C/1cE4JvhX0cAvin+ZeAb48+MAHzjCMA3jgB84wjAN44AfOMQeLFjHAH4xhGAbxwC3/AZh8Cn28YhcGPHOAQuaprP/n4+mxMC8MYxgG4cBODGUYDNGGPMZJ+1BreeoOwe0QAAAABJRU5ErkJggg=="
+    }
+  },
+  "editor": {
+    "activeArtboardId": "artboard-character",
+    "activeRigId": "rig-character"
+  }
+}

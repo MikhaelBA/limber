@@ -88,6 +88,19 @@ export interface PathConstraintData {
   order: number;
 }
 
+export interface SecondaryConstraintData {
+  id: string;
+  boneId: string;
+  preset: 'soft' | 'bouncy' | 'firm';
+  frequency: number;
+  damping: number;
+  mix: number;
+  /** Maximum world-heading deviation, radians in [0, pi]. */
+  maxAngle: number;
+  /** Post-primary order; secondary ancestors precede descendants. */
+  order: number;
+}
+
 export interface SlotData {
   id: string;
   name: string;
@@ -161,8 +174,7 @@ export interface SkinData {
 
 export type MarkerKind = 'point' | 'socket' | 'spawnPoint' | 'hitbox' | 'hurtbox' | 'trigger';
 export type MarkerShape =
-  | { type: 'rectangle'; width: number; height: number }
-  | { type: 'polygon'; vertices: number[] };
+  { type: 'rectangle'; width: number; height: number } | { type: 'polygon'; vertices: number[] };
 interface MarkerBase {
   id: string;
   name: string;
@@ -190,6 +202,7 @@ export interface SkeletonData {
   transformConstraints?: TransformConstraintData[];
   paths?: PathData[];
   pathConstraints?: PathConstraintData[];
+  secondaryConstraints?: SecondaryConstraintData[];
   skins: SkinData[];
   activeSkin: string;
 }

@@ -1,6 +1,7 @@
 import {
   uuid,
   orderedConstraints,
+  nextPrimaryConstraintOrder,
   type BoneData,
   type IKConstraintData,
   type SkeletonData,
@@ -64,7 +65,7 @@ function constraint(
     bendDirection,
     mix: 1,
     softness: 0,
-    order: orderedConstraints(data).reduce((max, c) => Math.max(max, c.data.order), -1) + 1,
+    order: nextPrimaryConstraintOrder(data),
   };
 }
 

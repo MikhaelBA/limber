@@ -146,6 +146,34 @@ Core exposes `advanceDampedSpring` and `FixedStepClock` with the numerical contr
 in ADR 0022. The spring exactly integrates a constant-target damped oscillator over
 a validated bounded step. The clock provides 120Hz step counts with a 100ms accepted
 delta cap, retained fractional time and discarded-stall diagnostics. These utilities
-do not yet alter the player/editor clock or add source physics data. Integration must
+provide the player/editor physics clock in Phase 7E2. Integration must
 resample animation and primary constraints at each fixed step before advancing the
 spring; passing one display-frame target to several spring steps is insufficient.
+
+## Angular secondary motion and source schema 9 (Phase 7E2)
+
+Optional `secondaryConstraints` run after the ordered IK/follow/path stage. Each
+controls one bone's world +X heading with explicit frequency, damping, mix and maximum
+angle coefficients. Soft/Bouncy/Firm are authoring presets, not implicit runtime defaults.
+All primary headings sample before spring writes; secondary ancestors precede children.
+The actual affine parent inverse and signed/sheared local X basis derive local rotation.
+Pivot, scale, shear and length remain authored. Singular/collapsed bases hold; nonfinite
+secondary output restores rotations/world matrices and rebases all spring state.
+
+Editor and RuntimePlayer resample animation/FK/primary constraints at every 120Hz step
+and then integrate the spring. Present the last completed step without interpolation.
+Accepted time caps at 100ms after editor speed, retaining substep remainder. Events
+aggregate across accepted steps; discarded stalls and seeks emit none. Compensation
+in animation elapsed time preserves exact duration boundary event ordering.
+
+Setup, paused preview, seek/stop, clip change, structural publication and explicit runtime
+`resetSecondaryMotion()` rebase without lag. Pause drops remainder. Scrub displays the
+primary authored pose; it does not replay past physics. Queued clip changes also rebase;
+crossfades retain existing mixer blending. Frozen outgoing clips do not refire events.
+Rigs with no secondary constraints retain their existing playback clock contract.
+
+Setup authoring is atomic, with globally unique constraint identities/orders, one spring
+per bone and a 128-spring cap. Primary creation inserts before secondary entries; deleting
+a bone cleans its spring. Native schema 9 stores all coefficients. Absent arrays mean no
+secondary motion; historical source identifiers advance to 9. The optional Spine adapter
+rejects native springs. ADR 0022 defines numerical ranges, limits and reset semantics.

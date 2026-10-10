@@ -2,7 +2,11 @@ import { MeshWeightsPanel } from './MeshWeightsPanel';
 import { SharedMeshControls } from './SharedMeshControls';
 import { AutoMeshControls } from './AutoMeshControls';
 import { useEffect, useRef, useState } from 'react';
-import { SetKeyframeCommand, KeySlotColorCommand, type BonePropertyName } from '../commands/animationCommands';
+import {
+  SetKeyframeCommand,
+  KeySlotColorCommand,
+  type BonePropertyName,
+} from '../commands/animationCommands';
 import {
   SetBonePropsCommand,
   wouldCreateCycle,
@@ -24,6 +28,7 @@ import { AddMeshCommand } from '../commands/meshCommands';
 import { IKControls } from './IKControls';
 import { TransformConstraintControls } from './TransformConstraintControls';
 import { PathConstraintControls } from './PathConstraintControls';
+import { SecondaryMotionControls } from './SecondaryMotionControls';
 import {
   RemoveSlotCommand,
   SetSlotBlendCommand,
@@ -177,7 +182,9 @@ export function PropertiesPanel() {
     execute(new SetSlotPropsCommand(engine, slot.id, before, after));
   };
 
-  const editAttachment = (apply: (region: RegionParams, after: { name: string; region: RegionParams }) => void) => {
+  const editAttachment = (
+    apply: (region: RegionParams, after: { name: string; region: RegionParams }) => void,
+  ) => {
     if (!slot) return;
     const shownId = shownAttachmentId(engine, slot.id);
     const attachment = shownId ? data.attachments.find((a) => a.id === shownId) : undefined;
@@ -193,8 +200,13 @@ export function PropertiesPanel() {
   const skinTarget: AttachmentTarget = usingSkin ? 'skin' : 'default';
   const skin = usingSkin ? data.skins.find((x) => x.name === data.activeSkin) : undefined;
   const slotIndex = slot ? engine.skeleton.slotIndexMap.get(slot.id) : undefined;
-  const shownColor = slot && slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff;
-  const editValue = slot ? (usingSkin ? skin?.attachments[slot.id] ?? null : slot.defaultAttachmentId) : null;
+  const shownColor =
+    slot && slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff;
+  const editValue = slot
+    ? usingSkin
+      ? (skin?.attachments[slot.id] ?? null)
+      : slot.defaultAttachmentId
+    : null;
   const shownAttId = slot ? shownAttachmentId(engine, slot.id) : null;
   const shownAtt = shownAttId ? data.attachments.find((a) => a.id === shownAttId) : undefined;
   const textures = Object.entries(engine.document.assetManifest);
@@ -220,7 +232,11 @@ export function PropertiesPanel() {
       {/* ---------------- Slot (Phase 4) ---------------- */}
       {slot && (
         <div className="flex flex-col gap-1.5 p-2">
-          <TextField label="Name" value={slot.name} onCommit={(name) => editSlot((snap) => (snap.name = name))} />
+          <TextField
+            label="Name"
+            value={slot.name}
+            onCommit={(name) => editSlot((snap) => (snap.name = name))}
+          />
           <label className="flex items-center gap-2">
             <span className="w-16 shrink-0 text-xs text-neutral-400">Bone</span>
             <select
@@ -241,7 +257,9 @@ export function PropertiesPanel() {
             <input
               type="color"
               value={packedToHex(shownColor)}
-              onChange={(e) => commitColor((parseInt(e.target.value.slice(1), 16) << 24) | (shownColor & 0xff))}
+              onChange={(e) =>
+                commitColor((parseInt(e.target.value.slice(1), 16) << 24) | (shownColor & 0xff))
+              }
               className="h-6 w-10 cursor-pointer rounded bg-neutral-800"
             />
             <span className="text-[10px] text-neutral-500">alpha</span>
@@ -264,7 +282,9 @@ export function PropertiesPanel() {
             <span className="w-16 shrink-0 text-xs text-neutral-400">Blend</span>
             <select
               value={slot.blendMode ?? 'normal'}
-              onChange={(e) => execute(new SetSlotBlendCommand(engine, slot.id, e.target.value as 'normal' | 'add'))}
+              onChange={(e) =>
+                execute(new SetSlotBlendCommand(engine, slot.id, e.target.value as 'normal' | 'add'))
+              }
               className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
               title="Additive blending for glow effects"
             >
@@ -277,7 +297,9 @@ export function PropertiesPanel() {
             <span className="w-16 shrink-0 text-xs text-neutral-400">Attach</span>
             <select
               value={editValue ?? ''}
-              onChange={(e) => execute(new SetSlotAttachmentCommand(engine, slot.id, e.target.value || null, skinTarget))}
+              onChange={(e) =>
+                execute(new SetSlotAttachmentCommand(engine, slot.id, e.target.value || null, skinTarget))
+              }
               className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
               <option value="">(none)</option>
@@ -301,10 +323,26 @@ export function PropertiesPanel() {
                 value={shownAtt.name}
                 onCommit={(name) => editAttachment((_r, after) => (after.name = name))}
               />
-              <NumberField label="Att X" value={regionOf(shownAtt).x} onCommit={(x) => editAttachment((r) => (r.x = x))} />
-              <NumberField label="Att Y" value={regionOf(shownAtt).y} onCommit={(y) => editAttachment((r) => (r.y = y))} />
-              <NumberField label="Att W" value={regionOf(shownAtt).width} onCommit={(w) => editAttachment((r) => (r.width = Math.max(1, w)))} />
-              <NumberField label="Att H" value={regionOf(shownAtt).height} onCommit={(h) => editAttachment((r) => (r.height = Math.max(1, h)))} />
+              <NumberField
+                label="Att X"
+                value={regionOf(shownAtt).x}
+                onCommit={(x) => editAttachment((r) => (r.x = x))}
+              />
+              <NumberField
+                label="Att Y"
+                value={regionOf(shownAtt).y}
+                onCommit={(y) => editAttachment((r) => (r.y = y))}
+              />
+              <NumberField
+                label="Att W"
+                value={regionOf(shownAtt).width}
+                onCommit={(w) => editAttachment((r) => (r.width = Math.max(1, w)))}
+              />
+              <NumberField
+                label="Att H"
+                value={regionOf(shownAtt).height}
+                onCommit={(h) => editAttachment((r) => (r.height = Math.max(1, h)))}
+              />
               <AutoMeshControls key={shownAtt.id} attachmentId={shownAtt.id} slotId={slot.id} />
               <button
                 className="mt-1 self-start rounded bg-neutral-800 px-2 py-0.5 text-xs text-red-300 hover:bg-neutral-700"
@@ -316,40 +354,44 @@ export function PropertiesPanel() {
           )}
           {shownAtt && shownAtt.type === 'mesh' && shownAtt.meshVertices && (
             <p className="text-[10px] text-neutral-500">
-              mesh — {shownAtt.meshVertices.length / 2} vertices · {(shownAtt.meshTriangles?.length ?? 0) / 3} tris ·
-              ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
+              mesh — {shownAtt.meshVertices.length / 2} vertices · {(shownAtt.meshTriangles?.length ?? 0) / 3}{' '}
+              tris · ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
             </p>
           )}
           {shownAtt?.type === 'mesh' && <MeshWeightsPanel key={shownAtt.id} attachmentId={shownAtt.id} />}
-          {shownAtt?.type === 'mesh' && <SharedMeshControls key={`shared-${shownAtt.id}`} attachmentId={shownAtt.id} />}
-          {shownAtt && (shownAtt.type === 'boundingBox' || shownAtt.type === 'clipping') && shownAtt.meshVertices && (
-            <>
-              <p className="text-[10px] text-neutral-500">
-                {shownAtt.type === 'boundingBox' ? 'bounding box' : 'clipping'} —{' '}
-                {shownAtt.meshVertices.length / 2} vertices · edit with the ◈ Mesh tool
-              </p>
-              {shownAtt.type === 'clipping' && (
-                <label className="flex items-center gap-2">
-                  <span className="w-16 shrink-0 text-xs text-neutral-400">end slot</span>
-                  <select
-                    value={shownAtt.endSlotId ?? ''}
-                    onChange={(e) =>
-                      execute(new SetClipEndSlotCommand(engine, shownAtt.id, e.target.value || null))
-                    }
-                    className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    title="Clipping applies until this slot (exclusive)"
-                  >
-                    <option value="">(last slot)</option>
-                    {data.slots.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </>
+          {shownAtt?.type === 'mesh' && (
+            <SharedMeshControls key={`shared-${shownAtt.id}`} attachmentId={shownAtt.id} />
           )}
+          {shownAtt &&
+            (shownAtt.type === 'boundingBox' || shownAtt.type === 'clipping') &&
+            shownAtt.meshVertices && (
+              <>
+                <p className="text-[10px] text-neutral-500">
+                  {shownAtt.type === 'boundingBox' ? 'bounding box' : 'clipping'} —{' '}
+                  {shownAtt.meshVertices.length / 2} vertices · edit with the ◈ Mesh tool
+                </p>
+                {shownAtt.type === 'clipping' && (
+                  <label className="flex items-center gap-2">
+                    <span className="w-16 shrink-0 text-xs text-neutral-400">end slot</span>
+                    <select
+                      value={shownAtt.endSlotId ?? ''}
+                      onChange={(e) =>
+                        execute(new SetClipEndSlotCommand(engine, shownAtt.id, e.target.value || null))
+                      }
+                      className="w-full rounded bg-neutral-800 px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      title="Clipping applies until this slot (exclusive)"
+                    >
+                      <option value="">(last slot)</option>
+                      {data.slots.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
+            )}
           <div className="my-1 h-px bg-neutral-800" />
           {textures.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -431,7 +473,13 @@ export function PropertiesPanel() {
                 title="Add a clipping polygon — clips subsequent slots (until the end slot)"
                 onClick={() => {
                   execute(
-                    new AddPolygonAttachmentCommand(engine, slot.id, { x: 0, y: 0, width: 80, height: 80 }, 'clipping', skinTarget),
+                    new AddPolygonAttachmentCommand(
+                      engine,
+                      slot.id,
+                      { x: 0, y: 0, width: 80, height: 80 },
+                      'clipping',
+                      skinTarget,
+                    ),
                   );
                 }}
               >
@@ -473,8 +521,11 @@ export function PropertiesPanel() {
                   setStatus('Cannot parent a bone under its own descendant.');
                   return;
                 }
-                try { execute(new ReparentBoneCommand(engine, bone.id, next)); }
-                catch (error) { setStatus((error as Error).message); }
+                try {
+                  execute(new ReparentBoneCommand(engine, bone.id, next));
+                } catch (error) {
+                  setStatus((error as Error).message);
+                }
               }}
               className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
             >
@@ -492,6 +543,7 @@ export function PropertiesPanel() {
           <IKControls boneId={bone.id} />
           <TransformConstraintControls key={bone.id} boneId={bone.id} />
           <PathConstraintControls key={`path:${bone.id}`} boneId={bone.id} />
+          <SecondaryMotionControls key={`secondary:${bone.id}`} boneId={bone.id} />
         </div>
       )}
 
@@ -602,8 +654,18 @@ function BoneTransformFields({ engine, boneId }: { engine: ReturnType<typeof use
         value={src('rotation') * DEG}
         onCommit={(deg) => commitTransform('rotation', deg / DEG)}
       />
-      <NumberField label="Scale X" step={0.1} value={src('scaleX')} onCommit={(v) => commitTransform('scaleX', v)} />
-      <NumberField label="Scale Y" step={0.1} value={src('scaleY')} onCommit={(v) => commitTransform('scaleY', v)} />
+      <NumberField
+        label="Scale X"
+        step={0.1}
+        value={src('scaleX')}
+        onCommit={(v) => commitTransform('scaleX', v)}
+      />
+      <NumberField
+        label="Scale Y"
+        step={0.1}
+        value={src('scaleY')}
+        onCommit={(v) => commitTransform('scaleY', v)}
+      />
       <NumberField
         label="Shear X °"
         step={5}

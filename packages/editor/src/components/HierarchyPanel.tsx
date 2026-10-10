@@ -339,7 +339,26 @@ export function HierarchyPanel() {
             {boneName.get(c.boneId)} ⇢ {boneName.get(c.targetId)}
           </div>
         ))}
-        {(data.pathConstraints??[]).map(c=><div key={c.id} onClick={()=>select(c.bones[0]!)} className="cursor-default rounded py-0.5 pl-2 pr-1 text-sm text-teal-300" title={`Path follow (order ${c.order})`}>{boneName.get(c.bones[0]!)} ⇢ {data.paths?.find(p=>p.id===c.pathId)?.name}</div>)}
+        {(data.pathConstraints ?? []).map((c) => (
+          <div
+            key={c.id}
+            onClick={() => select(c.bones[0]!)}
+            className="cursor-default rounded py-0.5 pl-2 pr-1 text-sm text-teal-300"
+            title={`Path follow (order ${c.order})`}
+          >
+            {boneName.get(c.bones[0]!)} ⇢ {data.paths?.find((p) => p.id === c.pathId)?.name}
+          </div>
+        ))}
+        {(data.secondaryConstraints ?? []).map((c) => (
+          <div
+            key={c.id}
+            onClick={() => select(c.boneId)}
+            className="cursor-default rounded py-0.5 pl-2 pr-1 text-sm text-violet-300"
+            title={`Secondary motion (order ${c.order})`}
+          >
+            {boneName.get(c.boneId)} · {c.preset} motion
+          </div>
+        ))}
         <RigHelperPanel />
         <MarkerPanel />
       </div>

@@ -39,21 +39,40 @@ interface Json {
   [k: string]: unknown;
 }
 
-export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, string>, warnings?: string[]): string {
+export function exportSpineJson(
+  doc: EditorDocument,
+  texturePaths?: Map<string, string>,
+  warnings?: string[],
+): string {
   if (doc.skeleton.paths?.length || doc.skeleton.pathConstraints?.length)
-    throw new Error('Native paths require BoneByBone project save; this compatibility export cannot preserve their semantics.');
+    throw new Error(
+      'Native paths require BoneByBone project save; this compatibility export cannot preserve their semantics.',
+    );
+  if (doc.skeleton.secondaryConstraints?.length)
+    throw new Error(
+      'Native secondary motion requires BoneByBone project save; this compatibility export cannot preserve its semantics.',
+    );
   if (doc.skeleton.transformConstraints?.length)
-    throw new Error('Spine export does not support native transform follow constraints. Save the native .bbbproj to retain constraints.');
+    throw new Error(
+      'Spine export does not support native transform follow constraints. Save the native .bbbproj to retain constraints.',
+    );
   if (doc.skeleton.ikConstraints.some((c) => c.poleVectorId !== null || c.softness !== 0))
-    throw new Error('Spine export does not support native IK pole/soft-reach semantics. Save the native .bbbproj to retain constraints.');
+    throw new Error(
+      'Spine export does not support native IK pole/soft-reach semantics. Save the native .bbbproj to retain constraints.',
+    );
   if (doc.skeleton.attachments.some((attachment) => attachment.meshSourceId !== undefined))
-    throw new Error('Spine export does not support shared meshes yet. Detach shared meshes before exporting.');
+    throw new Error(
+      'Spine export does not support shared meshes yet. Detach shared meshes before exporting.',
+    );
   validateDeformTimelines(doc.skeleton, doc.animations);
   if (doc.skeleton.attachments.some((attachment) => attachment.boneBindings)) {
-    throw new Error('Spine export does not support native mesh bindings. Save the native .bbbproj to retain bone bindings.');
+    throw new Error(
+      'Spine export does not support native mesh bindings. Save the native .bbbproj to retain bone bindings.',
+    );
   }
   if (doc.skeleton.markers?.length) {
-    const warning = 'Spine export omits BoneByBone markers; keep the native .bbbproj for sockets and hit areas.';
+    const warning =
+      'Spine export omits BoneByBone markers; keep the native .bbbproj for sockets and hit areas.';
     if (!warnings) throw new Error(warning);
     warnings.push(warning);
   }
@@ -131,7 +150,8 @@ export function exportSpineJson(doc: EditorDocument, texturePaths?: Map<string, 
     const perSlot = (defaultAttachments[slotName.get(slot.id)!] ??= {}) as Json;
     perSlot[att.name] = attachmentJson(att, slot.id, data, skeleton, wm, doc, texturePaths);
   }
-  if (Object.keys(defaultAttachments).length > 0) skins.push({ name: 'default', attachments: defaultAttachments });
+  if (Object.keys(defaultAttachments).length > 0)
+    skins.push({ name: 'default', attachments: defaultAttachments });
   for (const skin of data.skins) {
     if (skin.name === '' || skin.name === 'default') continue; // '' = none; 'default' merges above.
     const perSlotTree: Json = {};
@@ -385,7 +405,10 @@ function animationJson(
   const bones: Json = {};
   for (const bone of data.bones) {
     const tl = (prop: string) =>
-      anim.timelines.find((t): t is Extract<Timeline, { kind: 'boneProperty' }> => t.kind === 'boneProperty' && t.boneId === bone.id && t.property === prop);
+      anim.timelines.find(
+        (t): t is Extract<Timeline, { kind: 'boneProperty' }> =>
+          t.kind === 'boneProperty' && t.boneId === bone.id && t.property === prop,
+      );
     const rotate = tl('rotation');
     const perBone: Json = {};
     if (rotate) {
@@ -402,7 +425,9 @@ function animationJson(
       const ta = tl(p.a);
       const tb = tl(p.b);
       if (!ta && !tb) continue;
-      const times = [...new Set([...(ta?.keyframes ?? []), ...(tb?.keyframes ?? [])].map((k) => round(k.time)))].sort((x, y) => x - y);
+      const times = [
+        ...new Set([...(ta?.keyframes ?? []), ...(tb?.keyframes ?? [])].map((k) => round(k.time))),
+      ].sort((x, y) => x - y);
       const track = times.map((t) => {
         const ka = heldKeyframe(ta, t);
         const kb = heldKeyframe(tb, t);
@@ -433,7 +458,9 @@ function animationJson(
   const slots: Json = {};
   for (const slot of data.slots) {
     const perSlot: Json = {};
-    const color = anim.timelines.find((t): t is Extract<Timeline, { kind: 'slotColor' }> => t.kind === 'slotColor' && t.slotId === slot.id);
+    const color = anim.timelines.find(
+      (t): t is Extract<Timeline, { kind: 'slotColor' }> => t.kind === 'slotColor' && t.slotId === slot.id,
+    );
     if (color) {
       perSlot.rgba = color.keyframes.map((kf) => ({
         time: round(kf.time),
@@ -441,7 +468,10 @@ function animationJson(
         ...(kf.curve.type === 'stepped' ? { curve: 'stepped' } : {}),
       }));
     }
-    const attach = anim.timelines.find((t): t is Extract<Timeline, { kind: 'slotAttachment' }> => t.kind === 'slotAttachment' && t.slotId === slot.id);
+    const attach = anim.timelines.find(
+      (t): t is Extract<Timeline, { kind: 'slotAttachment' }> =>
+        t.kind === 'slotAttachment' && t.slotId === slot.id,
+    );
     if (attach) {
       perSlot.attachment = attach.keyframes.map((kf) => ({
         time: round(kf.time),
@@ -454,7 +484,9 @@ function animationJson(
   if (Object.keys(slots).length > 0) out.slots = slots;
 
   // ---- draw order (sequential offsets vs the previous configuration) ----
-  const drawOrder = anim.timelines.find((t): t is Extract<Timeline, { kind: 'drawOrder' }> => t.kind === 'drawOrder');
+  const drawOrder = anim.timelines.find(
+    (t): t is Extract<Timeline, { kind: 'drawOrder' }> => t.kind === 'drawOrder',
+  );
   if (drawOrder) {
     let prev = data.slots.map((_, i) => i); // identity = array order
     out['draw-order'] = drawOrder.keyframes.map((kf) => {
@@ -485,13 +517,14 @@ function animationJson(
       data.slots.find((s) => s.defaultAttachmentId === tl.attachmentId)?.id ??
       data.slots.find((s) => data.skins.some((sk) => sk.attachments[s.id] === tl.attachmentId))?.id;
     if (!slotId) continue;
-    const tree = ((deform['default'] ??= {}) as Json);
-    const perSlot = ((tree[slotName.get(slotId)!] ??= {}) as Json);
+    const tree = (deform['default'] ??= {}) as Json;
+    const perSlot = (tree[slotName.get(slotId)!] ??= {}) as Json;
     perSlot[att.name] = tl.keyframes.map((kf) => {
       const o: Json = { time: round(kf.time) };
       if (kf.offsets) {
         const v: number[] = [];
-        for (let k = 0; k < kf.offsets.length; k += 2) v.push(round(kf.offsets[k]!), round(-kf.offsets[k + 1]!));
+        for (let k = 0; k < kf.offsets.length; k += 2)
+          v.push(round(kf.offsets[k]!), round(-kf.offsets[k + 1]!));
         o.vertices = v;
       }
       if (kf.curve.type === 'stepped') o.curve = 'stepped';

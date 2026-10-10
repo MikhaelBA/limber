@@ -44,6 +44,7 @@ try {
     'affine-pins.mjs',
     'transform-follow.mjs',
     'path-follow.mjs',
+    'secondary-motion.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',
@@ -51,6 +52,7 @@ try {
     'smooth-weights.mjs',
     'shared-meshes.mjs',
     'mesh-performance.mjs',
+    'constraint-performance.mjs',
   ]) {
     const code = await new Promise((resolveExit, reject) => {
       const child = spawn(process.execPath, [resolve(root, 'packages/editor/tests', test)], {
