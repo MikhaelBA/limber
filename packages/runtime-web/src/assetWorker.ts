@@ -2,6 +2,7 @@ import { AtlasError } from '@limber/atlas';
 import { compilePackedRuntime, encodeRuntime, RuntimeFormatError } from '@limber/runtime';
 import { prepareEncodedAtlas } from './atlasPipeline';
 import { nativeSourceImages } from './nativeSourceImages';
+import { nativeSourceFonts } from './nativeSourceFonts';
 import type { AtlasWorkerRequest, AtlasWorkerMessage } from './atlasProtocol';
 
 const worker = globalThis as unknown as {
@@ -15,10 +16,14 @@ worker.onmessage = async ({ data }) => {
   accepted = true;
   const id = data.id;
   try {
-    const input = data.input.project
+    const fonts = data.input.project ? await nativeSourceFonts(data.input.project, data.input.fontSources,
+      (fraction) => worker.postMessage({ id, kind: 'progress', fraction: fraction * 0.1, stage: 'fonts' })) : undefined;
+    const project = fonts?.project;
+    const input = project
       ? {
           ...data.input,
-          images: nativeSourceImages(data.input.project),
+          images: nativeSourceImages(project),
+          svgFonts: [...(data.input.svgFonts ?? []), ...(fonts?.buffers ?? [])],
           raster: {
             ...data.input.raster,
             // A minimal alpha box loses bilinear fringes when its sprite quad is trimmed.
@@ -34,11 +39,11 @@ worker.onmessage = async ({ data }) => {
       worker.postMessage({
         id,
         kind: 'progress',
-        fraction: data.input.project ? fraction * 0.85 : fraction,
+        fraction: project ? 0.1 + fraction * 0.75 : fraction,
         stage,
       }),
     );
-    if (data.input.project) {
+    if (project) {
       worker.postMessage({ id, kind: 'progress', fraction: 0.9, stage: 'compile' });
       const start = performance.now();
       const regions = new Map(result.regions.map((region) => [region.id, region]));
@@ -50,7 +55,7 @@ worker.onmessage = async ({ data }) => {
         return btoa(text);
       };
       const compilation = compilePackedRuntime(
-        data.input.project,
+        project,
         {
           textures: result.layout.placements.map((p) => {
             const r = regions.get(p.id)!;
@@ -83,10 +88,11 @@ worker.onmessage = async ({ data }) => {
         bytes: encodeRuntime(compilation.program).buffer as ArrayBuffer,
         diagnostics: compilation.diagnostics,
         durationMs: performance.now() - start,
+        fontDurationMs: fonts!.durationMs,
         projectId: compilation.program.id,
         defaultArtboardId: compilation.program.defaultArtboardId,
       };
-      result.timingsMs.total += result.runtime.durationMs;
+      result.timingsMs.total += result.runtime.durationMs + result.runtime.fontDurationMs;
       worker.postMessage({ id, kind: 'progress', fraction: 1, stage: 'compile' });
     }
     worker.postMessage({ id, kind: 'result', result }, [

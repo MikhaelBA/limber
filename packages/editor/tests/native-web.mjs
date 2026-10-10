@@ -14,6 +14,9 @@ try {
   await page.goto(new URL('tests/native-web.html', base).href);
   await page.evaluate(async () => {
     window.nativeTest = { ...(await import('/tests/native-web-host.ts')) };
+    // Independent source renderer owns its baseline face; native faces use private aliases.
+    const face = await new FontFace('Noto Sans Arabic', 'url(/fonts/NotoSansArabic.ttf)').load();
+    document.fonts.add(face);
   });
 
   const goldens = await page.evaluate(async (source) => {

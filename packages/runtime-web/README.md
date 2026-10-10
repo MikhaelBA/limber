@@ -32,8 +32,8 @@ assets.dispose();
 Loading stages every required image and nongeneric font before publishing resources.
 PNG/JPEG/WebP bodies must decode into real pixels; malformed data receives `IMAGE_DECODE`.
 Missing font sources receive `MISSING_FONT`; broken font sources receive `FONT_DECODE`.
-Generic CSS families explicitly use the host's system fonts. Font packaging in `.bbb`
-remains asset-pipeline work; this API requires supplied font bytes or font URLs.
+Generic CSS families explicitly use the host's system fonts. Packaged TTF/OTF bytes
+are authoritative; supplied font bytes or URLs fill external family requirements.
 Independent images and packed logical regions are supported. Each physical atlas page
 decodes once; logical views preserve original dimensions, crop, scale and clockwise
 rotation. Nothing substitutes a placeholder for missing image IDs. Authored
@@ -46,6 +46,9 @@ publication. The loader revokes object URLs and destroys staged textures on fail
 cancellation. Fonts enter `document.fonts` only after staging succeeds and are removed
 on disposal. Multiple players/renderers may share one asset publication; renderer
 destruction never disposes shared assets. Dispose resources after the last renderer.
+Each publication uses private font aliases through `resolveFontFamilies`; two assets
+may safely use different font bytes with the same authored family. Inspect metadata
+retains authored names. Source/render text fields and fallback order do not change.
 
 Production rendering has a transparent background and no editor guide geometry.
 Scene/UI masks, nine-slice, shaped RTL text, rig draw order, exclusive clipping ends,
@@ -109,3 +112,8 @@ The host injects its worker factory and SVG WASM URL. Native trim retains a tran
 filter guard covering at least one output texel; mesh and nine-slice textures retain
 their full logical domain. Progress includes a final `compile` stage. Cancellation
 terminates compilation too; source edits after dispatch do not alter the snapshot.
+Native jobs begin with a `fonts` stage: source TTF/OTF undergo actual worker decode,
+and explicit `fontSources` can supply local font/license URLs. Bounded streaming checks
+the per-file and combined resource budgets before accumulating bytes. The editor host
+automatically supplies bundled Noto Sans Arabic/OFL only when referenced. No OS font
+files are discovered. Packaged font bytes need no playback network or host option.

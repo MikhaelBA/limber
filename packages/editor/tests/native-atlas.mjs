@@ -14,6 +14,8 @@ try {
   await page.evaluate(async () => {
     const api = await import('/tests/native-web-host.ts');
     window.nativeTest = api;
+    const baselineFont = await new FontFace('Noto Sans Arabic', 'url(/fonts/NotoSansArabic.ttf)').load();
+    document.fonts.add(baselineFont);
     window.compareNativeAtlas = async (project, options = {}, animate = false) => {
       const { runtime, web, core, pixi, compileNativeProject } = api;
       const before = JSON.stringify(project),

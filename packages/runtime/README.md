@@ -145,9 +145,11 @@ markerId)` and `getMarker(rigId, markerId)` compose responsive scene world trans
 remain explicit through `getRig(id).dispatch(event)`. Component-local graphs remain
 outside the current authoring contract; instanced characters support raw clips.
 
-The shared Web render adapter stages real image/page pixels and supplied host fonts.
-SVG rasterization and packed native compilation run in an owned browser worker; font
-packaging and the integrated shipping workspace remain Phase 9 gates.
+The shared Web render adapter stages real image/page pixels, packaged fonts and explicit
+external host fonts. SVG rasterization, real font decode and packed native compilation
+run in an owned browser worker. The editor host can package bundled Noto/OFL when
+referenced; Web playback uses private aliases and needs no font network for packaged
+families. Font authoring/SVG text matching and the integrated Ship workspace remain gates.
 
 ## Packed native resources
 

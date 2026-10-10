@@ -1,4 +1,4 @@
-import type { TextNode, UIBox } from '@limber/core';
+import { isGenericFontFamily, fontFamilyKey, type TextNode, type UIBox } from '@limber/core';
 export type LocalizationPreview = 'expected' | 'short' | 'long' | 'numeric';
 export function previewUIText(node: TextNode, mode: LocalizationPreview): string {
   if (mode === 'short') return node.direction === 'rtl' ? 'نعم' : 'OK';
@@ -11,6 +11,7 @@ export function rasterizeUIText(
   node: TextNode,
   box: Pick<UIBox, 'width' | 'height'>,
   preview: LocalizationPreview = 'expected',
+  families: readonly string[] = node.fontFamilies,
 ) {
   const canvas = document.createElement('canvas');
   const scale = Math.min(1, 4096 / Math.max(1, box.width), 4096 / Math.max(1, box.height));
@@ -18,7 +19,7 @@ export function rasterizeUIText(
   canvas.height = Math.max(1, Math.ceil(box.height * scale));
   const context = canvas.getContext('2d')!;
   context.scale(scale, scale);
-  context.font = `${node.fontSize}px ${node.fontFamilies.map((family) => JSON.stringify(family)).join(',')}`;
+  context.font = `${node.fontSize}px ${families.map((family) => isGenericFontFamily(family) ? fontFamilyKey(family) : JSON.stringify(family)).join(',')}`;
   context.direction = node.direction;
   context.textAlign = node.align;
   context.textBaseline = 'alphabetic';

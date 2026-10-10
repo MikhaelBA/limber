@@ -2,6 +2,7 @@ import { Rectangle, Texture, type Mesh, type MeshGeometry } from 'pixi.js';
 import { NativeRuntimeAsset, RuntimeFormatError, type RuntimeImageTexture } from '@limber/runtime';
 import type { TextureProvider } from './TextureProvider';
 import { AtlasMeshShader } from './AtlasMeshShader';
+import { decodeFontBytes, fontFamilyKey, isGenericFontFamily } from '@limber/core';
 
 export interface NativeFontSource {
   family: string;
@@ -14,21 +15,7 @@ export interface NativeWebAssetOptions {
   maxDimension?: number;
   maxPixels?: number;
 }
-const genericFonts = new Set([
-  'serif',
-  'sans-serif',
-  'monospace',
-  'cursive',
-  'fantasy',
-  'system-ui',
-  'ui-serif',
-  'ui-sans-serif',
-  'ui-monospace',
-  'ui-rounded',
-  'emoji',
-  'math',
-  'fangsong',
-]);
+let publicationSequence = 0;
 function fail(code: string, explanation: string, objectId: string | null, remedy: string): never {
   throw new RuntimeFormatError({ code, severity: 'error', objectId, explanation, remedy });
 }
@@ -52,6 +39,8 @@ export class NativeWebAssets implements TextureProvider {
   private readonly atlasTextures = new WeakSet<Texture>();
   private readonly images: HTMLImageElement[] = [];
   private readonly fonts: FontFace[] = [];
+  private readonly fontAliases = new Map<string, string>();
+  private readonly fontNames: string[] = [];
   private disposed = false;
   readonly placeholder = Texture.WHITE;
   version = 0;
@@ -73,13 +62,19 @@ export class NativeWebAssets implements TextureProvider {
       required = new Map<string, string>();
     for (const requirement of asset.getFontRequirements())
       for (const family of requirement.families)
-        if (!genericFonts.has(family.toLowerCase())) required.set(family, requirement.nodeId);
+        if (!isGenericFontFamily(family)) required.set(fontFamilyKey(family), requirement.nodeId);
     const sources = new Map<string, NativeFontSource>();
     for (const font of options.fonts ?? []) {
-      if (typeof font.family !== 'string' || !font.family || sources.has(font.family))
+      if (typeof font.family !== 'string' || !font.family.trim() || sources.has(fontFamilyKey(font.family)))
         throw new Error('Native font sources need distinct nonempty family names.');
-      sources.set(font.family, font);
+      sources.set(fontFamilyKey(font.family), font);
     }
+    // Packaged pixels are authoritative; supplied sources only fill external requirements.
+    for (const font of asset.getFonts())
+      sources.set(fontFamilyKey(font.family), {
+        family: font.family,
+        source: decodeFontBytes(font.base64, font.id).buffer as ArrayBuffer,
+      });
     for (const [family, nodeId] of required)
       if (!sources.has(family))
         fail(
@@ -186,8 +181,11 @@ export class NativeWebAssets implements TextureProvider {
         const source = sources.get(family)!;
         let face: FontFace;
         try {
-          face = new FontFace(family, source.source, source.descriptors);
+          const alias = `BoneByBoneFont${++publicationSequence}`;
+          face = new FontFace(alias, source.source, source.descriptors);
           await untilAbort(face.load(), options.signal);
+          published.fontAliases.set(family, alias);
+          published.fontNames.push(source.family);
         } catch (error) {
           if (options.signal?.aborted) throw error;
           fail(
@@ -231,6 +229,10 @@ export class NativeWebAssets implements TextureProvider {
       mesh.shader = null;
     }
   }
+  resolveFontFamilies(families: readonly string[]): string[] {
+    if (this.disposed) throw new Error('Native Web assets have been disposed.');
+    return families.map((family) => this.fontAliases.get(fontFamilyKey(family)) ?? family);
+  }
   inspect() {
     return {
       disposed: this.disposed,
@@ -239,7 +241,7 @@ export class NativeWebAssets implements TextureProvider {
         width: texture.width,
         height: texture.height,
       })),
-      fonts: this.fonts.map((font) => font.family),
+      fonts: [...this.fontNames],
       physicalImages: this.physical.size,
     };
   }
@@ -255,6 +257,8 @@ export class NativeWebAssets implements TextureProvider {
     this.physical.clear();
     this.images.length = 0;
     this.fonts.length = 0;
+    this.fontAliases.clear();
+    this.fontNames.length = 0;
     this.version++;
   }
 }

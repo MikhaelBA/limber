@@ -10,7 +10,7 @@ import {
   type AtlasWorkStats,
 } from '@limber/atlas';
 import { readRasterSize } from './imageHeader';
-import type { BoneByBoneProject } from '@limber/core';
+import type { BoneByBoneProject, EmbeddedFont } from '@limber/core';
 import {
   loadRuntime,
   RUNTIME_MAX_BYTES,
@@ -24,6 +24,10 @@ export interface AtlasSourceImage {
   bytes: ArrayBuffer;
   trim?: boolean;
 }
+export interface NativeFontFetchSource extends Omit<EmbeddedFont, 'base64' | 'license'> {
+  url: string;
+  license: Omit<EmbeddedFont['license'], 'text'> & { text?: string; textUrl?: string };
+}
 export interface AtlasWorkerInput {
   images: AtlasSourceImage[];
   layout?: AtlasLayoutOptions;
@@ -36,6 +40,8 @@ export interface AtlasWorkerInput {
   /** Optional authoring snapshot: compile packed native bytes in this same owned worker. */
   project?: BoneByBoneProject;
   runtimeOptions?: CompileRuntimeOptions;
+  /** Explicit host-bundled resources. Authored font bytes take precedence. */
+  fontSources?: readonly NativeFontFetchSource[];
 }
 export interface AtlasRegionMetadata {
   id: string;
@@ -72,6 +78,7 @@ export interface AtlasWorkerResult {
     bytes: ArrayBuffer;
     diagnostics: RuntimeDiagnostic[];
     durationMs: number;
+    fontDurationMs: number;
     projectId: string;
     defaultArtboardId: string;
   };
@@ -85,7 +92,7 @@ export type AtlasWorkerMessage =
       id: number;
       kind: 'progress';
       fraction: number;
-      stage: 'decode' | 'prepare' | 'pack' | 'compose' | 'encode' | 'compile';
+      stage: 'fonts' | 'decode' | 'prepare' | 'pack' | 'compose' | 'encode' | 'compile';
     }
   | { id: number; kind: 'result'; result: AtlasWorkerResult }
   | { id: number; kind: 'error'; code: string; objectId: string | null; message: string; remedy: string };
@@ -182,6 +189,8 @@ export function validAtlasWorkerResult(value: unknown): value is AtlasWorkerResu
         r.runtime.bytes.byteLength > RUNTIME_MAX_BYTES ||
         !Number.isFinite(r.runtime.durationMs) ||
         r.runtime.durationMs < 0 ||
+        !Number.isFinite(r.runtime.fontDurationMs) ||
+        r.runtime.fontDurationMs < 0 ||
         !Array.isArray(r.runtime.diagnostics)
       )
         return false;

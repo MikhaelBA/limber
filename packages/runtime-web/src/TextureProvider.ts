@@ -7,4 +7,6 @@ export interface TextureProvider {
   get(id: string): Texture | undefined;
   /** Optional atlas sampler adaptation. Ordinary full-domain meshes retain batching. */
   configureMesh?(mesh: Mesh<MeshGeometry>): void;
+  /** Resolve publication-local font aliases without changing authored family order. */
+  resolveFontFamilies?(families: readonly string[]): string[];
 }

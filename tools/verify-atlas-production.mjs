@@ -77,8 +77,37 @@ export async function verifyAtlasProduction(browser) {
       };
     });
     assert.deepEqual(result, { regions: 1, pixel: [255, 0, 0, 255], pages: 1 });
+    await page.evaluate(async () => {
+      window.fontProject = window.createNativeFontProject();
+      window.fontResult = await window.compileNativeProject(window.fontProject);
+    });
+    await page.route('**/fonts/**', (route) => route.abort());
+    const fonts = await page.evaluate(async () => {
+      const { loadRuntime, NativeRuntimeAsset } = window.nativeRuntime;
+      const program = loadRuntime(new Uint8Array(window.fontResult.runtime.bytes));
+      const before = document.fonts.size;
+      const assets = await window.NativeWebAssets.load(new NativeRuntimeAsset(program));
+      const node = window.fontProject.artboards[0].nodes[0];
+      const rendered = window.rasterizeUIText(
+        node,
+        node,
+        'expected',
+        assets.resolveFontFamilies(node.fontFamilies),
+      );
+      const pixels = rendered.canvas.getContext('2d').getImageData(0, 0, node.width, node.height).data;
+      const visible = pixels.reduce((n, value, i) => n + Number(i % 4 === 3 && value > 0), 0);
+      assets.dispose();
+      return {
+        count: program.fonts.length,
+        notice: program.fonts[0].license.text.includes('SIL OPEN FONT LICENSE'),
+        visible,
+        restored: document.fonts.size === before,
+      };
+    });
+    assert.equal(fonts.count, 1);
+    assert(fonts.notice && fonts.visible > 100 && fonts.restored);
     assert.deepEqual(errors, []);
-    return result;
+    return { ...result, fonts };
   } finally {
     await page.close();
     await new Promise((resolve) => server.close(resolve));

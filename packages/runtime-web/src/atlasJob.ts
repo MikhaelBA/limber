@@ -67,7 +67,7 @@ export function buildAtlasInWorker(
             !Number.isFinite(data.fraction) ||
             data.fraction < fraction ||
             data.fraction > 1 ||
-            !['decode', 'prepare', 'pack', 'compose', 'encode', 'compile'].includes(data.stage)
+            !['fonts', 'decode', 'prepare', 'pack', 'compose', 'encode', 'compile'].includes(data.stage)
           )
             throw new Error('Invalid atlas progress.');
           fraction = data.fraction;

@@ -119,7 +119,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Packed native atlas manifest, shared-page loading and export/load/render source pixel acceptance.
 - [ ] Packaged font staging, fallback and license metadata.
   - [x] Portable source/runtime OpenType bytes, strict bounds/cmap, license metadata and fallback diagnostics.
-  - [ ] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
+  - [x] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
+  - [ ] Authoring font import, project preview/history and SVG text-font matching acceptance.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.

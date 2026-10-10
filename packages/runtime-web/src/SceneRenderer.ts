@@ -159,7 +159,7 @@ function sceneDisplay(
           .fill(node.color),
       );
     } else if (node.type === 'text') {
-      const rendered = rasterizeUIText(node, entry.box, localization);
+      const rendered = rasterizeUIText(node, entry.box, localization, textures.resolveFontFamilies?.(node.fontFamilies));
       if (rendered.overflow) overflow.push(node.name);
       const texture = Texture.from(rendered.canvas, true),
         sprite = new Sprite(texture);
@@ -300,7 +300,7 @@ export class PixiSceneRenderer implements SceneRenderer {
         const cached = this.texts.get(entry.node.id),
           signature = textSignature(entry.node, entry.box, this.localization);
         if (cached && cached.signature !== signature) {
-          const rendered = rasterizeUIText(entry.node, entry.box, this.localization),
+          const rendered = rasterizeUIText(entry.node, entry.box, this.localization, this.textures.resolveFontFamilies?.(entry.node.fontFamilies)),
             texture = Texture.from(rendered.canvas, true);
           ownedTextures.get(cached.sprite)?.destroy(true);
           cached.sprite.texture = texture;

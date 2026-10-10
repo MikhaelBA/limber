@@ -1300,3 +1300,43 @@ the compiler still accepts only the current schema. Remote CI follows publicatio
 Worker font decode, isolated
 Web publication, bundled/editor font export and actual RTL/fallback pixels remain open.
 Phase 9 remains in progress. Sol 6.1 / High is suitable; no user decision is required.
+
+Commit `edc0a44` passed CI 38054823153: all 33 browser suites, Test & Build, Docker,
+VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9D4b real worker fonts and isolated Web publication
+
+Owned native jobs now fetch explicitly supplied bundled font/license resources with
+bounded streams, inspect source bytes and perform actual `FontFace.load()` in the
+worker before compiling. Authored embedded bytes take precedence; only referenced
+families are fetched/decoded. Font preparation contributes measured export time and
+an initial monotonic `fonts` progress stage. Terminating the worker cancels font I/O
+and decode too. The editor host supplies local unmodified Noto Sans Arabic and its
+complete OFL notice automatically when that family is referenced.
+
+The Web loader uses packaged bytes before optional external host sources. Every staged
+face receives a publication-local alias; authored fallback order and resource names
+remain unchanged. Two assets with the same family and different bytes cannot alter
+each other's selection or disposal. Renderer font resolution is injected through the
+resource provider. Generic CSS families use proper generic syntax; named families
+remain quoted. Faces enter `document.fonts` only after every image/font succeeds.
+
+The new browser gate downloads actual `.bbb`, blocks subsequent font-network requests
+and compares native RTL/mixed-script pixels exactly against an independently loaded
+original font. It proves byte-for-byte Noto and full license retention, actual worker
+decode, same-family/different-em-size isolation and surviving peer disposal. Invalid
+glyph outlines pass structural preflight but fail both worker and host body decode;
+a damaged second font never publishes the staged first font. Active font-stage abort
+and missing bundled-font fetch also leave document resources unchanged.
+
+Authored two-font fallback order is also verified with different actual glyph scales;
+reversing the order selects the matching independent raster. All 655 tests in 84 files,
+lint/boundaries, formatting, semantic TypeScript and both builds passed. Packed native,
+independent native Web, atlas worker and source UI/RTL browser suites passed locally.
+The production fixture emits real worker/WASM/font paths, compiles packaged `.bbb`
+and renders visible RTL after font networking is blocked, retaining OFL and restoring
+document resources. The new font suite raises complete browser acceptance to 34;
+remote CI follows publication. Authoring font import,
+project preview/history and stricter SVG text-font matching remain required before
+closing the complete font stage. Ship Doctor/profiler/workspace and final Phase 9
+acceptance remain open. Sol 6.1 / High is suitable; no user decision is required.

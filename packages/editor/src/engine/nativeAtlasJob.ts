@@ -32,6 +32,15 @@ export function compileNativeProject(
   return compileNativeInWorker(source, {
     ...options,
     wasmUrl,
+    fontSources: options.fontSources ?? [{
+      id: 'bundled-noto-sans-arabic', family: 'Noto Sans Arabic', format: 'ttf',
+      url: new URL(`${import.meta.env.BASE_URL}fonts/NotoSansArabic.ttf`, location.href).href,
+      license: {
+        name: 'SIL Open Font License 1.1', redistribution: 'allowed',
+        sourceUrl: 'https://github.com/google/fonts/tree/main/ofl/notosansarabic',
+        textUrl: new URL(`${import.meta.env.BASE_URL}fonts/OFL-NotoSansArabic.txt`, location.href).href,
+      },
+    }],
     createWorker: () =>
       new Worker(new URL('../../../runtime-web/src/assetWorker.ts', import.meta.url), { type: 'module' }),
   });
