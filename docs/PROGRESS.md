@@ -986,6 +986,42 @@ Text reports explicit external-font warnings until the asset stage packages thos
 All 558 tests in 76 files passed locally with lint/architecture boundaries, formatting,
 TypeScript and package/editor builds. Phase 9 remains in progress: the native artboard
 player, shared Web renderer, atlas/image/font workers, Ship Doctor/profiler and actual
-export/load/play acceptance gate are outstanding. Remote CI is pending for this increment.
+export/load/play acceptance gate are outstanding. Commit `1237325` passed CI 38037236932:
+Test & Build (including all thirty browser suites), Docker, VPS and GitHub Pages succeeded.
 The next portable playback task is suitable for Sol 6.1 / High; no model change or material
 user decision is required.
+
+## 10 October 2026 Phase 9B1 native character playback
+
+`NativeRigPlayer` validates the compiled program before creating detached character
+state, starts paused and supports authored Logic or explicit raw clips. Its raw path
+uses 120 Hz integer accepted ticks, held pre-constraint crossfades, shortest-arc rotation,
+continuous RGBA/Deform and immediate destination attachment/draw order. Interrupted
+fades hold the actual blended pose. Independent scalar and half-follow goldens prove
+that outgoing setup attenuation and a second constraint application do not occur.
+
+The bounded FIFO preserves terminal/entry events and full post-completion delay. A
+queued loop holds its endpoint without emitting a discarded next-cycle zero; ordinary
+loops preserve end-before-zero ordering. Zero-duration static clips emit entry once.
+Play/queue options validate before mutation, repeated resume preserves fractions and
+paused Step preserves spring inertia. Native loop event work and safe duration/Bezier
+limits are checked before starting or publishing potentially unsafe data.
+
+Skin/attachment overrides, raw/Logic switching, Stop/reset, typed setters/triggers and
+viewport routing remain transient. Marker/socket matrices compose an optional rig world
+transform. Callback copies are isolated, stale/reentrant delivery is blocked, and a
+throwing host callback leaves its accepted pose skinned and the session usable. Review
+also caught and fixed stale Stop state after starting a previously empty queue.
+
+Twenty-two new tests cover numeric fade/interruption/constraint/color/Deform goldens,
+FIFO and loop timing, typed event canonicalization, lifecycle/fraction/source isolation,
+all parameter types, callback failures and exact native/source Logic parity. Standard/
+Heavy compiled characters retain every solver stage and match continuous/paused-Step
+matrices and vertices plus the unblended source player. The complete local check passed
+all 580 tests in 77 files, lint/boundaries, formatting, TypeScript and package/editor
+builds. Remote CI remains pending for this increment.
+
+The next task is native artboard orchestration and expanded UI with a shared raw track
+clock; Web rendering/asset workers and Ship Doctor remain separate gates. Phase 9 is
+still in progress. Sol 6.1 / High remains suitable; no model switch or user decision is
+required for the next task.

@@ -5,3 +5,5 @@ export * from './native/model';
 export * from './native/compiler';
 export * from './native/format';
 export { validateRuntimeProgram } from './native/validate';
+export * from './native/NativeRigPlayer';
+export type { NativeAnimationOptions, NativeQueuedAnimationOptions } from './native/rawRigPlayback';

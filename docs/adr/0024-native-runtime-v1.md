@@ -1,8 +1,9 @@
 # ADR 0024: Independent native runtime v1
 
 Status: Phase 9A defines the portable compiler and strict loader after the Phase 8
-acceptance gate. Web playback/rendering, image/font workers, atlas packing, Ship Doctor
-and the final exported-playback gate remain required. Sol 6.1 / High is suitable.
+acceptance gate. Phase 9B1 adds native character playback with raw fade/FIFO and authored
+Logic. Artboard orchestration, Web rendering, image/font workers, atlas packing, Ship
+Doctor and the final exported-playback gate remain required. Sol 6.1 / High is suitable.
 
 ## File and ownership contract
 
@@ -46,6 +47,13 @@ Additional runtime checks cover raw rig timeline references, unique clip/track t
 time ordering/duration, draw-order permutations, unsigned RGBA, clipping end references
 and finite pose precision. A failure has `code`, `severity`, `objectId`, `explanation`
 and `remedy`; no partially validated program is returned. The input remains unchanged.
+
+Phase 9B1 additionally bounds durations to safe fixed-step tick counts, checks raw
+event-loop safety and conservative bone Bezier overshoot against finite pose precision.
+Declared raw loops and graph state loops support at most 4096 emitted keys per accepted
+tick, including loop seams/entry zero. An explicit host loop override receives the same
+preflight before changing playback. The character lifecycle/mixing contract is documented
+in packages/runtime/README.md and verified by independent scalar/constraint goldens.
 
 ## Asset staging and limitations
 

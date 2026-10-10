@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Lightweight animation player for exported Limber documents, built on @limber/core.",
+  "description": "Portable BoneByBone native compiler, strict loader and animation/Logic playback.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

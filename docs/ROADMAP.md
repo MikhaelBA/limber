@@ -110,7 +110,8 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Independent runtime v1 schema/compiler and strict ingestion contract (ADR 0024).
 - [x] Debug JSON and compact UTF-8 `.bbb`, detached source and actionable diagnostics.
 - [x] Corpus source/pose/vertex parity and explicit unsupported asset findings.
-- [ ] Native artboard/character playback API with raw mixing/queue and Logic lifecycle parity.
+- [x] Native character API with correct raw mixing/FIFO queue, typed Logic and skin/socket lifecycle.
+- [ ] Native artboard orchestration, scene raw playback and expanded UI/character parity.
 - [ ] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
 - [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.

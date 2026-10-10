@@ -1,4 +1,10 @@
-import { validateProject, type Curve, type RigNode } from '@limber/core';
+import {
+  validateProject,
+  LogicEventSampler,
+  SECONDARY_STEP_SECONDS,
+  type Curve,
+  type RigNode,
+} from '@limber/core';
 import { materializeRuntimeProject } from './adapt';
 import { deriveRuntimeFeatures, referencedRuntimeTextures } from './features';
 import {
@@ -9,6 +15,8 @@ import {
   type RuntimeTexture,
 } from './model';
 import { projectRuntimeShape } from './shape';
+import { nativeDurationTicks } from './timing';
+import { validateNativeEventWork } from './eventWork';
 
 /** Checks canonical encoding and image signatures. Pixel decoding is a renderer/worker responsibility. */
 export function validateRuntimeTexture(texture: RuntimeTexture): void {
@@ -84,6 +92,18 @@ function validateRuntimeRig(rig: RigNode): void {
       fail('DUPLICATE_CLIP_NAME', 'Rig clip names must be nonempty and unique.');
     names.add(animation.name);
     if (animation.duration < 0) fail('INVALID_CLIP', 'Rig clip duration must be nonnegative.');
+    nativeDurationTicks(animation.duration, 'Rig clip duration');
+    const events = new LogicEventSampler(
+      Math.max(animation.duration, SECONDARY_STEP_SECONDS),
+      animation.timelines.flatMap((t) => (t.kind === 'event' ? t.keyframes : [])),
+    );
+    events.validateLoop(animation.loop && animation.duration > 0);
+    validateNativeEventWork(
+      animation.duration,
+      animation.timelines.reduce((count, t) => count + (t.kind === 'event' ? t.keyframes.length : 0), 0),
+      animation.loop || !!rig.logic?.states.some((state) => state.clip === animation.name && state.loop),
+      rig.id,
+    );
     const targets = new Set<string>();
     for (const timeline of animation.timelines) {
       const target = JSON.stringify([
@@ -134,6 +154,18 @@ function validateRuntimeRig(rig: RigNode): void {
         )
           fail('INVALID_DRAW_ORDER', 'Draw order must be a full permutation of rig slots.');
       }
+      if (timeline.kind === 'boneProperty')
+        for (let i = 0; i + 1 < timeline.keyframes.length; i++) {
+          const from = timeline.keyframes[i]!,
+            to = timeline.keyframes[i + 1]!;
+          if (
+            from.curve.type === 'bezier' &&
+            [from.curve.c2 ?? 1 / 3, from.curve.c4 ?? 1].some(
+              (mix) => !Number.isFinite(Math.fround(from.value + (to.value - from.value) * mix)),
+            )
+          )
+            fail('INVALID_NUMBER', 'Bone Bezier overshoot exceeds finite pose precision.');
+        }
     }
   }
 }
@@ -199,6 +231,16 @@ export function validateRuntimeProgram(input: unknown): RuntimeProgram {
     runtimeFail('BROKEN_REFERENCE', 'Default runtime artboard does not exist.', program.defaultArtboardId);
   const { project, ephemeralOwners } = materializeRuntimeProject(program);
   try {
+    for (const board of project.artboards)
+      for (const clip of board.clips ?? []) {
+        nativeDurationTicks(clip.duration, 'Scene clip duration');
+        validateNativeEventWork(
+          clip.duration,
+          clip.events.length,
+          clip.loop || !!board.logic?.states.some((state) => state.clip === clip.id && state.loop),
+          clip.id,
+        );
+      }
     for (const container of [...project.artboards, ...(project.components ?? [])])
       for (const node of container.nodes) if (node.type === 'rig') validateRuntimeRig(node);
     validateProject(project);
