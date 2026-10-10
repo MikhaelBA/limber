@@ -18,7 +18,7 @@ export * from './skeleton/PathSolver';
 export * from './skeleton/SecondaryMotion';
 export * from './math/affine';
 export * from './math/dampedSpring';
-export { exportSpineJson } from './serialization/spineExport';
+export { exportSpineJson, assertSpineProjectSupported } from './serialization/spineExport';
 export { packAtlas, buildAtlasText, uniqueTexturePaths } from './serialization/atlasPack';
 export type {
   AtlasImageInput,

@@ -3,6 +3,7 @@ import {
   deserializeProject,
   exportSpineJson,
   serializeProject,
+  assertSpineProjectSupported,
   type BoneByBoneProject,
   type TextureMeta,
 } from '@limber/core';
@@ -50,7 +51,9 @@ export function TopMenuBar() {
           setHasAutosave(true);
           useEditorStore
             .getState()
-            .setStatus(`Autosave from ${new Date(rec.savedAt).toLocaleTimeString()} found — File → Restore autosave`);
+            .setStatus(
+              `Autosave from ${new Date(rec.savedAt).toLocaleTimeString()} found — File → Restore autosave`,
+            );
         }
       })
       .catch((error: Error) => useEditorStore.getState().setStatus(error.message));
@@ -72,9 +75,17 @@ export function TopMenuBar() {
     if (!file) return;
     const st = useEditorStore.getState();
     try {
-      const doc = deserializeProject(await file.text(), file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''));
+      const doc = deserializeProject(
+        await file.text(),
+        file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''),
+      );
       engine.loadProject(doc);
-      st.setWorkspace(doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 && doc.editor.activeRigId ? 'rig' : 'scene');
+      st.setWorkspace(
+        doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 &&
+          doc.editor.activeRigId
+          ? 'rig'
+          : 'scene',
+      );
       cancelScheduledAutosave();
       textureRegistry.clear();
       // Self-contained files carry their pixels: re-register every embedded
@@ -124,10 +135,13 @@ export function TopMenuBar() {
   const onExportSpine = () => {
     const st = useEditorStore.getState();
     try {
+      assertSpineProjectSupported(engine.project);
       const warnings: string[] = [];
       const json = exportSpineJson(engine.document, undefined, warnings);
       download(new Blob([json], { type: 'application/json' }), 'skeleton.json');
-      st.setStatus(warnings.join(' ') || 'Spine skeleton JSON exported (4.2 format — pair with your texture atlas)');
+      st.setStatus(
+        warnings.join(' ') || 'Spine skeleton JSON exported (4.2 format — pair with your texture atlas)',
+      );
     } catch (err) {
       st.setStatus(`Spine export failed: ${(err as Error).message}`);
     }
@@ -137,6 +151,7 @@ export function TopMenuBar() {
   const onExportBundle = async () => {
     const st = useEditorStore.getState();
     try {
+      assertSpineProjectSupported(engine.project);
       const bundle = await buildSpineBundle(engine.document);
       download(new Blob([bundle.json], { type: 'application/json' }), 'skeleton.json');
       if (bundle.png) {
@@ -163,7 +178,12 @@ export function TopMenuBar() {
     try {
       const doc = deserializeProject(rec.json);
       engine.loadProject(doc);
-      st.setWorkspace(doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 && doc.editor.activeRigId ? 'rig' : 'scene');
+      st.setWorkspace(
+        doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 &&
+          doc.editor.activeRigId
+          ? 'rig'
+          : 'scene',
+      );
       cancelScheduledAutosave();
       textureRegistry.clear();
       // Re-register every texture under its ORIGINAL id so attachments resolve.
@@ -185,7 +205,9 @@ export function TopMenuBar() {
         }
       }
       st.documentReplaced();
-      st.setStatus(`Autosave restored${rec.recoveredFromPrevious ? ' from previous complete snapshot' : ''} — ${rec.textures.length + fromEmbed} texture(s) included`);
+      st.setStatus(
+        `Autosave restored${rec.recoveredFromPrevious ? ' from previous complete snapshot' : ''} — ${rec.textures.length + fromEmbed} texture(s) included`,
+      );
     } catch (err) {
       st.setStatus(`Autosave restore failed: ${(err as Error).message}`);
     }
@@ -197,7 +219,10 @@ export function TopMenuBar() {
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onNew}>
         New
       </button>
-      <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={() => fileInputRef.current?.click()}>
+      <button
+        className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800"
+        onClick={() => fileInputRef.current?.click()}
+      >
         Open…
       </button>
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onSave}>

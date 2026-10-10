@@ -60,3 +60,11 @@ same weighted/deform/clipping work. Numeric tests require exact matrix/vertex ag
 between 10Hz and 60Hz display subdivision. `constraint-performance.mjs` profiles 180
 steady-state frames and source preservation; evidence and limits are in
 docs/performance/phase7-constraints.md. CI uploads raw measurements and screenshots.
+
+`bbbproj-v10-logic.json` is the actual editor-saved native graph fixture. Its artboard
+graph references a scene Reveal clip; its rig graph independently references the
+original character clip. Typed trigger/bool/string parameters and an Any State
+transition round trip exactly. Core tests resolve both clip catalogs independently;
+browser coverage verifies Save/Open, malformed-entry/type/clip rejection and explicit
+Spine export failure. Pose/interaction/graph UI integration remains a later Phase 8
+increment. `logicSourceFixture` in tools/logic-fixtures.mjs reproduces this source.

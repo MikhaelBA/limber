@@ -693,10 +693,45 @@ and package/editor builds passed; the final kernel/test changes passed lint, all
 tests and package rebuild again. Editor output remains identical because this kernel
 has no preview adapter yet. The unchanged workflows passed all twenty-two browser
 suites in the preceding source milestone and docs CI 38008956634 also passed all jobs.
-Remote CI for this kernel follows push.
+Commit `d685867` passed CI 38009569773: Test & Build (including all twenty-two browser
+suites), Docker, VPS and GitHub Pages succeeded.
 
 This is a partial Phase 8 increment: source remains schema 9 and existing player/editor
 behavior is unchanged. Native ownership/commands, actual scene/rig pose blending,
 typed events, bindings, graph editing and interaction/debug preview remain required.
 The project goal remains active through Phase 12. Sol 6.1 / High remains suitable
 for the next source/authoring increment; no unresolved user decision blocks progress.
+
+## 10 October 2026 Phase 8B native graphs and atomic authoring
+
+Source schema 10 adds optional artboard/rig Logic graphs with independent clip
+catalogs and owner-scoped identities/references. Graph-only copy-on-write commands
+create/remove graphs and edit typed parameters, states, transitions and settings.
+They validate before publishing and preserve existing rig/clip payload identities.
+Parameter deletion removes dependent edges completely; state deletion removes
+incident edges and repairs entry to the first remaining state. Stable identities
+cannot be replaced by patch fields, and the last state cannot be removed.
+
+Rig animation rename rewrites state clip references in the same atomic edit;
+duplicate clip names/nonfinite durations fail before mutation. Deleting a referenced
+scene/rig clip is rejected until unlinked. Unsupported node/component owners and
+malformed graphs fail load before replacement. Spine project export explicitly
+rejects active-owner graphs instead of discarding behavior through its rig adapter.
+
+The actual editor-saved schema-10 fixture contains scene Reveal and character graphs,
+typed trigger/bool/string parameters and Any State. Browser Save/Open, typed/clip/entry
+rejection and both compatibility-export paths passed. Eight new native/command tests
+cover exact history, invalid-edit redo retention, graph removal/raw asset preservation,
+owner-scoped duplicate rigs, clip rename/delete safeguards and failed import isolation.
+All 472 unit tests in 65 files, lint/boundaries, formatting, TypeScript and package/editor
+builds passed. The fresh complete twenty-three-suite browser regression passed with
+unchanged scene/RTL raster tolerances. Standard/Heavy combined CPU p95 was 1.80/5.30ms,
+with 10000/40004 weighted transforms and exact source preservation. Mesh worker Heavy
+publication was 36.5ms. Software-graphics cadence remains separate from hardware GPU
+60fps claims. Remote CI follows this source commit/push.
+
+Phase 8 remains partial: Logic pose playback, blend/typed events, bindings, graph UI,
+pointer/focus/test interaction and debug preview are outstanding. Native graph storage
+does not execute behavior in the legacy player/editor pipeline. Next is the portable
+scene/rig pose adapter increment; Sol 6.1 / High remains suitable. No user decision
+currently blocks progress toward Phases 8–12.

@@ -4,9 +4,10 @@ import type { AssetManifest, EditorDocument } from '../types/document';
 import { uuid } from '../utils/uuid';
 import type { SceneClip } from './motion';
 import type { UILayout, UIComponent, UIOverrideValue, UIInsets } from './ui';
+import type { LogicGraph } from '../logic/model';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 9;
+export const PROJECT_SCHEMA_VERSION = 10;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */
@@ -39,6 +40,7 @@ export interface RigNode extends SceneNodeBase {
   type: 'rig';
   skeleton: SkeletonData;
   animations: Animation[];
+  logic?: LogicGraph;
 }
 export interface NineSliceNode extends Omit<ImageNode, 'type'> {
   type: 'nineSlice';
@@ -82,6 +84,7 @@ export type SceneNode =
   GroupNode | ImageNode | RigNode | NineSliceNode | TextNode | MaskNode | ShapeNode | ComponentInstanceNode;
 
 export interface Artboard {
+  logic?: LogicGraph;
   safeArea?: UIInsets;
   /** Schema 2: absent is an empty clip library, preserving schema-1 field shapes on migration. */
   clips?: SceneClip[];
@@ -146,11 +149,14 @@ export function projectFromLegacy(doc: EditorDocument, name = 'Untitled'): BoneB
 }
 
 /** The legacy editor sees a reference-backed view, never a second copy of the rig. */
-export function activeRigDocument(project: BoneByBoneProject): EditorDocument | null {
+export function activeRigNode(project: BoneByBoneProject): RigNode | null {
   const artboard = project.artboards.find((a) => a.id === project.editor.activeArtboardId);
-  const rig = artboard?.nodes.find(
-    (n): n is RigNode => n.type === 'rig' && n.id === project.editor.activeRigId,
+  return (
+    artboard?.nodes.find((n): n is RigNode => n.type === 'rig' && n.id === project.editor.activeRigId) ?? null
   );
+}
+export function activeRigDocument(project: BoneByBoneProject): EditorDocument | null {
+  const rig = activeRigNode(project);
   return rig
     ? { skeleton: rig.skeleton, animations: rig.animations, assetManifest: project.assetManifest }
     : null;

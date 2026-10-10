@@ -5,6 +5,14 @@ import { createPose } from '../skeleton/pose';
 import { solveFK } from '../skeleton/FKSolver';
 import { Skeleton } from '../skeleton/Skeleton';
 import { validateDeformTimelines } from '../animation/validateDeforms';
+import { activeRigNode, type BoneByBoneProject } from '../project/model';
+
+/** Guard before converting a project to the legacy rig-only export view. */
+export function assertSpineProjectSupported(project: BoneByBoneProject): void {
+  const board = project.artboards.find((a) => a.id === project.editor.activeArtboardId);
+  if (board?.logic || activeRigNode(project)?.logic)
+    throw new Error('Native Logic graphs cannot be represented by Spine export; save the native project.');
+}
 
 /**
  * Spine-runtime JSON export (skeleton format 4.1).

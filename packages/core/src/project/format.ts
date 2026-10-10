@@ -4,6 +4,9 @@ import { deserializeDocument } from '../serialization/serialize';
 import { Skeleton } from '../skeleton/Skeleton';
 import { meshJSONReplacer } from '../skeleton/meshLinks';
 import { PROJECT_FORMAT, PROJECT_SCHEMA_VERSION, projectFromLegacy, type BoneByBoneProject } from './model';
+import { validateLogicGraph } from '../logic/validate';
+import type { Animation } from '../types/animation';
+import type { SceneClip } from './motion';
 
 export class ProjectFormatError extends Error {
   constructor(
@@ -174,6 +177,8 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
       )
         fail('INVALID_VISUAL', `Invalid tint for ${node.id}.`, node.id);
       validateUINode(node);
+      if (node.logic !== undefined && node.type !== 'rig')
+        fail('GRAPH_OWNER', 'Only artboards and rig nodes may own Logic graphs.', node.id);
       if (node.type === 'image' || node.type === 'nineSlice') {
         text(node.textureId, 'Image texture ID');
         if (!Object.hasOwn(manifest, node.textureId))
@@ -191,10 +196,27 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           }),
         );
         new Skeleton(doc.skeleton);
+        if (node.logic !== undefined) {
+          if (!artboards.includes(artboard))
+            fail('COMPONENT_LOGIC', 'Component-local graphs are not supported yet.', node.id);
+          const animations = node.animations as Animation[];
+          const names = new Set(animations.map((a) => a.name));
+          if (names.size !== animations.length)
+            fail('DUPLICATE_CLIP_NAME', 'Logic rigs require unique animation names.', node.id);
+          validateLogicGraph(node.logic, new Map(animations.map((a) => [a.name, { duration: a.duration }])));
+        }
       } else if (!['group', 'text', 'shape', 'mask', 'instance'].includes(String(node.type)))
         fail('UNKNOWN_NODE', `Unsupported scene node type ${String(node.type)}.`, node.id);
     }
     validateClips(artboard.clips, new Set(byId.keys()), ids);
+    if (artboard.logic !== undefined) {
+      if (!artboards.includes(item))
+        fail('COMPONENT_LOGIC', 'Component-local graphs are not supported yet.', artboard.id);
+      validateLogicGraph(
+        artboard.logic,
+        new Map(((artboard.clips ?? []) as SceneClip[]).map((c) => [c.id, { duration: c.duration }])),
+      );
+    }
     // Each ancestor path is visited once, including already-completed paths.
     const done = new Set<string>();
     for (const id of byId.keys()) {
@@ -250,7 +272,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
     project.schemaVersion === 5 ||
     project.schemaVersion === 6 ||
     project.schemaVersion === 7 ||
-    project.schemaVersion === 8
+    project.schemaVersion === 8 ||
+    project.schemaVersion === 9
   )
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);

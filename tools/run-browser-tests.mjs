@@ -45,6 +45,7 @@ try {
     'transform-follow.mjs',
     'path-follow.mjs',
     'secondary-motion.mjs',
+    'logic-source.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

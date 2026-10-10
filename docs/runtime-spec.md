@@ -199,3 +199,23 @@ Source ownership/serialization, scene/rig adapters, typed event strengthening,
 property binding and Logic UI/interaction are outstanding Phase 8 increments.
 Source remains schema 9, and the existing player/editor behavior is unchanged by
 these exports. A portable kernel does not close Interactive Alpha or provide a `.bbb`.
+
+## Native Logic source and commands (Phase 8B)
+
+Source schema 10 optionally stores one `logic` graph on an artboard or rig node.
+Artboard states resolve scene clip IDs; rig states resolve animation names in that
+rig's library. Both use the shared typed graph validator. References/identities are
+owner-scoped, as with rig bones; copying a rig preserves an independent graph.
+Unsupported node/component owners and ambiguous rig clip names reject before load.
+Historical source headers advance to 10 without adding graphs to old assets.
+
+Graph-only commands validate a proposed view before publishing it and preserve rig/
+clip payload identities. They edit parameters/states/transitions/settings, remove
+dependent edges on parameter/state deletion and forbid deleting the final state.
+Unknown patch fields cannot replace stable identities. Rig clip rename rewrites state
+references in the same atomic edit; referenced scene/rig clip deletion fails until
+unlinked. Native Save/Open and invalid import isolation retain graph source exactly.
+The optional Spine project adapter rejects active-owner native graphs explicitly.
+
+This source increment does not execute graphs in the legacy editor/player pipeline.
+Logic playback, pose blending, bindings, interactions and graph UI remain Phase 8 work.

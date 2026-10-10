@@ -11,7 +11,7 @@ import type {
   NumberKeyframe,
   SlotColorTimeline,
 } from '@limber/core';
-import { defaultCurve, validateDeformTimelines } from '@limber/core';
+import { defaultCurve, validateDeformTimelines, activeRigNode, validateProject } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 
@@ -81,12 +81,13 @@ function restore(anim: Animation, boneId: string, property: BonePropertyName, sn
   const tl = findTimeline(anim, boneId, property);
   if (snap.existed) {
     if (tl) tl.keyframes = cloneKeyframes(snap.keyframes!);
-    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
-      kind: 'boneProperty',
-      boneId,
-      property,
-      keyframes: cloneKeyframes(snap.keyframes!),
-    });
+    else
+      anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
+        kind: 'boneProperty',
+        boneId,
+        property,
+        keyframes: cloneKeyframes(snap.keyframes!),
+      });
   } else if (tl) {
     anim.timelines.splice(anim.timelines.indexOf(tl), 1);
   }
@@ -116,7 +117,10 @@ export class AddAnimationCommand implements Command {
   private named = false;
   private _label = 'Add Animation';
 
-  constructor(private engine: EditorEngine, base = 'animation') {
+  constructor(
+    private engine: EditorEngine,
+    base = 'animation',
+  ) {
     this.name = base;
   }
 
@@ -142,7 +146,10 @@ export class AddAnimationCommand implements Command {
 
   undo(): void {
     const anims = this.engine.document.animations;
-    anims.splice(anims.findIndex((a) => a.name === this.name), 1);
+    anims.splice(
+      anims.findIndex((a) => a.name === this.name),
+      1,
+    );
     if (this.engine.activeAnimationName === this.name) this.engine.setAnimation(null);
   }
 }
@@ -162,13 +169,19 @@ export class RemoveAnimationCommand implements Command {
 
   do(): void {
     if (this.index < 0) return;
+    if (activeRigNode(this.engine.project)?.logic?.states.some((s) => s.clip === this.name))
+      throw new Error('This animation is used by a Logic state; unlink its state clip before deleting it.');
     this.removed = this.engine.document.animations.splice(this.index, 1)[0] ?? null;
     if (this.engine.activeAnimationName === this.name) this.engine.setAnimation(null);
   }
 
   undo(): void {
     if (!this.removed) return;
-    this.engine.document.animations.splice(Math.min(this.index, this.engine.document.animations.length), 0, this.removed);
+    this.engine.document.animations.splice(
+      Math.min(this.index, this.engine.document.animations.length),
+      0,
+      this.removed,
+    );
   }
 }
 
@@ -205,14 +218,34 @@ export class SetAnimationMetaCommand implements Command {
   private anim: Animation;
 
   private applyTo(meta: Required<Pick<Animation, 'name' | 'loop' | 'duration'>>): void {
+    const rig = activeRigNode(this.engine.project);
+    let logic = rig?.logic;
+    if (rig && logic) {
+      const currentName = this.anim.name;
+      logic = {
+        ...logic,
+        states: logic.states.map((s) => (s.clip === currentName ? { ...s, clip: meta.name } : s)),
+      };
+      const animations = rig.animations.map((a) => (a === this.anim ? { ...a, ...meta } : a));
+      validateProject({
+        ...this.engine.project,
+        artboards: this.engine.project.artboards.map((a) => ({
+          ...a,
+          nodes: a.nodes.map((n) => (n === rig ? { ...rig, animations, logic } : n)),
+        })),
+      });
+    }
     // Check activity BEFORE renaming, against BOTH names — afterwards the old
     // name no longer resolves (undo restores it while the engine points at
     // the new one, and vice versa).
     const wasActive =
-      engineIsActive(this.engine, this.name) || engineIsActive(this.engine, meta.name) || this.engine.currentAnimation === this.anim;
+      engineIsActive(this.engine, this.name) ||
+      engineIsActive(this.engine, meta.name) ||
+      this.engine.currentAnimation === this.anim;
     this.anim.name = meta.name;
     this.anim.loop = meta.loop;
     this.anim.duration = meta.duration;
+    if (rig && logic) rig.logic = logic;
     if (wasActive) {
       // animState holds the same Animation object — only the engine's name
       // pointer needs updating, no clock reset.
@@ -463,7 +496,9 @@ const PROPERTIES: BonePropertyName[] = ['x', 'y', 'rotation', 'scaleX', 'scaleY'
 // ------------------- slot color & draw order keyframes -------------------
 
 function findSlotColorTimeline(anim: Animation, slotId: string): SlotColorTimeline | undefined {
-  return anim.timelines.find((tl): tl is SlotColorTimeline => tl.kind === 'slotColor' && tl.slotId === slotId);
+  return anim.timelines.find(
+    (tl): tl is SlotColorTimeline => tl.kind === 'slotColor' && tl.slotId === slotId,
+  );
 }
 
 function findDrawOrderTimeline(anim: Animation): DrawOrderTimeline | undefined {
@@ -485,7 +520,11 @@ interface DrawOrderSnapshot {
 function snapshotSlotColor(anim: Animation, slotId: string): SlotColorSnapshot {
   const tl = findSlotColorTimeline(anim, slotId);
   return tl
-    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })) }
+    ? {
+        existed: true,
+        timelineIndex: anim.timelines.indexOf(tl),
+        keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })),
+      }
     : { existed: false, timelineIndex: -1, keyframes: null };
 }
 
@@ -505,7 +544,12 @@ function restoreSlotColor(anim: Animation, slotId: string, snap: SlotColorSnapsh
   if (snap.existed) {
     const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve } }));
     if (tl) tl.keyframes = kfs;
-    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'slotColor', slotId, keyframes: kfs });
+    else
+      anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
+        kind: 'slotColor',
+        slotId,
+        keyframes: kfs,
+      });
   } else if (tl) {
     anim.timelines.splice(anim.timelines.indexOf(tl), 1);
   }
@@ -516,7 +560,11 @@ function restoreDrawOrder(anim: Animation, snap: DrawOrderSnapshot): void {
   if (snap.existed) {
     const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve }, slotOrder: [...k.slotOrder] }));
     if (tl) tl.keyframes = kfs;
-    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'drawOrder', keyframes: kfs });
+    else
+      anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
+        kind: 'drawOrder',
+        keyframes: kfs,
+      });
   } else if (tl) {
     anim.timelines.splice(anim.timelines.indexOf(tl), 1);
   }
@@ -558,7 +606,8 @@ export class KeySlotColorCommand implements Command {
     const anim = requireAnimation(engine);
     this.before = snapshotSlotColor(anim, slotId);
     const slotIndex = engine.skeleton.slotIndexMap.get(slotId);
-    this.value = color ?? (slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff);
+    this.value =
+      color ?? (slotIndex !== undefined ? engine.skeleton.pose.slots[slotIndex]!.color : 0xffffffff);
     this.label = 'Key Slot Color';
   }
 
@@ -608,7 +657,10 @@ export class KeyDrawOrderCommand implements Command {
   private readonly before: DrawOrderSnapshot;
   private readonly slotOrder: number[];
 
-  constructor(private engine: EditorEngine, explicitOrder?: number[]) {
+  constructor(
+    private engine: EditorEngine,
+    explicitOrder?: number[],
+  ) {
     const anim = requireAnimation(engine);
     this.before = snapshotDrawOrder(anim);
     this.slotOrder = [...(explicitOrder ?? engine.skeleton.pose.slotOrder)];
@@ -623,7 +675,11 @@ export class KeyDrawOrderCommand implements Command {
     }
     const kfs = tl.keyframes;
     const at = kfs.findIndex((kf) => Math.abs(kf.time - this.engine.currentTime) < 1e-6);
-    const kf: DrawOrderKeyframe = { time: this.engine.currentTime, slotOrder: [...this.slotOrder], curve: steppedCurve() };
+    const kf: DrawOrderKeyframe = {
+      time: this.engine.currentTime,
+      slotOrder: [...this.slotOrder],
+      curve: steppedCurve(),
+    };
     if (at >= 0) kfs[at] = kf;
     else {
       const insert = kfs.findIndex((k) => k.time > this.engine.currentTime);
@@ -664,7 +720,9 @@ export class DeleteDrawOrderKeyframeCommand implements Command {
 // ------------------- deform keyframes (Phase 5) -------------------
 
 function findDeformTimeline(anim: Animation, attachmentId: string): DeformTimeline | undefined {
-  return anim.timelines.find((tl): tl is DeformTimeline => tl.kind === 'deform' && tl.attachmentId === attachmentId);
+  return anim.timelines.find(
+    (tl): tl is DeformTimeline => tl.kind === 'deform' && tl.attachmentId === attachmentId,
+  );
 }
 
 export interface DeformSnapshot {
@@ -680,7 +738,11 @@ function cloneDeformKeyframes(kfs: DeformKeyframe[]): DeformKeyframe[] {
 function snapshotDeform(anim: Animation, attachmentId: string): DeformSnapshot {
   const tl = findDeformTimeline(anim, attachmentId);
   return tl
-    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: cloneDeformKeyframes(tl.keyframes) }
+    ? {
+        existed: true,
+        timelineIndex: anim.timelines.indexOf(tl),
+        keyframes: cloneDeformKeyframes(tl.keyframes),
+      }
     : { existed: false, timelineIndex: -1, keyframes: null };
 }
 
@@ -689,7 +751,12 @@ function restoreDeform(anim: Animation, attachmentId: string, snap: DeformSnapsh
   if (snap.existed) {
     const kfs = cloneDeformKeyframes(snap.keyframes!);
     if (tl) tl.keyframes = kfs;
-    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'deform', attachmentId, keyframes: kfs });
+    else
+      anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
+        kind: 'deform',
+        attachmentId,
+        keyframes: kfs,
+      });
   } else if (tl) {
     anim.timelines.splice(anim.timelines.indexOf(tl), 1);
   }
@@ -702,8 +769,15 @@ export function upsertDeformKeyframe(
   time: number,
   offsets: number[] | null,
 ): void {
-  if (!Number.isFinite(time) || time < 0 || (offsets !== null &&
-      (!Array.isArray(offsets) || offsets.length < 6 || offsets.length % 2 !== 0 || offsets.some((value) => !Number.isFinite(value) || !Number.isFinite(Math.fround(value)))))) {
+  if (
+    !Number.isFinite(time) ||
+    time < 0 ||
+    (offsets !== null &&
+      (!Array.isArray(offsets) ||
+        offsets.length < 6 ||
+        offsets.length % 2 !== 0 ||
+        offsets.some((value) => !Number.isFinite(value) || !Number.isFinite(Math.fround(value)))))
+  ) {
     throw new Error('Invalid Deform key: use finite nonnegative time and finite coordinate pairs.');
   }
   let tl = findDeformTimeline(anim, attachmentId);
@@ -753,15 +827,26 @@ export class AutoKeyDeformCommand implements Command {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
     if (!a || a.type !== 'mesh' || !a.meshVertices || !this.base) return;
     const i = vertexIndex * 2;
-    if (!Number.isInteger(vertexIndex) || vertexIndex < 0 || i + 1 >= this.base.length ||
-        ![localX, localY].every((value) => Number.isFinite(value) && Number.isFinite(Math.fround(value)))) {
+    if (
+      !Number.isInteger(vertexIndex) ||
+      vertexIndex < 0 ||
+      i + 1 >= this.base.length ||
+      ![localX, localY].every((value) => Number.isFinite(value) && Number.isFinite(Math.fround(value)))
+    ) {
       throw new Error('Invalid Deform vertex or position.');
     }
     const offsets = [...this.base];
     offsets[i] = localX - a.meshVertices[i]!;
     offsets[i + 1] = localY - a.meshVertices[i + 1]!;
     const anim = requireAnimation(this.engine);
-    const draft = { ...anim, timelines: structuredClone(anim.timelines.filter((timeline) => timeline.kind === 'deform' && timeline.attachmentId === this.attachmentId)) };
+    const draft = {
+      ...anim,
+      timelines: structuredClone(
+        anim.timelines.filter(
+          (timeline) => timeline.kind === 'deform' && timeline.attachmentId === this.attachmentId,
+        ),
+      ),
+    };
     upsertDeformKeyframe(draft, this.attachmentId, this.engine.currentTime, offsets);
     validateDeformTimelines(this.engine.skeleton.data, [draft]);
     upsertDeformKeyframe(anim, this.attachmentId, this.engine.currentTime, offsets);
@@ -828,7 +913,11 @@ interface EventSnapshot {
 function snapshotEvents(anim: Animation): EventSnapshot {
   const tl = findEventTimeline(anim);
   return tl
-    ? { existed: true, timelineIndex: anim.timelines.indexOf(tl), keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })) }
+    ? {
+        existed: true,
+        timelineIndex: anim.timelines.indexOf(tl),
+        keyframes: tl.keyframes.map((k) => ({ ...k, curve: { ...k.curve } })),
+      }
     : { existed: false, timelineIndex: -1, keyframes: null };
 }
 
@@ -837,7 +926,11 @@ function restoreEvents(anim: Animation, snap: EventSnapshot): void {
   if (snap.existed) {
     const kfs = snap.keyframes!.map((k) => ({ ...k, curve: { ...k.curve } }));
     if (tl) tl.keyframes = kfs;
-    else anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, { kind: 'event', keyframes: kfs });
+    else
+      anim.timelines.splice(Math.min(snap.timelineIndex, anim.timelines.length), 0, {
+        kind: 'event',
+        keyframes: kfs,
+      });
   } else if (tl) {
     anim.timelines.splice(anim.timelines.indexOf(tl), 1);
   }
@@ -870,7 +963,9 @@ export class KeyEventCommand implements Command {
       ...(this.payload !== undefined ? { payload: this.payload } : {}),
       curve: steppedCurve(),
     };
-    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - kf.time) < 1e-6 && k.eventName === this.eventName);
+    const at = tl.keyframes.findIndex(
+      (k) => Math.abs(k.time - kf.time) < 1e-6 && k.eventName === this.eventName,
+    );
     if (at >= 0) tl.keyframes[at] = kf;
     else {
       const insert = tl.keyframes.findIndex((k) => k.time > kf.time);
@@ -901,7 +996,9 @@ export class DeleteEventKeyframeCommand implements Command {
   do(): void {
     const tl = findEventTimeline(requireAnimation(this.engine));
     if (!tl) return;
-    const at = tl.keyframes.findIndex((k) => Math.abs(k.time - this.time) < 1e-6 && k.eventName === this.eventName);
+    const at = tl.keyframes.findIndex(
+      (k) => Math.abs(k.time - this.time) < 1e-6 && k.eventName === this.eventName,
+    );
     if (at >= 0) tl.keyframes.splice(at, 1);
   }
 
@@ -928,7 +1025,8 @@ export class SetKeyframeCurveCommand implements Command {
 
   constructor(
     private engine: EditorEngine,
-    private sel: { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
+    private sel:
+      | { kind: 'bone'; boneId: string; property: BonePropertyName; time: number }
       | { kind: 'slotColor'; slotId: string; time: number }
       | { kind: 'deform'; attachmentId: string; time: number },
     private curve: Curve,

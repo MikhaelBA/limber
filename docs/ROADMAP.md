@@ -95,7 +95,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 ## Upcoming Interactive Alpha checklist
 
 - [x] Typed parameters and deterministic graph/transition contract with recorded-input goldens (ADR 0023).
-- [ ] Native source/validation and atomic graph/parameter/state/transition commands.
+- [x] Native source/validation and atomic graph/parameter/state/transition commands.
 - [ ] Scene and character playback, blends/interruption and typed events.
 - [ ] One-way bindings to exposed properties with source preservation.
 - [ ] Logic graph editing, pointer/focus/test preview and debug overlay.

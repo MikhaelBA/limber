@@ -1,8 +1,9 @@
 # ADR 0023: Deterministic Logic graphs
 
 Status: portable parameter/state/transition kernel implemented in Phase 8A after
-the Phase 7 gate. Source remains schema 9; ownership, pose adapters, bindings,
-interaction and graph UI below are required later increments, not delivered yet.
+the Phase 7 gate. Phase 8B adds native schema 10 graph ownership, validation and
+atomic authoring commands. Pose adapters, bindings, interaction and graph UI below
+are required later increments, not delivered yet.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -11,6 +12,15 @@ One optional graph belongs to an artboard or a rig node. Both use the same porta
 state/parameter evaluator. Artboard states reference scene clip IDs; rig states
 reference existing animation names. A state may have no clip, representing setup.
 Graph disablement bypasses logic without altering clips, tracks or setup assets.
+Native artboard/rig `logic` is optional; absence means no graph. References and graph
+identities are scoped to their owner, matching rig-local bone references. Graph copies
+on distinct rig owners remain independent. Component-local graphs are unsupported in
+v1. Renaming a rig clip updates its state references atomically; deleting a referenced
+scene/rig clip is rejected until the artist unlinks it. Removing a parameter removes
+dependent transitions entirely, preserving the meaning of remaining guards. Removing
+a state removes its incident edges and chooses the first remaining state if entry was
+removed; the last state cannot be removed. Graph removal keeps raw animation assets.
+Native compatibility export explicitly rejects active-owner graphs.
 Stable IDs identify parameters, states, transitions, bindings and preview input routes.
 Names are unique within their category and are the external parameter API.
 Nested graphs and layered state machines are later extensions.
