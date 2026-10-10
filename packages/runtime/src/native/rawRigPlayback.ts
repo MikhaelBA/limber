@@ -24,6 +24,7 @@ export class RawRigPlayback {
   private readonly previous: RigLogicPoseBuffer;
   private readonly outgoing: RigLogicPoseBuffer;
   private skin: string;
+  deferSkinning = false;
   constructor(
     source: RigNode,
     private readonly attachments: ReadonlyMap<string, string | null>,
@@ -134,7 +135,7 @@ export class RawRigPlayback {
   private finishFrame(): void {
     for (const [slotId, attachmentId] of this.attachments)
       this.skeleton.pose.slots[this.skeleton.slotIndexMap.get(slotId)!]!.attachmentId = attachmentId;
-    updateSkinning(this.skeleton);
+    if (!this.deferSkinning) updateSkinning(this.skeleton);
   }
   onEvent(listener: (event: LogicFiredEvent) => void): () => void {
     return this.track.onEvent(listener);

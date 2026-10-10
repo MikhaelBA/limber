@@ -1,5 +1,6 @@
 import {
   RigLogicPlayer,
+  expandUIComponents,
   resetPose,
   solveFK,
   solveConstraints,
@@ -14,8 +15,9 @@ import {
   type LogicRouteEvent,
   type LogicValue,
 } from '@limber/core';
-import { materializeRuntimeProject } from './adapt';
-import { validateRuntimeProgram } from './validate';
+import { NativeRuntimeAsset, nativeAssetState, requireNativeAsset } from './NativeRuntimeAsset';
+import { registerNativeOwner, type OwnedEvent } from './ownership';
+import { SECONDARY_STEP_SECONDS } from '@limber/core';
 import { runtimeFail, type RuntimeProgram } from './model';
 import {
   RawRigPlayback,
@@ -39,6 +41,7 @@ export interface NativeRigSnapshot {
 }
 class NativeLogicRigPlayback extends RigLogicPlayer {
   private overrides?: ReadonlyMap<string, string | null>;
+  deferSkinning = false;
   constructor(source: RigNode, overrides: ReadonlyMap<string, string | null>) {
     super(source);
     this.overrides = overrides;
@@ -47,7 +50,7 @@ class NativeLogicRigPlayback extends RigLogicPlayer {
     // The base constructor initializes before subclass fields; there are no overrides yet.
     for (const [id, attachment] of this.overrides ?? [])
       this.skeleton.pose.slots[this.skeleton.slotIndexMap.get(id)!]!.attachmentId = attachment;
-    super.finishFrame();
+    if (!this.deferSkinning) super.finishFrame();
   }
 }
 
@@ -67,21 +70,25 @@ export class NativeRigPlayer {
   private readonly attachments = new Map<string, string | null>();
   private readonly listeners = new Set<(event: NativeFiredEvent) => void>();
   private readonly fired: NativeFiredEvent[] = [];
+  private ownedEvents: ((event: OwnedEvent) => void) | null = null;
+  private ownerAdvance = false;
+  private deferSkinning = false;
 
   constructor(
-    program: RuntimeProgram,
+    program: RuntimeProgram | NativeRuntimeAsset,
     rigId: string,
     options: { artboardId?: string; autoplay?: boolean } = {},
   ) {
     if (options.autoplay !== undefined && typeof options.autoplay !== 'boolean')
       throw new Error('Autoplay must be boolean.');
-    const validated = validateRuntimeProgram(program),
-      project = materializeRuntimeProject(validated).project;
+    const { program: validated, project } = nativeAssetState(requireNativeAsset(program));
     this.artboardId = options.artboardId ?? validated.defaultArtboardId;
     const board = project.artboards.find((b) => b.id === this.artboardId);
     if (!board)
       runtimeFail('MISSING_ARTBOARD', 'Requested runtime artboard does not exist.', this.artboardId);
-    const rig = board.nodes.find((n): n is RigNode => n.type === 'rig' && n.id === rigId);
+    const rig = expandUIComponents(project, board).artboard.nodes.find(
+      (n): n is RigNode => n.type === 'rig' && n.id === rigId,
+    );
     if (!rig) runtimeFail('MISSING_RIG', 'Requested rig does not exist in this runtime artboard.', rigId);
     this.source = rig;
     this.rigId = rig.id;
@@ -93,6 +100,39 @@ export class NativeRigPlayer {
       this.logic.onEvent((event) => this.emit('logic', event));
     } else this.requireRaw();
     if (options.autoplay) this.play();
+    registerNativeOwner(this, {
+      clearEvents: () => {
+        this.fired.length = 0;
+      },
+      claim: (events) => {
+        if (this.ownedEvents) throw new Error('Native rig already has an artboard owner.');
+        this.ownedEvents = events;
+      },
+      beginFrame: () => {
+        this.fired.length = 0;
+        this.deferSkinning = true;
+        if (this.raw) this.raw.deferSkinning = true;
+        if (this.logic) this.logic.deferSkinning = true;
+      },
+      finishFrame: () => {
+        this.deferSkinning = false;
+        if (this.raw) this.raw.deferSkinning = false;
+        if (this.logic) this.logic.deferSkinning = false;
+        this.finishFailedCallbackFrame();
+      },
+      advance: (force) => {
+        this.ownerAdvance = true;
+        try {
+          if (force) {
+            if (this.playingValue) this.pause();
+            return this.step();
+          }
+          return this.update(SECONDARY_STEP_SECONDS);
+        } finally {
+          this.ownerAdvance = false;
+        }
+      },
+    });
   }
   get mode(): NativeRigMode {
     return this.modeValue;
@@ -120,6 +160,7 @@ export class NativeRigPlayer {
   private requireRaw(): RawRigPlayback {
     if (!this.raw) {
       this.raw = new RawRigPlayback(this.source, this.attachments);
+      this.raw.deferSkinning = this.deferSkinning;
       this.raw.setSkin(this.skin);
       this.raw.onEvent((event) => this.emit('animation', event));
     }
@@ -209,11 +250,13 @@ export class NativeRigPlayer {
     skeleton.secondaryMotion?.rebase(skeleton);
     for (const [slot, attachment] of this.attachments)
       skeleton.pose.slots[skeleton.slotIndexMap.get(slot)!]!.attachmentId = attachment;
-    updateSkinning(skeleton);
+    if (!this.deferSkinning) updateSkinning(skeleton);
   }
   update(delta: number): number {
+    if (this.ownedEvents && !this.ownerAdvance)
+      throw new Error('Advance this owned character through its native artboard.');
     if (this.advancing) throw new Error('Native rig update cannot be reentrant.');
-    this.fired.length = 0;
+    if (!this.ownerAdvance) this.fired.length = 0;
     if (!this.playingValue) return 0;
     this.advancing = true;
     try {
@@ -226,9 +269,11 @@ export class NativeRigPlayer {
     }
   }
   step(): number {
+    if (this.ownedEvents && !this.ownerAdvance)
+      throw new Error('Step this owned character through its native artboard.');
     if (this.advancing) throw new Error('Native rig Step cannot be reentrant.');
     if (this.playingValue) throw new Error('Pause the native rig before Step.');
-    this.fired.length = 0;
+    if (!this.ownerAdvance) this.fired.length = 0;
     this.stopped = false;
     this.advancing = true;
     try {
@@ -248,7 +293,7 @@ export class NativeRigPlayer {
     const skeleton = this.skeleton;
     for (const [slot, attachment] of this.attachments)
       skeleton.pose.slots[skeleton.slotIndexMap.get(slot)!]!.attachmentId = attachment;
-    updateSkinning(skeleton);
+    if (!this.deferSkinning) updateSkinning(skeleton);
   }
   snapshot(): NativeRigSnapshot {
     if (this.modeValue === 'logic') {
@@ -280,9 +325,22 @@ export class NativeRigPlayer {
     const emitted = { ...structuredClone(event), ownerId: this.rigId },
       epoch = this.epoch;
     this.fired.push(structuredClone(emitted));
+    if (this.ownedEvents && this.ownerAdvance) {
+      this.ownedEvents({
+        event: emitted,
+        current: () => this.epoch === epoch && this.modeValue === mode,
+        deliver: (current) => {
+          if (this.epoch === epoch && this.modeValue === mode) this.deliverEvent(emitted, epoch, current);
+        },
+      });
+      return;
+    }
+    this.deliverEvent(emitted, epoch);
+  }
+  private deliverEvent(emitted: NativeFiredEvent, epoch: number, current: () => boolean = () => true): void {
     for (const listener of [...this.listeners]) {
       listener(structuredClone(emitted));
-      if (this.epoch !== epoch) break;
+      if (this.epoch !== epoch || !current()) break;
     }
   }
   onEvent(listener: (event: NativeFiredEvent) => void): () => void {

@@ -74,8 +74,8 @@ halt stale delivery, and reentrant update/Step fails before advancing. Callback 
 propagate while preserving the already accepted skinned pose. Event density is checked
 against 4096 keys per accepted tick before starting a potentially dense loop.
 
-Native artboard orchestration, the Web render adapter and integrated
-export/load/render acceptance follow separately; this character API does not close Phase 9.
+The Web render adapter and integrated export/load/render acceptance follow separately;
+these portable APIs do not close Phase 9.
 
 ## Scene playback and UI
 
@@ -99,5 +99,46 @@ inherited visibility/tint/opacity and subtree order. Masks, nine-slice source/bo
 RTL text and exposures remain part of the native view. Host viewport settings survive
 playback reset. Held/zero-step frames reuse the cached view.
 
-Scene/UI playback is now available; scene/character orchestration, actual Web rendering
-and the integrated shipping workflow are still separate pending gates.
+## Shared assets and artboard playback
+
+```ts
+const asset = new NativeRuntimeAsset(loadRuntime(shippingBytes));
+const first = new NativeArtboardPlayer(asset, { autoplay: true });
+const second = new NativeArtboardPlayer(asset); // independent mutable playback state
+first.onEvent((event) => handleCue(event.ownerId, event.artboardTick, event.payload));
+first.getRig(characterId).fire('open');
+first.update(deltaSeconds);
+drawScene(first.getView(), (id) => first.getRig(id).skeleton);
+```
+
+`NativeRuntimeAsset` validates/detaches once and can create independent scene, character
+or artboard instances. `getProgram()`, `getArtboards()` and `getTexture(id)` return
+detached publications. Standalone players also accept a compiled program directly.
+
+`NativeArtboardPlayer` owns one bounded 120 Hz clock for the scene and all characters,
+including characters expanded from reusable UI components. Each accepted global tick
+commits scene motion/bindings and all character poses before delivering host events.
+Events deliver in scene-first, expanded-character order. Root listeners run before
+the emitting child's listeners; every listener receives an isolated copy. The root
+event adds `artboardTick` without changing the emitting owner's local tick. Callback
+inputs take effect on the next accepted global tick, independent of frame grouping.
+Stop/reset/session changes cancel stale delivery. Callback exceptions propagate and
+the accepted frame is finalized before returning control to the host.
+
+`scene` and `getRig(id)` expose per-owner controls, parameters and snapshots. Their
+`update`/`step` are blocked while owned: advance through the artboard. `play()` resumes
+all owners; an explicit child pause/disable can hold one owner while others advance.
+Paused artboard `step()` advances owners once and remains paused, even if a callback
+starts a session. Stop resets global time and restores setup; reset additionally clears
+host character overrides. Host viewport dimensions/safe area survive both commands.
+
+World/slot/marker state is committed within callbacks. Skinned vertex buffers publish
+once at the end of a displayed update/Step, retaining buffer identity. Read vertices
+after the outer call returns. Zero-step frames do not skin again. `getSocket(rigId,
+markerId)` and `getMarker(rigId, markerId)` compose responsive scene world transforms.
+`dispatch(event, renderedId)` routes scene/component hits; character viewport signals
+remain explicit through `getRig(id).dispatch(event)`. Component-local graphs remain
+outside the current authoring contract; instanced characters support raw clips.
+
+Actual Web rendering, image/font/atlas staging and the integrated shipping workflow
+are still pending Phase 9 gates.

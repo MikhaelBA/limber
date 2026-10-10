@@ -112,7 +112,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Corpus source/pose/vertex parity and explicit unsupported asset findings.
 - [x] Native character API with correct raw mixing/FIFO queue, typed Logic and skin/socket lifecycle.
 - [x] Native scene raw playback, responsive expanded UI, bindings and rendered-node routing.
-- [ ] Native artboard orchestration with scene and independent/instanced character parity.
+- [x] Native artboard orchestration with scene and independent/instanced character parity.
 - [ ] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
 - [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.

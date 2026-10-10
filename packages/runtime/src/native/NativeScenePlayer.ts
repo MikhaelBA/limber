@@ -2,6 +2,7 @@ import {
   SceneLogicPlayer,
   expandUIComponents,
   evaluateScene,
+  SECONDARY_STEP_SECONDS,
   type Artboard,
   type UIComponent,
   type UIInsets,
@@ -11,8 +12,8 @@ import {
   type LogicRouteEvent,
   type LogicValue,
 } from '@limber/core';
-import { materializeRuntimeProject } from './adapt';
-import { validateRuntimeProgram } from './validate';
+import { NativeRuntimeAsset, nativeAssetState, requireNativeAsset } from './NativeRuntimeAsset';
+import { registerNativeOwner, type OwnedEvent } from './ownership';
 import { runtimeFail, type RuntimeProgram } from './model';
 import { RawScenePlayback } from './rawScenePlayback';
 import type { NativeAnimationOptions, NativeQueuedAnimationOptions } from './RawPlaybackClock';
@@ -53,20 +54,24 @@ export class NativeScenePlayer {
   private owners = new Map<string, string>();
   private readonly listeners = new Set<(event: NativeFiredEvent) => void>();
   private readonly fired: NativeFiredEvent[] = [];
-  constructor(program: RuntimeProgram, options: { artboardId?: string; autoplay?: boolean } = {}) {
+  private ownedEvents: ((event: OwnedEvent) => void) | null = null;
+  private ownerAdvance = false;
+  constructor(
+    program: RuntimeProgram | NativeRuntimeAsset,
+    options: { artboardId?: string; autoplay?: boolean } = {},
+  ) {
     if (options.autoplay !== undefined && typeof options.autoplay !== 'boolean')
       throw new Error('Autoplay must be boolean.');
-    const validated = validateRuntimeProgram(program),
-      project = materializeRuntimeProject(validated).project;
+    const { program: validated, project } = nativeAssetState(requireNativeAsset(program));
     this.artboardId = options.artboardId ?? validated.defaultArtboardId;
     const board = project.artboards.find((b) => b.id === this.artboardId);
     if (!board)
       runtimeFail('MISSING_ARTBOARD', 'Requested runtime artboard does not exist.', this.artboardId);
-    this.board = board;
-    this.components = project.components ?? [];
+    this.board = structuredClone(board);
+    this.components = structuredClone(project.components ?? []);
     this.width = board.width;
     this.height = board.height;
-    this.safeArea = board.safeArea;
+    this.safeArea = this.board.safeArea;
     this.logic = board.logic ? new SceneLogicPlayer(board, this.components) : null;
     this.modeValue = this.logic ? 'logic' : 'animation';
     if (this.logic) {
@@ -74,6 +79,31 @@ export class NativeScenePlayer {
       this.logic.onEvent((event) => this.emit('logic', event));
     } else this.requireRaw();
     if (options.autoplay) this.play();
+    registerNativeOwner(this, {
+      clearEvents: () => {
+        this.fired.length = 0;
+      },
+      claim: (events) => {
+        if (this.ownedEvents) throw new Error('Native scene already has an artboard owner.');
+        this.ownedEvents = events;
+      },
+      beginFrame: () => {
+        this.fired.length = 0;
+      },
+      finishFrame: () => {},
+      advance: (force) => {
+        this.ownerAdvance = true;
+        try {
+          if (force) {
+            if (this.playingValue) this.pause();
+            return this.step();
+          }
+          return this.update(SECONDARY_STEP_SECONDS);
+        } finally {
+          this.ownerAdvance = false;
+        }
+      },
+    });
   }
   get mode(): NativeSceneMode {
     return this.modeValue;
@@ -174,8 +204,10 @@ export class NativeScenePlayer {
     this.viewDirty = true;
   }
   update(delta: number): number {
+    if (this.ownedEvents && !this.ownerAdvance)
+      throw new Error('Advance this owned scene through its native artboard.');
     if (this.advancing) throw new Error('Native scene update cannot be reentrant.');
-    this.fired.length = 0;
+    if (!this.ownerAdvance) this.fired.length = 0;
     if (!this.playingValue) return 0;
     this.advancing = true;
     const previousTick = this.adapter().currentTick;
@@ -189,9 +221,11 @@ export class NativeScenePlayer {
     }
   }
   step(): number {
+    if (this.ownedEvents && !this.ownerAdvance)
+      throw new Error('Step this owned scene through its native artboard.');
     if (this.advancing) throw new Error('Native scene Step cannot be reentrant.');
     if (this.playingValue) throw new Error('Pause the native scene before Step.');
-    this.fired.length = 0;
+    if (!this.ownerAdvance) this.fired.length = 0;
     if (this.stopped) this.viewDirty = true;
     this.stopped = false;
     this.advancing = true;
@@ -287,9 +321,22 @@ export class NativeScenePlayer {
     const emitted = { ...structuredClone(event), ownerId: this.artboardId },
       epoch = this.epoch;
     this.fired.push(structuredClone(emitted));
+    if (this.ownedEvents && this.ownerAdvance) {
+      this.ownedEvents({
+        event: emitted,
+        current: () => this.epoch === epoch && this.modeValue === mode,
+        deliver: (current) => {
+          if (this.epoch === epoch && this.modeValue === mode) this.deliverEvent(emitted, epoch, current);
+        },
+      });
+      return;
+    }
+    this.deliverEvent(emitted, epoch);
+  }
+  private deliverEvent(emitted: NativeFiredEvent, epoch: number, current: () => boolean = () => true): void {
     for (const listener of [...this.listeners]) {
       listener(structuredClone(emitted));
-      if (this.epoch !== epoch) break;
+      if (this.epoch !== epoch || !current()) break;
     }
   }
   onEvent(listener: (event: NativeFiredEvent) => void): () => void {

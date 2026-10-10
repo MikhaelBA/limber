@@ -1049,7 +1049,8 @@ exposure domains, rendered-node routes, four device aspects, masks/nine-slice me
 invalid resize/play isolation and callback lifecycle. All 594 tests in 78 files passed
 the complete local lint/boundary/format/TypeScript/package/editor-build check. No new
 Web-renderer acceptance is claimed: the actual native render adapter is still pending.
-Remote CI is pending for this increment.
+Commit `f329e89` passed CI 38040953525: Test & Build (including thirty browser suites),
+Docker, VPS and GitHub Pages succeeded.
 
 Native artboard orchestration must still coordinate scene and independent/instanced
 characters on accepted ticks, preserve callback-input ordering and publish skinning
@@ -1057,3 +1058,38 @@ once per display frame. Reusable validated assets should prevent repeated whole-
 validation for each rig. That is the next task, suitable for Sol 6.1 / High, followed
 by the shared Web renderer and real image/font/atlas workers. No user decision or model
 switch is currently required.
+
+## 10 October 2026 Phase 9B2b validated assets and native artboard orchestration
+
+`NativeRuntimeAsset` validates/detaches once and creates independent scene/character/
+artboard sessions without repeated whole-project validation for every rig. Published
+program/texture metadata is detached; mutable render views cannot modify the asset.
+`NativeArtboardPlayer` owns one bounded accepted-tick clock for scene motion/bindings
+and every independent/expanded character. Each global tick commits all owners before
+root or child host callbacks, preserving next-tick cross-owner inputs and deterministic
+scene-first event order across display frame groupings. Local event ticks are retained
+and root events also identify their global artboard tick.
+
+Private ownership hooks prevent child update/Step from advancing a second clock. Child
+parameter/mode controls remain available. Stop/reset/pause/mode barriers reject stale
+delivery, reentrancy fails before mutation and throwing host callbacks leave the accepted
+pose skinned and usable. World/slot/marker poses commit per tick; vertex buffers publish
+once per displayed frame and retain their identity. Zero-step frames do not skin again.
+Paused Step preserves inertia and remains paused even if callbacks start new sessions.
+Socket matrices compose expanded/responsive scene transforms; viewport settings survive
+Stop/reset. Component-local Logic is still explicitly unsupported by the source format;
+reusable component characters have independent raw playback sessions.
+
+Twenty-one new tests cover reusable-asset isolation, exact per-tick source scene/rig parity,
+six frame groupings with bidirectional callback inputs, isolated routes, callback failure/
+stale-delivery/reentrancy, lifecycle/fractions/stall limits, disabled-owner behavior,
+instanced characters/socket composition and Standard/Heavy full constraint/spring/vertex
+parity. Actual skinning call counts prove one pass for twelve accepted ticks and zero
+passes on held frames, including callback Stop. All 615 tests in 79 files passed locally;
+lint/boundaries, formatting, TypeScript and package/editor builds passed. Remote CI follows
+publication of this increment.
+
+The next task is the independent Web render adapter sharing the editor's tested masking,
+draw-order and RGBA contract. Actual pixel decode and export/load/render acceptance remain
+required, followed by image/font/atlas workers and Ship Doctor/profiler. Phase 9 remains
+in progress. Sol 6.1 / High is suitable; no user decision or model switch is required.

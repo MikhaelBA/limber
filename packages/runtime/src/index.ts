@@ -8,3 +8,5 @@ export { validateRuntimeProgram } from './native/validate';
 export * from './native/NativeRigPlayer';
 export type { NativeAnimationOptions, NativeQueuedAnimationOptions } from './native/rawRigPlayback';
 export * from './native/NativeScenePlayer';
+export { NativeRuntimeAsset } from './native/NativeRuntimeAsset';
+export * from './native/NativeArtboardPlayer';

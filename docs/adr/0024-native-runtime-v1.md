@@ -57,6 +57,16 @@ tick, including loop seams/entry zero. An explicit host loop override receives t
 preflight before changing playback. The character lifecycle/mixing contract is documented
 in packages/runtime/README.md and verified by independent scalar/constraint goldens.
 
+Phase 9B2 introduces a reusable validated asset publication and owned artboard sessions.
+Each accepted global tick commits scene/UI and all expanded character poses before any
+host event callback. Root callbacks precede the emitting child's callbacks; queued inputs
+apply on the next global tick. Scene-first/expanded-character event ordering is independent
+of display frame grouping. Private ownership hooks prevent child clock advancement; host
+controls remain public. Vertex buffers are skinned once at outer frame finalization,
+including callback exceptions. World/slot/socket poses are available within callbacks;
+vertices are read after update/Step returns. Source component-local graph limitations
+remain explicit rather than silently introducing unsupported source semantics.
+
 ## Asset staging and limitations
 
 Only referenced image IDs ship. Images use independent `{ id, mime, base64 }` records,
