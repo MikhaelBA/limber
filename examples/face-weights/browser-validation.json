@@ -1,0 +1,11 @@
+{
+  "realPointerPaint": "passed",
+  "meshAndTargetRetention": "passed",
+  "onlyWeightsChanged": "passed",
+  "oneStrokeHistory": "passed",
+  "saveAndReopen": "passed",
+  "animateModeIsolation": "passed",
+  "texturedPlayback": "passed",
+  "boneFirstSelection": "passed",
+  "pageErrors": []
+}

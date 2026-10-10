@@ -1,0 +1,14 @@
+{
+  "roundTrip": "passed",
+  "embeddedOriginalPNG": "passed",
+  "bindPose": "passed",
+  "bones": 6,
+  "vertices": 625,
+  "triangles": 1152,
+  "mixedVertices": 406,
+  "runtimeFrames": 960,
+  "maxParityError": 0,
+  "maxWeightedMovement": 21.60186767578125,
+  "maxRigidMovement": 0,
+  "noDeformOrHeadAnimation": true
+}

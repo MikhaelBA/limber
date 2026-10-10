@@ -147,6 +147,20 @@ player is not the native artboard player gate.
 Phase 10 has not started. On 10 October 2026 the user explicitly requested that Unity work
 wait; Phase 10 implementation must remain pending until the user resumes it.
 
+## Weight painting regression and face example (10 October 2026)
+
+- [x] Fix mutually exclusive mesh/bone selections preventing real weight-brush strokes.
+- [x] Keep a separate paint bone, expose a labeled selector and retain mesh selection through hierarchy clicks.
+- [x] Preserve Setup-only editing, single-stroke history and document/rig selection ownership.
+- [x] Generate a transparent face with Image Generation and deliver a self-contained `.bbbproj`.
+- [x] Verify 625 vertices, normalized weights, frozen bindings and 960-frame editor/native equality.
+- [x] Exercise actual pointer painting, Undo/Redo, Save/Open and textured animation in development and production.
+
+The new face example animates facial bones while its root remains stationary; removing
+weights removes all facial movement. The browser gate now includes a real painting suite,
+rather than relying on weight pruning or merely opening the Weights inspector. Phase 10
+remains pending at the user's request.
+
 ## Layered character sample (10 October 2026)
 
 - [x] Generate transparent fox parts and a costume variant with Image Generation.

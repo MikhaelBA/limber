@@ -16,6 +16,9 @@ const TOOLS: { id: Tool; label: string; hint: string }[] = [
 export function MainToolbar() {
   const engine = useEngine();
   const activeTool = useEditorStore((s) => s.activeTool);
+  useEditorStore((s) => s.dataRevision);
+  const weightBoneId = useEditorStore((s) => s.weightBoneId);
+  const setWeightBone = useEditorStore((s) => s.setWeightBone);
   const setTool = useEditorStore((s) => s.setTool);
   const canUndo = useEditorStore((s) => s.canUndo);
   const canRedo = useEditorStore((s) => s.canRedo);
@@ -49,7 +52,7 @@ export function MainToolbar() {
   };
 
   return (
-    <div className="flex items-center gap-1 border-b border-neutral-800 bg-neutral-900/60 px-2 py-1">
+    <div className="flex flex-wrap items-center gap-1 border-b border-neutral-800 bg-neutral-900/60 px-2 py-1">
       {TOOLS.map((tool) => (
         <button
           key={tool.id}
@@ -100,10 +103,25 @@ export function MainToolbar() {
 
       {activeTool === 'weights' && (
         <>
+          <label className="flex items-center gap-1 text-xs text-neutral-300">
+            Paint bone
+            <select
+              aria-label="Weight paint bone"
+              className="max-w-40 rounded bg-neutral-800 px-1 py-0.5 text-xs"
+              value={weightBoneId && engine.skeleton.boneIndexMap.has(weightBoneId) ? weightBoneId : ''}
+              onChange={(e) => setWeightBone(e.target.value || null)}
+            >
+              <option value="">Choose bone…</option>
+              {engine.skeleton.data.bones.map((bone) => (
+                <option key={bone.id} value={bone.id}>{bone.name}</option>
+              ))}
+            </select>
+          </label>
           <label className="flex items-center gap-1 text-xs text-neutral-400" title="Brush radius (world units)">
             R
             <input
               type="number"
+              aria-label="Weight brush radius"
               min={2}
               step={5}
               value={brushRadius}
@@ -115,6 +133,7 @@ export function MainToolbar() {
             S
             <input
               type="number"
+              aria-label="Weight brush strength"
               min={0.02}
               max={1}
               step={0.05}
@@ -124,6 +143,7 @@ export function MainToolbar() {
             />
           </label>
           <select
+            aria-label="Weight brush behavior"
             value={brushMode}
             onChange={(e) => setBrush({ mode: e.target.value as BrushMode })}
             title="Brush behavior"
@@ -133,6 +153,9 @@ export function MainToolbar() {
             <option value="set">set</option>
             <option value="smooth">smooth</option>
           </select>
+          <span className="text-xs text-neutral-400">
+            {mode === 'setup' ? 'Select a mesh slot, choose a paint bone, then drag over vertices.' : 'Switch to Setup to paint weights.'}
+          </span>
           <div className="mx-1 h-4 w-px bg-neutral-700" />
         </>
       )}

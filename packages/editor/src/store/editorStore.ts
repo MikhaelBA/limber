@@ -35,6 +35,9 @@ interface UIState {
   selectedBoneId: string | null;
   /** Slot selection is exclusive with bone selection (§5.7 picking order). */
   selectedSlotId: string | null;
+  /** Weight brush target is independent of the selected mesh slot. */
+  weightBoneId: string | null;
+  setWeightBone: (boneId: string | null) => void;
   hoveredBoneId: string | null;
   selectedKeyframe: KeyframeSelection | null;
   activeTool: Tool;
@@ -90,6 +93,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
       workspace: target.workspace,
       selectedBoneId: target.boneId,
       selectedSlotId: target.slotId,
+      weightBoneId: null,
       selectedKeyframe: null,
       mode: 'setup',
       isPlaying: false,
@@ -103,9 +107,11 @@ export const useEditorStore = create<UIState>((set, get) => ({
       selectedBoneId: null,
       selectedSlotId: null,
       selectedKeyframe: null,
+      weightBoneId: null,
     }),
   selectedBoneId: null,
   selectedSlotId: null,
+  weightBoneId: null,
   hoveredBoneId: null,
   selectedKeyframe: null,
   activeTool: 'translate',
@@ -150,16 +156,42 @@ export const useEditorStore = create<UIState>((set, get) => ({
     }
   },
 
-  select: (boneId) => set({ selectedBoneId: boneId, selectedSlotId: null, selectedKeyframe: null }),
-  selectSlot: (slotId) => set({ selectedSlotId: slotId, selectedBoneId: null, selectedKeyframe: null }),
-  clearSelection: () => set({ selectedBoneId: null, selectedSlotId: null }),
+  select: (boneId) =>
+    set((s) =>
+      s.activeTool === 'weights' && boneId && s.selectedSlotId
+        ? { weightBoneId: boneId, selectedBoneId: null, selectedKeyframe: null }
+        : {
+            selectedBoneId: boneId,
+            selectedSlotId: null,
+            selectedKeyframe: null,
+            weightBoneId: s.activeTool === 'weights' ? boneId : s.weightBoneId,
+          },
+    ),
+  selectSlot: (slotId) =>
+    set((s) => ({
+      selectedSlotId: slotId,
+      selectedBoneId: null,
+      selectedKeyframe: null,
+      weightBoneId: s.activeTool === 'weights' ? (s.weightBoneId ?? s.selectedBoneId) : s.weightBoneId,
+    })),
+  clearSelection: () => set({ selectedBoneId: null, selectedSlotId: null, weightBoneId: null }),
+  setWeightBone: (weightBoneId) => set({ weightBoneId }),
   setHover: (boneId) => set({ hoveredBoneId: boneId }),
-  setTool: (tool) => set((s) => ({ activeTool: tool, previousTool: s.activeTool })),
+  setTool: (tool) =>
+    set((s) => ({
+      activeTool: tool,
+      previousTool: s.activeTool,
+      weightBoneId: tool === 'weights' ? (s.selectedBoneId ?? s.weightBoneId) : s.weightBoneId,
+    })),
   toggleLastTool: () =>
     set((s) => {
       if (!s.previousTool || s.previousTool === s.activeTool) return s;
       const activeTool = s.previousTool;
-      return { activeTool, previousTool: s.activeTool };
+      return {
+        activeTool,
+        previousTool: s.activeTool,
+        weightBoneId: activeTool === 'weights' ? (s.selectedBoneId ?? s.weightBoneId) : s.weightBoneId,
+      };
     }),
   setMode: (mode) => set({ mode }),
   setPlaying: (isPlaying) => set({ isPlaying }),
@@ -196,6 +228,7 @@ export const useEditorStore = create<UIState>((set, get) => ({
       selectedBoneId: null,
       selectedSlotId: null,
       hoveredBoneId: null,
+      weightBoneId: null,
       selectedKeyframe: null,
       mode: 'setup',
       isPlaying: false,

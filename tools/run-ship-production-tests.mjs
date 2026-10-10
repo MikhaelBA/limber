@@ -32,7 +32,7 @@ try {
   const address = server.httpServer.address();
   assert(address && typeof address === 'object');
   const url = `http://127.0.0.1:${address.port}/`;
-  for (const test of ['ship-workspace.mjs', 'ship-inputs.mjs', 'ship-doctor-ui.mjs']) {
+  for (const test of ['ship-workspace.mjs', 'ship-inputs.mjs', 'ship-doctor-ui.mjs', 'weight-painting.mjs']) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
         cwd: root,
@@ -40,6 +40,7 @@ try {
           ...process.env,
           SPRINE_URL: url,
           BBB_SHIP_EVIDENCE_DIR: resolve(editor, '.smoke/ship-production'),
+          BBB_WEIGHT_EVIDENCE_DIR: resolve(editor, '.smoke/ship-production/weights'),
         },
         stdio: 'inherit',
         windowsHide: true,
@@ -50,7 +51,7 @@ try {
     assert.equal(code, 0, `Production ${test} must pass.`);
   }
   console.log(
-    'PASS: main production Ship workflow uses emitted worker/WASM/font/license resources and all three packaged interaction/Doctor gates.',
+    'PASS: main production Ship workflow uses emitted worker/WASM/font/license resources; all three packaged interaction/Doctor gates and real weight painting passed.',
   );
 } finally {
   await new Promise((done, reject) => {

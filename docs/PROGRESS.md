@@ -1584,3 +1584,49 @@ confirmed installed Unity Editors and .NET SDKs; it is not engine acceptance or 
 integration. The roadmap and ADR status summaries now reflect the accepted Phase 9 result.
 This increment changes documentation only. Sol 6.1 / High remains suitable when Unity work
 is resumed.
+
+## 10 October 2026 weight-brush selection fix and generated face example
+
+The user's Weights report exposed an actual viewport bug: painting required both the
+selected mesh slot and selected bone, while selecting either cleared the other. Existing
+browser gates covered pruning, binding and inspector access, without a real brush stroke.
+
+Weight painting now owns a separate `weightBoneId`. The toolbar exposes a labeled Paint
+bone selector and accessible radius/strength/behavior controls. With Weights active,
+hierarchy bone clicks retain the selected mesh slot and its inspector. Bone-first selection
+and right-click tool switching preserve the intended target. Ordinary object selection
+remains exclusive. Document replacement, rig selection cleanup and workspace navigation
+clear the target. Invalid/missing targets explain the next action; Animate mode rejects
+painting instead of changing setup weights. Mesh vertex colors include the rigid fallback.
+
+`examples/face-weights/Face-Weights.bbbproj` embeds the unchanged transparent PNG created
+with the built-in Image Generation tool. The example contains six bones, a 625-vertex
+mesh, 1,152 triangles, 406 vertices with mixed normalized influences and one four-second
+loop. Seven bone-property tracks animate jaw/cheeks/brows; there are no Deform keys or
+head tracks. Bind pose retains original geometry. Verification compares 960 native and
+editor frames with zero vertex error: maximum weighted movement is 21.60186767578125
+units, while the same animation with weights removed has zero image movement. Source
+round trip and exact embedded PNG bytes pass. Rebuild/verification scripts, the generation
+prompt, usage instructions, numeric evidence and actual editor screenshots are included.
+
+Three selection ownership tests and the new real pointer-paint browser gate cover both
+selection orders, missing targets, changes to weights only, one-stroke Undo/Redo, saved
+embedded resources, reopen, Setup isolation and actual textured playback. The new browser
+gate passed against development and the main production build. All 683 unit tests in 92
+files, lint/boundaries, formatting, semantic typecheck and both builds passed. Complete
+remote browser acceptance now includes 41 suites; the published CI result is reported
+separately. Phase 10 has not started. Sol 6.1 / High remains suitable.
+
+All 41 development browser suites also passed locally through the owned fresh-server
+runner, including the new face brush gate, the full native corpus and Standard/Heavy
+CPU gates. An initial viewport test on the long-running HMR server read a separate
+direct-import store instance despite the UI correctly selecting its slot. The unchanged
+viewport regression passed on the fresh managed server; assertions were not relaxed.
+Production CI now additionally runs the real weight-painting suite and retains its
+evidence under the production artifact. The example and this existing-feature repair
+do not start Unity work.
+
+The updated `npm run test:e2e:production` passed all four suites locally against the
+main emitted build: three Ship suites and actual face weight painting. No source changes
+followed the complete unit/development gate. The production helper cleaned its owned
+ephemeral server after success.

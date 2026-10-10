@@ -869,13 +869,13 @@ function wireViewport(
         const r = 4.5 / s;
         // Weights tool colors vertices by influence toward the selected bone.
         const targetIndex =
-          st.activeTool === 'weights' && st.selectedBoneId
-            ? engine.skeleton.boneIndexMap.get(st.selectedBoneId)
+          st.activeTool === 'weights' && st.weightBoneId
+            ? engine.skeleton.boneIndexMap.get(st.weightBoneId)
             : undefined;
         for (let k = 0; k < count; k++) {
           let color = 0x9cc7ff;
           if (targetIndex !== undefined) {
-            const t = vertexWeightOf(ed.attachment.weights, k, targetIndex);
+            const t = vertexWeightOf(ed.attachment.weights, k, targetIndex, ed.boneIndex);
             const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
             color =
               t <= 0
@@ -1022,8 +1022,8 @@ function wireViewport(
   const paintStrokeAt = (wx: number, wy: number): void => {
     const st = useEditorStore.getState();
     const ed = editableMesh();
-    if (!ed || !paintCmd || !st.selectedBoneId) return;
-    const boneIndex = engine.skeleton.boneIndexMap.get(st.selectedBoneId);
+    if (!ed || !paintCmd || !st.weightBoneId) return;
+    const boneIndex = engine.skeleton.boneIndexMap.get(st.weightBoneId);
     if (boneIndex === undefined) return;
     const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
     if (!state) return;
@@ -1110,13 +1110,17 @@ function wireViewport(
 
     // Weights tool: radius brush over the selected slot's mesh.
     if (st.activeTool === 'weights') {
+      if (st.mode !== 'setup') {
+        st.setStatus('Switch to Setup to paint weights. Animate mode preserves the mesh binding.');
+        return;
+      }
       const ed = editableMesh();
       if (!ed) {
         st.setStatus('Select a slot showing a mesh attachment (or create one: Properties → Grid mesh).');
         return;
       }
-      if (!st.selectedBoneId) {
-        st.setStatus('Pick the bone to paint toward (click it in the hierarchy).');
+      if (!st.weightBoneId || !engine.skeleton.boneIndexMap.has(st.weightBoneId)) {
+        st.setStatus('Choose a Paint bone in the toolbar, or click a bone in the hierarchy while the mesh is selected.');
         return;
       }
       paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);

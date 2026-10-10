@@ -10,13 +10,18 @@ Open the self-contained [Fox Adventurer sample](examples/fox-adventurer/Fox-Adve
 to try layered sprites, bound meshes, cloth Deform, skins and hand IK.
 [Sample guide and previews](examples/fox-adventurer/README.md).
 
+Open the self-contained [Face Weights sample](examples/face-weights/Face-Weights.bbbproj)
+to see soft jaw/cheek/brow movement and try real weight-brush painting. Select its mesh
+slot in Setup, choose Weights and a Paint bone, then drag over vertices.
+[Face sample guide, generation prompt and verification](examples/face-weights/README.md).
+
 [Import and package project fonts](docs/FONTS.md) for Scene/Game UI and Logic preview.
 
 [Prepare and inspect native exports in Ship](docs/SHIP.md), including packed atlas pages,
 typed native Logic inputs, measured CPU profiling and actionable Ship/Rig Doctor findings.
 The Web runtime is independent of editor React; Unity/Cocos remain pending their engine
 acceptance gates. The current CI runs unit/architecture checks, all managed development
-browser suites, and the actual main production Ship workflow before publishing artifacts.
+browser suites, and the actual main production Ship workflow and weight painting before publishing artifacts.
 After `npm run build -w @limber/editor`, run `npm run test:e2e:production` for that shipping
 bundle gate. Exact milestone counts and limitations are recorded in PROGRESS.md.
 

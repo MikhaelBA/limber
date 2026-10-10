@@ -64,6 +64,7 @@ try {
     'ship-inputs.mjs',
     'ship-doctor-ui.mjs',
     'weight-tools.mjs',
+    'weight-painting.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',
     'auto-mesh.mjs',

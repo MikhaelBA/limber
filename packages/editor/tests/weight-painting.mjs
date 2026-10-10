@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { chromium } from 'playwright';
+
+const example = resolve('examples/face-weights');
+const source = JSON.parse(readFileSync(join(example, 'Face-Weights.bbbproj'), 'utf8'));
+const evidence = resolve(process.env.BBB_WEIGHT_EVIDENCE_DIR ?? 'packages/editor/.smoke/weight-painting');
+mkdirSync(evidence, { recursive: true });
+const browser = await chromium.launch({ headless: process.env.HEADLESS !== '0' });
+try {
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
+  page.setDefaultTimeout(30000);
+  const errors = []; page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto(process.env.SPRINE_URL ?? 'http://localhost:5173/');
+  await page.waitForFunction(() => window.__ticks > 2);
+  const open = async (project) => {
+    await page.locator('input[type=file]').setInputFiles({ name: 'Face-Weights.bbbproj', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+    await page.locator('footer').getByText(/Opened Face-Weights.bbbproj.*1 embedded texture/).waitFor();
+  };
+  const save = async () => {
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    return JSON.parse(readFileSync(await (await pending).path(), 'utf8'));
+  };
+  const selectMesh = () => page.getByText(/^Face mesh — paint here/).first().click();
+  const screen = (x, y) => page.evaluate(([x, y]) => window.__worldToScreen(x, y), [x, y]);
+  const stroke = async () => {
+    await page.mouse.move(...await screen(-15, 70)); await page.mouse.down();
+    await page.mouse.move(...await screen(15, 90), { steps: 6 }); await page.mouse.up();
+  };
+  await open(source); await selectMesh();
+  await page.getByRole('button', { name: '⚖ Weights', exact: true }).click();
+  assert.equal(await page.getByLabel('Weight paint bone', { exact: true }).inputValue(), '');
+  await stroke();
+  await page.locator('footer').getByText(/Choose a Paint bone/).waitFor();
+  assert.deepEqual(await save(), source, 'Missing paint target keeps the project unchanged');
+  await page.getByLabel('Weight paint bone', { exact: true }).selectOption('jaw');
+  await page.locator('[draggable=true]').filter({ has: page.getByText('Cheek L', { exact: true }) }).click();
+  assert.equal(await page.getByLabel('Weight paint bone', { exact: true }).inputValue(), 'cheek-left');
+  await page.getByRole('button', { name: 'Bind setup pose', exact: true }).waitFor();
+  await page.getByLabel('Weight paint bone', { exact: true }).selectOption('jaw');
+  await page.getByLabel('Weight brush radius', { exact: true }).fill('80');
+  await page.getByLabel('Weight brush strength', { exact: true }).fill('0.5');
+  await stroke();
+  const painted = await save();
+  const expected = structuredClone(source);
+  expected.artboards[0].nodes[0].skeleton.attachments[0].weights = painted.artboards[0].nodes[0].skeleton.attachments[0].weights;
+  assert.notDeepEqual(expected, source, 'A real pointer stroke changes weights');
+  assert.deepEqual(painted, expected, 'Only weights change; geometry, bindings, animation and PNG remain exact');
+  await page.screenshot({ path: join(evidence, 'face-weights.png') });
+  await page.keyboard.press('Control+z'); assert.deepEqual(await save(), source, 'One Undo removes the entire stroke');
+  await page.keyboard.press('Control+y'); assert.deepEqual(await save(), painted);
+  await open(painted); await selectMesh();
+  assert.equal(await page.getByLabel('Weight paint bone', { exact: true }).inputValue(), '', 'Open clears the old rig paint target');
+  await page.getByLabel('Weight paint bone', { exact: true }).selectOption('jaw');
+  await page.getByRole('button', { name: 'Animate', exact: true }).click();
+  await stroke(); await page.locator('footer').getByText(/Switch to Setup to paint weights/).waitFor();
+  assert.deepEqual(await save(), painted, 'Animate mode cannot change setup weights');
+  await page.getByRole('button', { name: '✥ Translate', exact: true }).click();
+  const canvas = page.locator('canvas').first();
+  const restPixels = await canvas.screenshot();
+  await page.getByTitle('Play/Pause (Space)', { exact: true }).click();
+  await page.waitForTimeout(800);
+  await page.getByTitle('Play/Pause (Space)', { exact: true }).click();
+  const movedPixels = await canvas.screenshot();
+  assert.equal(restPixels.equals(movedPixels), false, 'Actual textured canvas changes during playback');
+  await page.screenshot({ path: join(evidence, 'face-animation.png') });
+  await page.getByTitle('Stop (back to 0)', { exact: true }).click();
+  assert.deepEqual(await save(), painted, 'Playback does not modify saved data');
+  // Selecting a bone before activating Weights must also work.
+  await page.getByRole('button', { name: 'Setup', exact: true }).click();
+  await page.locator('[draggable=true]').filter({ has: page.getByText('Brow R', { exact: true }) }).click();
+  await page.getByRole('button', { name: '⚖ Weights', exact: true }).click(); await selectMesh();
+  assert.equal(await page.getByLabel('Weight paint bone', { exact: true }).inputValue(), 'brow-right');
+  assert.deepEqual(errors, []);
+  const report = { realPointerPaint: 'passed', meshAndTargetRetention: 'passed', onlyWeightsChanged: 'passed', oneStrokeHistory: 'passed', saveAndReopen: 'passed', animateModeIsolation: 'passed', texturedPlayback: 'passed', boneFirstSelection: 'passed', pageErrors: errors };
+  writeFileSync(join(evidence, 'result.json'), JSON.stringify(report, null, 2) + '\n');
+  console.log('PASS: generated face project, real weight-paint pointer stroke, independent mesh/bone selection, exact single-stroke history, save/reopen, Setup isolation and actual animated pixels');
+} finally { await browser.close(); }
