@@ -52,7 +52,7 @@ export function createPose(data: SkeletonData): SkeletonPose {
  * flags — they are unreliable once multiple animations mix, and this loop is
  * nearly free.
  */
-export function resetPose(data: SkeletonData, pose: SkeletonPose): void {
+export function resetPose(data: SkeletonData, pose: SkeletonPose, activeSkin = data.activeSkin): void {
   for (let i = 0; i < data.bones.length; i++) {
     const setup = data.bones[i]!.setupPose;
     const local = pose.bones[i]!.local;
@@ -65,7 +65,7 @@ export function resetPose(data: SkeletonData, pose: SkeletonPose): void {
     local.shearY = setup.shearY;
   }
 
-  const skin = data.activeSkin === '' ? undefined : data.skins.find((s) => s.name === data.activeSkin);
+  const skin = activeSkin === '' ? undefined : data.skins.find((s) => s.name === activeSkin);
   for (let i = 0; i < data.slots.length; i++) {
     const slot = data.slots[i]!;
     const slotPose = pose.slots[i]!;

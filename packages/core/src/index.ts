@@ -56,3 +56,7 @@ export * from './project/ui';
 export * from './logic/model';
 export * from './logic/validate';
 export * from './logic/LogicMachine';
+export * from './logic/poseBlend';
+export * from './logic/eventSampling';
+export * from './logic/SceneLogicPlayer';
+export * from './logic/RigLogicPlayer';

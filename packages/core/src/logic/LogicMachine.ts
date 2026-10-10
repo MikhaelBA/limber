@@ -93,6 +93,9 @@ export class LogicMachine {
   get enabled(): boolean {
     return this.enabledValue;
   }
+  get currentStateTick(): number {
+    return this.stateTicks;
+  }
   setEnabled(value: boolean): void {
     if (typeof value !== 'boolean') throw new Error('Logic enabled must be boolean.');
     if (value === this.enabledValue) return;
@@ -210,7 +213,13 @@ export class LogicMachine {
       duration = this.durations.get(this.state.id)!;
     let clipTime = this.state.loop && duration > 0 ? elapsed % duration : Math.min(elapsed, duration);
     // Stable seam across binary representation of integer-step duration.
-    if (this.state.loop && duration > 0 && (clipTime < 1e-12 || duration - clipTime < 1e-12)) clipTime = 0;
+    const cycles = duration > 0 ? elapsed / duration : 0;
+    if (
+      this.state.loop &&
+      duration > 0 &&
+      Math.abs(cycles - Math.round(cycles)) <= 8 * Number.EPSILON * Math.max(1, Math.abs(cycles))
+    )
+      clipTime = 0;
     const b = this.blend,
       transition = b
         ? {

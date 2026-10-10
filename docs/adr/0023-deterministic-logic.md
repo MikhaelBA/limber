@@ -2,8 +2,9 @@
 
 Status: portable parameter/state/transition kernel implemented in Phase 8A after
 the Phase 7 gate. Phase 8B adds native schema 10 graph ownership, validation and
-atomic authoring commands. Pose adapters, bindings, interaction and graph UI below
-are required later increments, not delivered yet.
+atomic authoring commands. Phase 8C1 implements portable scene/rig pose adapters and
+chronological fixed-step event delivery. Typed payload strengthening, bindings,
+interaction and graph UI below remain required later increments.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -95,10 +96,34 @@ or automatic return stack; artists author explicit return transitions. Debug vie
 shows the active destination, transition/progress, accepted tick and recent changes.
 
 Only the destination clip crosses new event intervals; frozen outgoing poses emit
-none. Event order follows the existing per-clip timeline order and loop seam policy;
-accepted steps preserve step order. Pausing, reset, disabled graphs and dropped stall
+none. Logic events sort chronologically, with authored timeline/key order breaking
+equal-time ties. The preceding loop's endpoint precedes the next loop's time-zero
+keys; accepted steps preserve step order. This is an explicit Logic contract and
+does not rewrite the legacy animation queue/mixer's event ordering. Pausing, reset, disabled graphs and dropped stall
 time emit no events. Per-step event buffers must never duplicate held-frame output.
 Typed payload strengthening belongs to this phase's event increment.
+
+SceneLogicPlayer and RigLogicPlayer drive the shared clock/kernel without DOM or
+renderer dependencies. Initialization/reset samples entry without events; each
+accepted tick fully resolves destination channels against setup. Bone locals, slot
+colors and Deform blend from the pre-constraint animation snapshot, then FK/primary/
+spring run once per tick and skinning runs once per displayed update. Discrete slot
+attachments and draw order select destination immediately. Zero-step updates resample
+held animation and present spring state without advancing it. Pause clears fractional
+time and rebases secondary inertia. Disable shows setup but freezes state/input/blend;
+reenabling restores the same held blend without replacing its outgoing snapshot.
+Reset restores authored enablement/default parameters/entry, retaining pause status.
+Skin selection is transient per player, including injected editor skeletons, and
+never changes source activeSkin. Structural publication invalidates injected pose
+buffers; the editor must construct a new adapter before the next update. A target
+skeleton must belong to the exact rig source passed to the adapter.
+
+Each event sampler bakes at most 512 keys. Eventful loops require at least one
+thousandth of a fixed step in duration, bounding delivery to 1000 cycles per step.
+Time keys map to integer accepted ticks with relative floating-point seam handling;
+tiny positive keys belong to the first advancing tick. Event callbacks enqueue inputs
+for the next step. Callback reset/pause/disable stops stale dispatch and remaining
+steps; recursive update is rejected. Public snapshots/debug data remain isolated.
 
 ## One-way bindings and interaction
 

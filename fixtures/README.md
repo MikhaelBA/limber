@@ -66,5 +66,7 @@ graph references a scene Reveal clip; its rig graph independently references the
 original character clip. Typed trigger/bool/string parameters and an Any State
 transition round trip exactly. Core tests resolve both clip catalogs independently;
 browser coverage verifies Save/Open, malformed-entry/type/clip rejection and explicit
-Spine export failure. Pose/interaction/graph UI integration remains a later Phase 8
-increment. `logicSourceFixture` in tools/logic-fixtures.mjs reproduces this source.
+Spine export failure. Portable scene/rig adapters now replay its full poses, matrices
+and vertices identically across six display groupings in core and Chromium. Editor
+interaction/graph UI integration remains a later Phase 8 increment.
+`logicSourceFixture` in tools/logic-fixtures.mjs reproduces this source.

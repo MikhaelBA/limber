@@ -728,10 +728,52 @@ builds passed. The fresh complete twenty-three-suite browser regression passed w
 unchanged scene/RTL raster tolerances. Standard/Heavy combined CPU p95 was 1.80/5.30ms,
 with 10000/40004 weighted transforms and exact source preservation. Mesh worker Heavy
 publication was 36.5ms. Software-graphics cadence remains separate from hardware GPU
-60fps claims. Remote CI follows this source commit/push.
+60fps claims. Commit `f3e17b0` passed CI 38010700346: Test & Build (including all
+twenty-three browser suites), Docker, VPS and GitHub Pages all succeeded.
 
 Phase 8 remains partial: Logic pose playback, blend/typed events, bindings, graph UI,
 pointer/focus/test interaction and debug preview are outstanding. Native graph storage
 does not execute behavior in the legacy player/editor pipeline. Next is the portable
 scene/rig pose adapter increment; Sol 6.1 / High remains suitable. No user decision
 currently blocks progress toward Phases 8–12.
+
+## 10 October 2026 Phase 8C1 portable Logic posing
+
+SceneLogicPlayer and RigLogicPlayer share fixed-step/input/event lifecycle without
+renderer dependencies and are exposed through core and @limber/runtime. Fully
+setup-resolved animation/view channels blend once from a held pre-constraint pose;
+interruption snapshots the current blend. Rotation follows the shortest arc;
+attachment/draw order choose destination immediately. FK/primary constraints and
+secondary motion run per accepted tick, with skinning once per displayed update.
+Skin selection is transient and preserves source, including injected editor Skeletons.
+In-place structural publication rejects stale pose buffers before further posing.
+
+Pause drops fractional time/rebases inertia. Disable shows setup and freezes inputs,
+state and the outgoing blend; enabling restores the same held blend. Reset clears
+parameters/state/input/events/debug while retaining pause status. Event samplers bake
+chronological keys with authored ties and old-loop-end before new-loop-zero ordering.
+Entry-zero emits only on the first accepted tick, held/stall time emits none, and
+callback inputs commit next tick. Reset/pause/disable callbacks stop stale delivery;
+recursive update rejects. Relative seam handling preserves tiny positive keys and
+the .3/.1 binary boundary. Limits are 512 keys/clip and 1000 cycles/fixed step.
+
+Twenty new tests cover independent scene/rig blend/interruption/deform/vertex goldens,
+critical spring response, discrete output, transient skins, in-place publication,
+reset/disable/pause, event callback mutation and bounded/invalid input. Standard/Heavy
+combined IK/follow/path/spring fixtures require exact full world matrices, weighted
+vertices and Deform across 10/60/120/144/240/1000Hz grouping with accepted-tick input.
+The actual saved native fixture also replays exactly in core and Chromium without
+source mutation. The combined numerical replay test has a 15-second wall-clock limit
+to accommodate parallel test load; this does not change CPU performance budgets.
+All 492 unit tests in 68 files, lint/boundaries, formatting, TypeScript and package/
+editor builds passed. The new targeted browser playback suite and fresh complete
+twenty-four-suite browser regression passed with unchanged scene/RTL golden
+tolerances. Standard/Heavy combined CPU p95 was 2.20/5.80ms, with 10000/40004
+weighted transforms and exact source preservation. Software-graphics frame-gap
+p95 was 24.40/58.30ms, separate from hardware GPU 60fps claims. Remote CI follows
+this source commit/push.
+
+Phase 8 remains partial. The editor does not yet execute graphs through these adapters;
+typed payload strengthening/event UI, one-way bindings, graph editing, interaction and
+debug preview remain. Source stays schema 10 and legacy queue/mixer behavior stays as
+before. Next is the event payload/authoring increment, with Sol 6.1 / High suitable.

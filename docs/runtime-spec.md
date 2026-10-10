@@ -219,3 +219,36 @@ The optional Spine project adapter rejects active-owner native graphs explicitly
 
 This source increment does not execute graphs in the legacy editor/player pipeline.
 Logic playback, pose blending, bindings, interactions and graph UI remain Phase 8 work.
+
+## Portable Logic posing (Phase 8C1)
+
+Core and @limber/runtime expose SceneLogicPlayer and RigLogicPlayer. They bake/cloned
+graph and clip data, sample setup/entry without events and drive validated typed input
+through the same bounded 120Hz clock. update(delta) returns accepted steps; held frames,
+pause, reset, disabled graphs and dropped stall time do not emit events. snapshot and
+recentChanges expose destination/blend/parameters and bounded debug metadata. The legacy
+RuntimePlayer and editor animation queue remain unchanged; editor preview is not yet
+connected to these adapters.
+
+Scene poses resolve every transform/opacity channel against setup. Rig poses resolve
+bone locals, slot colors, attachments/order and Deform, blend continuous channels from
+the current pre-constraint animation snapshot, then solve FK/primary constraints and
+secondary motion per tick. Skinning happens once per display update. Interrupted blends
+freeze the actual current blend, rotation takes the shortest arc, and discrete channels
+come from the destination. Both adapters retain state and the outgoing blend when
+disabled, show authored setup while disabled, and restore the same blend on enablement.
+Pause drops fractional time and rebases inertia. Reset retains playing/paused status.
+
+Rig skin selection is instance-local and preserves source activeSkin. Optional injected
+Skeletons must use the exact rig-owner source. In-place rebuild/replace publication
+invalidates adapter pose buffers and requires a new player. Explicit resetSecondaryMotion
+rebases inertia on the next held/advancing evaluation without resetting the graph.
+
+Logic event samplers sort by time, retaining authored ties, deliver old-cycle end before
+new-cycle zero, and include entry-zero keys on the first advancing step. Integer state
+ticks and relative seam handling avoid duplicate held-frame delivery and binary .3/.1
+seam loss. Events carry clip ID/name, cycle, key name/time and current number/string
+payload. Limits are 512 keys/clip and at most 1000 loop cycles/fixed step. Callback input
+is committed next step; reset/pause/disable cancels stale dispatch and recursive update
+is rejected. Stronger typed payload records, bindings and editor graph/interaction/debug
+preview remain outstanding. This increment does not close Phase 8 or provide a .bbb.
