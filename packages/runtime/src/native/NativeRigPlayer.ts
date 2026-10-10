@@ -1,6 +1,5 @@
 import {
   RigLogicPlayer,
-  expandUIComponents,
   resetPose,
   solveFK,
   solveConstraints,
@@ -15,7 +14,12 @@ import {
   type LogicRouteEvent,
   type LogicValue,
 } from '@limber/core';
-import { NativeRuntimeAsset, nativeAssetState, requireNativeAsset } from './NativeRuntimeAsset';
+import {
+  NativeRuntimeAsset,
+  nativeAssetState,
+  nativeRigSource,
+  requireNativeAsset,
+} from './NativeRuntimeAsset';
 import { registerNativeOwner, type OwnedEvent } from './ownership';
 import { SECONDARY_STEP_SECONDS } from '@limber/core';
 import { runtimeFail, type RuntimeProgram } from './model';
@@ -81,14 +85,10 @@ export class NativeRigPlayer {
   ) {
     if (options.autoplay !== undefined && typeof options.autoplay !== 'boolean')
       throw new Error('Autoplay must be boolean.');
-    const { program: validated, project } = nativeAssetState(requireNativeAsset(program));
+    const asset = requireNativeAsset(program),
+      { program: validated } = nativeAssetState(asset);
     this.artboardId = options.artboardId ?? validated.defaultArtboardId;
-    const board = project.artboards.find((b) => b.id === this.artboardId);
-    if (!board)
-      runtimeFail('MISSING_ARTBOARD', 'Requested runtime artboard does not exist.', this.artboardId);
-    const rig = expandUIComponents(project, board).artboard.nodes.find(
-      (n): n is RigNode => n.type === 'rig' && n.id === rigId,
-    );
+    const rig = nativeRigSource(asset, this.artboardId, rigId);
     if (!rig) runtimeFail('MISSING_RIG', 'Requested rig does not exist in this runtime artboard.', rigId);
     this.source = rig;
     this.rigId = rig.id;

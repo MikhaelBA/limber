@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 COPY packages/mesh/package.json packages/mesh/
 COPY packages/core/package.json packages/core/
 COPY packages/runtime/package.json packages/runtime/
+COPY packages/runtime-web/package.json packages/runtime-web/
 COPY packages/editor/package.json packages/editor/
 RUN npm ci
 
@@ -17,6 +18,7 @@ COPY tsconfig.json tsconfig.base.json vitest.config.ts ./
 COPY packages/mesh packages/mesh
 COPY packages/core packages/core
 COPY packages/runtime packages/runtime
+COPY packages/runtime-web packages/runtime-web
 COPY packages/editor packages/editor
 # The reward template is shared with the immutable native-source fixture.
 COPY fixtures/bbbproj-v3-reward.json fixtures/bbbproj-v3-reward.json

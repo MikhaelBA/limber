@@ -22,11 +22,15 @@ import {
 } from '@limber/runtime';
 import { constraintFixture } from '../../../tools/constraint-fixtures.mjs';
 
-const work = vi.hoisted(() => ({ skinning: 0 }));
+const work = vi.hoisted(() => ({ skinning: 0, expansions: 0 }));
 vi.mock('@limber/core', async (importOriginal) => {
   const core = await importOriginal<typeof import('@limber/core')>();
   return {
     ...core,
+    expandUIComponents: (...args: Parameters<typeof core.expandUIComponents>) => {
+      work.expansions++;
+      return core.expandUIComponents(...args);
+    },
     updateSkinning: (...args: Parameters<typeof core.updateSkinning>) => {
       work.skinning++;
       return core.updateSkinning(...args);
@@ -70,6 +74,52 @@ function interactingSource(): BoneByBoneProject {
 }
 
 describe('validated native assets and artboard orchestration', () => {
+  it('constructs 500 independent characters without repeating whole-scene expansion for each lookup', () => {
+    const project = source(),
+      template = rig(project),
+      board = project.artboards[0]!;
+    delete board.logic;
+    board.clips = [];
+    project.components = [];
+    project.assetManifest = {};
+    project.editor.activeRigId = null;
+    delete template.logic;
+    template.animations = [];
+    template.skeleton = {
+      bones: [
+        {
+          id: 'root',
+          name: 'Root',
+          parentId: null,
+          length: 20,
+          setupPose: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 },
+        },
+      ],
+      slots: [],
+      attachments: [],
+      skins: [],
+      activeSkin: '',
+      ikConstraints: [],
+    };
+    board.nodes = Array.from({ length: 500 }, (_, index) => ({
+      ...structuredClone(template),
+      id: `actor-${index}`,
+      transform: { ...sceneTransform(), x: index },
+    }));
+    const program = compileRuntime(project).program,
+      before = structuredClone(program),
+      asset = new NativeRuntimeAsset(program);
+    work.expansions = 0;
+    const first = new NativeArtboardPlayer(asset);
+    expect(work.expansions).toBe(2); // One mutable scene publication, one immutable authored rig lookup table.
+    work.expansions = 0;
+    const second = new NativeArtboardPlayer(asset);
+    expect(work.expansions).toBe(1);
+    expect(first.getRigIds()).toHaveLength(500);
+    expect(first.evaluate().find((entry) => entry.node.id === 'actor-499')!.world[4]).toBe(499);
+    expect(first.getRig('actor-499').skeleton).not.toBe(second.getRig('actor-499').skeleton);
+    expect(program).toEqual(before);
+  });
   it('shares validated assets while isolating the input, publications and every playback instance', () => {
     const program = compileRuntime(source()).program,
       asset = new NativeRuntimeAsset(program);
@@ -332,7 +382,7 @@ describe('validated native assets and artboard orchestration', () => {
       original: unknown[] = [];
     player.onEvent((event) => {
       event.ownerId = 'mutated';
-      if (event.payload?.type === 'int') event.payload.value = 99;
+      if (typeof event.payload === 'object' && event.payload.type === 'int') event.payload.value = 99;
     });
     player.onEvent((event) => original.push(event));
     const off = player.onEvent(() => {
@@ -440,7 +490,7 @@ describe('validated native assets and artboard orchestration', () => {
         parentId: null,
         visible: true,
         opacity: 1,
-        transform: sceneTransform({ x }),
+        transform: { ...sceneTransform(), x },
         layout: uiLayout(200, 200),
         overrides: {},
       });

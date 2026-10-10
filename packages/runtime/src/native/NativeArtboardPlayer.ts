@@ -27,6 +27,7 @@ export interface NativeArtboardSnapshot {
 /** One clock drives the scene and all expanded characters, then publishes one skinned frame. */
 export class NativeArtboardPlayer {
   readonly artboardId: string;
+  readonly asset: NativeRuntimeAsset;
   readonly scene: NativeScenePlayer;
   private readonly characters = new Map<string, NativeRigPlayer>();
   private readonly owners: OwnerHooks[];
@@ -46,6 +47,7 @@ export class NativeArtboardPlayer {
     if (options.autoplay !== undefined && typeof options.autoplay !== 'boolean')
       throw new Error('Autoplay must be boolean.');
     const asset = requireNativeAsset(input);
+    this.asset = asset;
     this.scene = new NativeScenePlayer(asset, { artboardId: options.artboardId });
     this.artboardId = this.scene.artboardId;
     for (const node of this.scene.getView().nodes) {

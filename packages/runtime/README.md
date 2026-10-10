@@ -2,7 +2,8 @@
 
 `@limber/runtime` now has an independent native path alongside the retained legacy
 `RuntimePlayer`. It has no React, Pixi or editor dependency. Rendering and actual
-image/font decoding are separate adapters and remain part of Phase 9 delivery.
+image/font decoding live in `@limber/runtime-web`; the integrated Ship/asset workflow
+remains part of Phase 9 delivery.
 
 ```ts
 import {
@@ -26,7 +27,8 @@ draw(character.getWorldTransforms(), character.getDrawOrder());
 
 Compiler diagnostics identify remaining host font requirements. The initial asset
 stage accepts embedded PNG/JPEG/WebP and checks canonical encoding/MIME signatures;
-pixel decode, SVG conversion, atlas/font workers and Ship UI are still outstanding.
+Web pixel decode and explicit host font loading are available in `@limber/runtime-web`;
+SVG conversion, atlas/font workers and Ship UI are still outstanding.
 The runtime loader rejects renamed source and unknown fields/versions/features before
 constructing a player. ADR 0024 defines the schema and resource bounds.
 
@@ -113,7 +115,10 @@ drawScene(first.getView(), (id) => first.getRig(id).skeleton);
 
 `NativeRuntimeAsset` validates/detaches once and can create independent scene, character
 or artboard instances. `getProgram()`, `getArtboards()` and `getTexture(id)` return
-detached publications. Standalone players also accept a compiled program directly.
+detached publications. `getTextures()` and `getFontRequirements()` expose detached
+resource staging metadata. Authored rig expansion is cached once per asset/artboard;
+working skeleton/graph state stays independent. Standalone players also accept a
+compiled program directly.
 
 `NativeArtboardPlayer` owns one bounded 120 Hz clock for the scene and all characters,
 including characters expanded from reusable UI components. Each accepted global tick
@@ -140,5 +145,5 @@ markerId)` and `getMarker(rigId, markerId)` compose responsive scene world trans
 remain explicit through `getRig(id).dispatch(event)`. Component-local graphs remain
 outside the current authoring contract; instanced characters support raw clips.
 
-Actual Web rendering, image/font/atlas staging and the integrated shipping workflow
-are still pending Phase 9 gates.
+The shared Web render adapter stages real image pixels and supplied host fonts. SVG/
+font packaging, atlas workers and the integrated shipping workflow remain Phase 9 gates.

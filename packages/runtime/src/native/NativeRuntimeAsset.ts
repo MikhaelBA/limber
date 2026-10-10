@@ -1,4 +1,4 @@
-import type { BoneByBoneProject } from '@limber/core';
+import { expandUIComponents, type BoneByBoneProject, type RigNode } from '@limber/core';
 import { materializeRuntimeProject } from './adapt';
 import { validateRuntimeProgram } from './validate';
 import { runtimeFail, type RuntimeProgram, type RuntimeTexture } from './model';
@@ -6,6 +6,7 @@ import { runtimeFail, type RuntimeProgram, type RuntimeTexture } from './model';
 interface AssetState {
   program: RuntimeProgram;
   project: BoneByBoneProject;
+  rigs: Map<string, ReadonlyMap<string, RigNode>>;
 }
 const assets = new WeakMap<NativeRuntimeAsset, AssetState>();
 
@@ -14,7 +15,7 @@ export class NativeRuntimeAsset {
   constructor(input: RuntimeProgram) {
     const program = validateRuntimeProgram(input),
       project = materializeRuntimeProject(program).project;
-    assets.set(this, { program, project });
+    assets.set(this, { program, project, rigs: new Map() });
   }
   getProgram(): RuntimeProgram {
     return structuredClone(nativeAssetState(this).program);
@@ -32,6 +33,17 @@ export class NativeRuntimeAsset {
     if (!texture) runtimeFail('MISSING_PIXELS', 'Requested native texture does not exist.', id);
     return { ...texture };
   }
+  getTextures(): readonly RuntimeTexture[] {
+    return nativeAssetState(this).program.textures.map((texture) => ({ ...texture }));
+  }
+  getFontRequirements(): readonly { nodeId: string; families: readonly string[] }[] {
+    const program = nativeAssetState(this).program;
+    return [...program.artboards, ...program.components].flatMap((board) =>
+      board.nodes.flatMap((node) =>
+        node.type === 'text' ? [{ nodeId: node.id, families: [...node.fontFamilies] }] : [],
+      ),
+    );
+  }
 }
 /** Internal only. Players clone mutable working data; this state never crosses the package API. */
 export function nativeAssetState(asset: NativeRuntimeAsset): AssetState {
@@ -47,4 +59,24 @@ export function nativeAssetState(asset: NativeRuntimeAsset): AssetState {
 }
 export function requireNativeAsset(input: RuntimeProgram | NativeRuntimeAsset): NativeRuntimeAsset {
   return input instanceof NativeRuntimeAsset ? input : new NativeRuntimeAsset(input);
+}
+/** Immutable authored expansion is shared; players still clone every mutable skeleton/graph. */
+export function nativeRigSource(
+  asset: NativeRuntimeAsset,
+  artboardId: string,
+  rigId: string,
+): RigNode | undefined {
+  const state = nativeAssetState(asset);
+  let rigs = state.rigs.get(artboardId);
+  if (!rigs) {
+    const board = state.project.artboards.find((board) => board.id === artboardId);
+    if (!board) runtimeFail('MISSING_ARTBOARD', 'Requested runtime artboard does not exist.', artboardId);
+    rigs = new Map(
+      expandUIComponents(state.project, board).artboard.nodes.flatMap((node) =>
+        node.type === 'rig' ? [[node.id, node] as const] : [],
+      ),
+    );
+    state.rigs.set(artboardId, rigs);
+  }
+  return rigs.get(rigId);
 }

@@ -3,22 +3,22 @@
 The product specification is the target. Limber functionality is retained and its milestone numbering
 is historical. A partial implementation never implies the corresponding product gate is complete.
 
-| Phase | Scope                                                                | Status                          |
-| ----- | -------------------------------------------------------------------- | ------------------------------- |
-| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed |
-| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed |
-| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed |
-| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed |
-| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed |
-| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed |
-| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed |
-| 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed |
-| 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed |
-| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: native v1 compiler |
-| 10    | Unity importer, world and UGUI runtime                               | Pending                         |
-| 11    | Cocos Creator integration and parity                                 | Pending                         |
-| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                         |
-| 13    | Commercial services only when validated                              | Pending                         |
+| Phase | Scope                                                                | Status                           |
+| ----- | -------------------------------------------------------------------- | -------------------------------- |
+| 0     | Foundation, architecture contracts, lint and browser CI              | Complete; CI 37528484374 passed  |
+| 1     | Project/scene model, commands, portable save and local recovery      | Complete; CI 37591752107 passed  |
+| 2     | Scene renderer, pivot, gizmos, multi-selection, performance fixtures | Complete; CI 37634966623 passed  |
+| 3     | Timeline/graph, explicit auto-key, multi-key operations              | Complete; CI 37675345618 passed  |
+| 4     | Game UI, 9-slice, text/RTL, layout, components                       | Complete; CI 37770931582 passed  |
+| 5     | Rig UX, mirror, guides, sockets and markers                          | Complete; CI 37842645552 passed  |
+| 6     | Auto mesh/weights, pruning, linked meshes and workers                | Complete; CI 37982002648 passed  |
+| 7     | Robust IK, transform/path constraints and secondary motion           | Complete; CI 38008404463 passed  |
+| 8     | Logic, typed parameters, state machine and bindings                  | Complete; CI 38034780726 passed  |
+| 9     | Native runtime compiler, Ship Doctor, profiler and atlas workers     | In progress: native playback/Web |
+| 10    | Unity importer, world and UGUI runtime                               | Pending                          |
+| 11    | Cocos Creator integration and parity                                 | Pending                          |
+| 12    | PSD import, recovery hardening, accessibility, public beta           | Pending                          |
+| 13    | Commercial services only when validated                              | Pending                          |
 
 ## Reporting protocol
 
@@ -113,7 +113,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Native character API with correct raw mixing/FIFO queue, typed Logic and skin/socket lifecycle.
 - [x] Native scene raw playback, responsive expanded UI, bindings and rendered-node routing.
 - [x] Native artboard orchestration with scene and independent/instanced character parity.
-- [ ] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
+- [x] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
 - [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.

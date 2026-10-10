@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@limber/runtime": ["./src/index.ts"],
+      "@limber/core": ["../core/src/index.ts"],
+      "@limber/mesh": ["../mesh/src/index.ts"],
+      "@limber/mesh/triangulate": ["../mesh/src/triangulate.ts"]
+    }
+  },
+  "include": ["tests/native*.test.ts", "../mesh/src/cdt2d.d.ts"]
+}

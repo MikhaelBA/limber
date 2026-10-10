@@ -14,6 +14,9 @@ Pre-release policy (9 October 2026): the user removed backward file compatibilit
   Persistent changes use commands; pointer drags commit once. Frame evaluation stays outside React state.
 - `packages/runtime`: evaluator consuming core data; no editor dependency. The legacy wireframe helper
   uses a caller-provided canvas context; loading/evaluation remains usable in Node.
+- `packages/runtime-web`: browser pixel/font publication and shared Pixi scene/rig rendering.
+  May use core/runtime and Pixi; no editor or React dependency. The editor injects its registry
+  and guides, while native playback injects strict staged resources and a transparent production view.
 - New scene/project modules initially live in core. Extract packages when ownership becomes useful,
   rather than introducing empty packages or breaking existing imports.
 

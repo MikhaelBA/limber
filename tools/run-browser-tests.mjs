@@ -53,6 +53,7 @@ try {
     'logic-workspace.mjs',
     'logic-rendering.mjs',
     'logic-performance.mjs',
+    'native-web.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

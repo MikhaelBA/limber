@@ -1086,10 +1086,52 @@ stale-delivery/reentrancy, lifecycle/fractions/stall limits, disabled-owner beha
 instanced characters/socket composition and Standard/Heavy full constraint/spring/vertex
 parity. Actual skinning call counts prove one pass for twelve accepted ticks and zero
 passes on held frames, including callback Stop. All 615 tests in 79 files passed locally;
-lint/boundaries, formatting, TypeScript and package/editor builds passed. Remote CI follows
-publication of this increment.
+lint/boundaries, formatting, TypeScript and package/editor builds passed. Commit `44b359a`
+passed CI 38042380142: Test & Build (including thirty browser suites), Docker, VPS and
+GitHub Pages succeeded.
 
 The next task is the independent Web render adapter sharing the editor's tested masking,
 draw-order and RGBA contract. Actual pixel decode and export/load/render acceptance remain
 required, followed by image/font/atlas workers and Ship Doctor/profiler. Phase 9 remains
 in progress. Sol 6.1 / High is suitable; no user decision or model switch is required.
+
+## 10 October 2026 Phase 9C1 independent Web assets and shared rendering
+
+The new browser-only `@limber/runtime-web` package owns staged real PNG/JPEG/WebP decode,
+required host font loading and disposable Pixi rendering. Portable core/runtime remain
+free of Pixi/editor/React imports. The editor now injects its texture registry and guides
+into this shared scene/rig/text adapter. Production rendering is transparent and has no
+artboard/safe-area/group/bone guide geometry. Existing independent stencil masks, exclusive
+clip ends, animated slot ordering and unsigned RGBA/alpha behavior have one tested implementation.
+
+`NativeWebAssets` publishes only after every required resource succeeds. Nongeneric fonts
+must have explicit supplied bytes/URLs; generic families use host system fonts. Missing/
+damaged resources receive coded object-linked errors. Dimension/aggregate pixel budgets
+are checked, object URLs are revoked, failed/cancelled texture staging is destroyed, and
+fonts enter the document only after success. Disposal removes owned resources without
+affecting another publication. Font packaging and SVG/atlas compilation remain required.
+
+`NativeWebRenderer` consumes owned native artboard state and the same validated asset's
+resource publication. Host Application/camera/lifetime remain explicit. Normal frames
+retain GPU geometry/text caches; mode/skeleton publication and responsive resize rebuild
+owned geometry. Rendered hit IDs route through native component ownership. Integration
+testing caught and fixed accidental re-expansion of already expanded instance containers.
+
+The new standalone browser gate downloads and reloads actual `.bbb` bytes, compares
+initial and animated raster/RTL pixels with independent source scene/rig playback, checks
+transparent premultiplied-RGBA/stencil/draw-order goldens, geometry/held-text reuse, resize/
+hit routing, failed second-image staging, malformed fonts, cancellation and complete URL/
+font disposal. All thirteen raster/native corpus projects (including Fox) retain source
+and pass initial-view pixel parity; two SVG projects still report actual conversion needs.
+No fake replacement artwork or hardware frame-rate claim is used. An additional
+500-character construction test verifies that authored rig lookup expansion is cached
+once per artboard/asset, while each player's skeleton remains independent. All 616
+tests, lint/boundaries/format/TypeScript and package/editor builds passed locally. Native
+SDK test files are now also semantically checked by the root TypeScript command. All
+31 browser suites passed; native pixel/corpus checks were rerun after the lookup-cache
+change. The Linux Docker image also builds successfully with the new workspace included.
+Remote CI follows publication of this increment.
+
+The next task is the cancellable image/SVG/font/atlas pipeline, followed by Ship Doctor,
+measured profiler and the integrated Ship export/load/play workspace. Phase 9 remains
+in progress. Sol 6.1 / High remains suitable; no material user decision is required.

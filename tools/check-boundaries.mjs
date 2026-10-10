@@ -41,10 +41,11 @@ function check(directory, allowedPackages, externals = []) {
 check(resolve(root, 'packages/mesh/src'), ['mesh'], ['cdt2d']);
 check(resolve(root, 'packages/core/src'), ['core', 'mesh']);
 check(resolve(root, 'packages/runtime/src'), ['core', 'runtime']);
+check(resolve(root, 'packages/runtime-web/src'), ['core', 'runtime', 'runtime-web'], ['pixi.js']);
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;
 } else
   console.log(
-    'Architecture boundaries passed: mesh, core and runtime do not depend on editor, React or Pixi.',
+    'Architecture boundaries passed: portable packages stay renderer-free; runtime-web has no editor or React dependency.',
   );
