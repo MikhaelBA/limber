@@ -3,6 +3,7 @@ import type { RuntimeFeature, RuntimeLogicGraph, RuntimeProgram } from './model'
 export function deriveRuntimeFeatures(program: RuntimeProgram): RuntimeFeature[] {
   const features = new Set<RuntimeFeature>(['scene']);
   if (program.textures.some((texture) => texture.type === 'atlas')) features.add('atlas');
+  if (program.fonts.length) features.add('fonts');
   const graph = (graph: RuntimeLogicGraph | undefined) => {
     if (!graph) return;
     features.add('logic');

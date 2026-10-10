@@ -19,6 +19,7 @@ import { projectRuntimeShape } from './shape';
 import { nativeDurationTicks } from './timing';
 import { validateNativeEventWork } from './eventWork';
 import { validateNativeAtlas } from './atlas';
+import { validateNativeFonts } from './fonts';
 
 /** Checks canonical encoding and image signatures. Pixel decoding is a renderer/worker responsibility. */
 export function validateRuntimeTexture(texture: RuntimeImageTexture | RuntimeAtlasPage): void {
@@ -214,6 +215,7 @@ export function validateRuntimeProgram(input: unknown): RuntimeProgram {
   }
   for (const page of program.atlasPages) validateRuntimeTexture(page);
   validateNativeAtlas(program);
+  validateNativeFonts(program);
   const referenced = referencedRuntimeTextures(program);
   for (const id of referenced)
     if (!textures.has(id))

@@ -6,6 +6,7 @@ import type {
   SceneNode,
   SceneProperty,
   UIComponent,
+  EmbeddedFont,
 } from '@limber/core';
 
 export const RUNTIME_FORMAT = 'bonebybone-runtime' as const;
@@ -14,6 +15,7 @@ export const RUNTIME_VERSION = 1 as const;
 export const RUNTIME_MAX_BYTES = 128 * 1024 * 1024;
 export const RUNTIME_FEATURES = [
   'atlas',
+  'fonts',
   'logic',
   'logic-bindings',
   'logic-routes',
@@ -108,6 +110,7 @@ export interface RuntimeProgram {
   features: RuntimeFeature[];
   textures: RuntimeTexture[];
   atlasPages: RuntimeAtlasPage[];
+  fonts: EmbeddedFont[];
   artboards: RuntimeArtboard[];
   components: RuntimeComponent[];
 }

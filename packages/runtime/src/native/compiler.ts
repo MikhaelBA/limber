@@ -13,6 +13,7 @@ import {
 } from './model';
 import { projectRuntimeShape } from './shape';
 import { validateRuntimeProgram } from './validate';
+import { diagnoseNativeFonts, referencedEmbeddedFonts } from './fonts';
 
 export interface CompileRuntimeOptions {
   defaultArtboardId?: string;
@@ -47,6 +48,7 @@ function compileStructure(source: BoneByBoneProject, options: CompileRuntimeOpti
     features: [],
     textures: [],
     atlasPages: [],
+    fonts: referencedEmbeddedFonts({ artboards: source.artboards, components: source.components ?? [] }, source.fonts ?? []),
     artboards: source.artboards,
     components: source.components ?? [],
   };
@@ -120,18 +122,7 @@ export function runtimeTextureRequirements(
 function finishCompilation(program: RuntimeProgram): RuntimeCompilation {
   program.features = deriveRuntimeFeatures(program);
   const validated = validateRuntimeProgram(program);
-  const diagnostics: RuntimeDiagnostic[] = [];
-  for (const container of [...validated.artboards, ...validated.components])
-    for (const node of container.nodes)
-      if (node.type === 'text')
-        diagnostics.push({
-          code: 'EXTERNAL_FONT',
-          severity: 'warning',
-          objectId: node.id,
-          explanation: `Text requires host fonts: ${node.fontFamilies.join(', ')}. Font pixels are not bundled in v1 compilation yet.`,
-          remedy:
-            'Provide the declared fonts in the target host; packaged font export follows in the asset pipeline.',
-        });
+  const diagnostics = diagnoseNativeFonts(validated);
   return { program: validated, diagnostics };
 }
 

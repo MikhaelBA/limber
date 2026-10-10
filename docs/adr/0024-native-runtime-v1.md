@@ -13,7 +13,7 @@ integrated Ship workflow remain required. Sol 6.1 / High is suitable.
 
 `.bbbproj` is editable source. `.bbb` has the independent `bonebybone-runtime` header
 and `version: 1`. Its public envelope contains `id`, `name`, `defaultArtboardId`, sorted
-`features`, `textures`, `atlasPages`, `artboards` and `components`. It contains no editor selection,
+`features`, `textures`, `atlasPages`, `fonts`, `artboards` and `components`. It contains no editor selection,
 component revision, graph-canvas position, scene track/key/event selection ID or scene
 FPS. Clip/node/graph identities and public names survive because host APIs reference
 them. Scene times remain seconds; playback uses the existing 120 Hz contracts.
@@ -90,7 +90,11 @@ trim guards and a frame-clamp shader preserve filtered source edges and authored
 outside [0,1]. Source comparison covers all fifteen fixture/example projects; exact
 synthetic goldens and bounded one-unit corpus GPU rounding remain separate gates.
 
-Font family/fallback requirements remain authored. The initial compiler reports an
-`EXTERNAL_FONT` warning for text nodes; font packaging and host adapters must make the
-remaining dependency explicit. Phase 9 is not accepted until the worker/Ship workflow
-and actual exported Web rendering satisfy the complete asset/playback gate.
+Font family/fallback order remains authored. Source schema 14 and native v1 retain
+referenced TTF/OTF bytes and license metadata in a detached font table. Structural
+ingestion validates bounded canonical bytes, sfnt tables and supported Unicode cmap;
+it does not claim font-engine decoding. The compiler reports missing packaged glyphs,
+external/system fallback, unknown/restricted redistribution, embedding flags and
+variation sequences as explicit findings. Actual font staging, isolated renderer
+publication and contextual/RTL parity remain required. Phase 9 is not accepted until
+the worker/Ship workflow and exported rendering satisfy the full asset/playback gate.

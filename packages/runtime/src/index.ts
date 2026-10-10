@@ -3,6 +3,7 @@ export { SceneLogicPlayer, RigLogicPlayer, type LogicFiredEvent, type LogicSnaps
 export { LogicInputRouter, type LogicDispatch, type LogicRouteEvent } from '@limber/core';
 export * from './native/model';
 export * from './native/compiler';
+export { runtimeFontRequirements, diagnoseNativeFonts } from './native/fonts';
 export * from './native/format';
 export { validateRuntimeProgram } from './native/validate';
 export * from './native/NativeRigPlayer';

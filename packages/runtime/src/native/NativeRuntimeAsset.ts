@@ -1,4 +1,4 @@
-import { expandUIComponents, type BoneByBoneProject, type RigNode } from '@limber/core';
+import { expandUIComponents, type BoneByBoneProject, type RigNode, type EmbeddedFont } from '@limber/core';
 import { materializeRuntimeProject } from './adapt';
 import { validateRuntimeProgram } from './validate';
 import { runtimeFail, type RuntimeProgram, type RuntimeTexture, type RuntimeAtlasPage } from './model';
@@ -46,6 +46,9 @@ export class NativeRuntimeAsset {
         node.type === 'text' ? [{ nodeId: node.id, families: [...node.fontFamilies] }] : [],
       ),
     );
+  }
+  getFonts(): readonly EmbeddedFont[] {
+    return structuredClone(nativeAssetState(this).program.fonts);
   }
 }
 /** Internal only. Players clone mutable working data; this state never crosses the package API. */

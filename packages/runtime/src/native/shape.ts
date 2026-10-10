@@ -376,6 +376,13 @@ export const runtimeShape = object({
   name: str,
   defaultArtboardId: str,
   features: strings,
+  fonts: array(object({
+    id: str,
+    family: str,
+    format: enumeration('ttf', 'otf'),
+    base64: str,
+    license: object({ name: str, text: str, redistribution: enumeration('allowed', 'unknown', 'restricted') }, { sourceUrl: str }),
+  })),
   textures: array(
     tagged('type', {
       image: object({

@@ -12,6 +12,7 @@ import { LogicEventSampler } from '../logic/eventSampling';
 import type { LogicGraph } from '../logic/model';
 import { LogicSceneBindings } from '../logic/LogicSceneBindings';
 import { validateLogicRouteTargets } from '../logic/LogicInputRouter';
+import { validateEmbeddedFonts } from './fonts';
 
 export class ProjectFormatError extends Error {
   constructor(
@@ -122,6 +123,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
   }
   text(project.projectId, 'Project ID');
   text(project.name, 'Project name');
+  if (project.fonts !== undefined) validateEmbeddedFonts(project.fonts);
   const manifest = record(project.assetManifest, 'Asset manifest');
   for (const [id, value] of Object.entries(manifest)) {
     text(id, 'Asset ID');
@@ -302,7 +304,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
     project.schemaVersion === 9 ||
     project.schemaVersion === 10 ||
     project.schemaVersion === 11 ||
-    project.schemaVersion === 12
+    project.schemaVersion === 12 ||
+    project.schemaVersion === 13
   )
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);

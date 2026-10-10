@@ -118,13 +118,15 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Real PNG/JPEG/WebP/SVG worker decode, staged PNG atlas pages and hard cancellation.
 - [x] Packed native atlas manifest, shared-page loading and export/load/render source pixel acceptance.
 - [ ] Packaged font staging, fallback and license metadata.
+  - [x] Portable source/runtime OpenType bytes, strict bounds/cmap, license metadata and fallback diagnostics.
+  - [ ] Worker/browser font decode, isolated font publication, bundled font export and actual RTL pixel acceptance.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.
 - [ ] Full native corpus, renderer/performance and Phase 9 CI acceptance gate.
 
-Phase 9A accepts embedded raster images; two SVG source fixtures await actual worker
-rasterization. Font packaging and complete image decoding remain explicit asset-stage
-requirements. The existing legacy player is not the native artboard player gate.
+Native raster/SVG conversion and packed export/load/render now pass all fifteen source
+projects. Font decode/publication, Ship workspace and the complete acceptance gate
+remain open. The existing legacy player is not the native artboard player gate.
 
 ## Layered character sample (10 October 2026)
 

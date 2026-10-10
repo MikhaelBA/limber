@@ -52,6 +52,7 @@ export * from './project/format';
 export * from './project/scene';
 export * from './project/motion';
 export * from './project/ui';
+export * from './project/fonts';
 
 // Portable behavior kernel (source/preview adapters are separate).
 export * from './logic/model';

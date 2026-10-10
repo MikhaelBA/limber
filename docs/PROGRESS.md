@@ -1261,3 +1261,42 @@ Phase 9 remains in progress. Next: packaged font bytes/fallback/license metadata
 followed by Ship Doctor/platform budgets, profiler, Ship workspace/atlas inspection
 and the complete Phase 9 acceptance gate. Sol 6.1 / High is suitable; no user decision
 or model switch is needed.
+
+Commit `6a87fff` passed CI 38052436948: all 33 browser suites, Test & Build, Docker,
+VPS and GitHub Pages succeeded.
+
+## 10 October 2026 Phase 9D4a portable font resources and diagnostics
+
+Authoring schema 14 adds optional embedded single-file OpenType TTF/OTF resources;
+native unreleased v1 adds a required font table and derived `fonts` capability. Font
+bytes and full license name/text/source/status ship once, only for referenced authored
+families. Fallback order is preserved; family identity follows case-insensitive NFC
+matching. Source records and nested SDK font publications remain detached.
+
+Portable ingestion bounds 32 fonts, 4 MiB per file and 16 MiB aggregate, preflights
+canonical base64 before decode, validates sfnt table ranges/alignment/overlap, required
+tables and Unicode cmap formats 4/12/13, and checks declared outline format. Scalar
+glyph lookup uses binary search and .notdef semantics. This is structural/default-glyph
+evidence, not actual font-engine decoding or a claim of contextual/variation shaping
+parity. Collections, WOFF and other cmap forms receive explicit conversion remedies.
+
+Compile diagnostics identify missing packaged characters, external/generic fallback,
+unverified variation sequences, redistribution metadata and OpenType embedding flags.
+Static text inspection has a bounded work budget; dynamic/localized values still need
+target preview. Metadata status is retained as authored and is not a legal inference.
+The parser follows the official [OpenType directory](https://learn.microsoft.com/en-us/typography/opentype/spec/otff),
+[Unicode cmap](https://learn.microsoft.com/en-us/typography/opentype/spec/cmap) and
+[embedding flags](https://learn.microsoft.com/en-us/typography/opentype/spec/os2#fstype) contracts.
+
+Ten new tests use the real bundled Noto variable font plus independent synthetic cmap
+metadata for BMP offsets/deltas, supplementary and constant mappings. They verify
+malformed bounds/encoding/budgets/license records, source save/reopen, strict native
+roundtrip/publication, original bytes, missing glyphs and all diagnostic classes.
+All 655 tests in 84 files, lint/boundaries, formatting, semantic TypeScript and both
+builds passed locally. Packed and independent native Web browser gates passed,
+including source/RTL pixels and complete asset cleanup. The independent browser test
+now ingests its historical fixture through the source reader before compilation;
+the compiler still accepts only the current schema. Remote CI follows publication.
+Worker font decode, isolated
+Web publication, bundled/editor font export and actual RTL/fallback pixels remain open.
+Phase 9 remains in progress. Sol 6.1 / High is suitable; no user decision is required.

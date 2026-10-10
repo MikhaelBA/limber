@@ -120,11 +120,15 @@ try {
   );
   assert.ok(goldens.sourceUnchanged && goldens.stillLive && goldens.disposedGuard);
 
-  const interactive = JSON.parse(readFileSync('fixtures/bbbproj-v13-interactive.json', 'utf8'));
+  const interactive = await page.evaluate(
+    (source) => window.nativeTest.core.deserializeProject(source),
+    readFileSync('fixtures/bbbproj-v13-interactive.json', 'utf8'),
+  );
   for (const board of [...interactive.artboards, ...interactive.components])
     for (const node of board.nodes)
       if (node.type === 'text') node.fontFamilies = ['Noto Sans Arabic', 'sans-serif'];
   const download = page.waitForEvent('download');
+  download.catch(() => {}); // Preserve the original compile error if setup fails before download.
   await page.evaluate((source) => {
     const { runtime } = window.nativeTest,
       before = JSON.stringify(source),

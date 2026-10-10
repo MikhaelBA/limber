@@ -169,3 +169,19 @@ atlas region flattening remains an explicit unsupported export finding.
 metadata, including nested crop/frame rectangles. Playback does not decode resources
 or rewrite source UVs/geometry. `@limber/runtime-web` creates logical views over unique
 page uploads, preserving original logical size and source clamp-to-edge sampling.
+
+## Portable font records
+
+Source schema 14 optionally carries `fonts`; native v1 requires this table (empty for
+font-free exports). Referenced single-file TTF/OTF records contain ID, family, format,
+canonical bytes and complete license metadata. Fonts sort by ID; text fallback order
+does not change. `NativeRuntimeAsset.getFonts()` returns detached nested records.
+`runtimeFontRequirements` and `diagnoseNativeFonts` expose source/ship requirements and
+actionable missing-glyph/fallback/license/embedding findings. Generic CSS families are
+explicit host dependencies; the compiler never discovers or copies OS font files.
+
+Structural preflight covers bounded encoding, sfnt table bounds and Unicode cmap
+4/12/13. Default character coverage does not verify contextual shaping or variation
+sequences. Actual decoding/publication belongs to worker/host adapters. Font budgets
+are 32 files, 4 MiB each and 16 MiB total; static glyph diagnostics inspect at most
+262144 text scalars. Actual dynamic/localized text must be previewed in the host.

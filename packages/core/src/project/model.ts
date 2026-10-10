@@ -5,9 +5,10 @@ import { uuid } from '../utils/uuid';
 import type { SceneClip } from './motion';
 import type { UILayout, UIComponent, UIOverrideValue, UIInsets } from './ui';
 import type { LogicGraph } from '../logic/model';
+import type { EmbeddedFont } from './fonts';
 
 export const PROJECT_FORMAT = 'bonebybone-project' as const;
-export const PROJECT_SCHEMA_VERSION = 13;
+export const PROJECT_SCHEMA_VERSION = 14;
 
 export interface SceneTransform extends Transform {
   /** Local-space pivot in pixels; independent of the node's dimensions. */
@@ -98,6 +99,7 @@ export interface Artboard {
 
 /** Authoring contract; this is deliberately NOT the shipping runtime format. */
 export interface BoneByBoneProject {
+  fonts?: EmbeddedFont[];
   components?: UIComponent[];
   format: typeof PROJECT_FORMAT;
   schemaVersion: number;
