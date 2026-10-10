@@ -84,3 +84,10 @@ Core/history tests cover disabled graphs, domains, references and exact transact
 Chromium verifies six frame groupings, native round trips and failed import isolation.
 Graph authoring and interaction preview UI follow separately. The reproducible source
 is `logicBindingsFixture` in tools/logic-bindings-fixture.mjs.
+
+`bbbproj-v13-routes.json` is the actual editor Save/Open result with all eight scene
+interaction signals, explicit typed writes, a click trigger/transition and an independent
+rig viewport route. Core and Chromium replay scene/rig output identically under six
+frame groupings, preserve source and reject invalid target/type/domain/trigger imports.
+The fixture tests portable routing; visual graph/interaction UI follows in Phase 8E2.
+`logicRoutesFixture` in tools/logic-routes-fixture.mjs reproduces its source.

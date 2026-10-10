@@ -141,6 +141,17 @@ export class LogicMachine {
   }
   /** Validate all input before enqueueing. Values publish at the next accepted step. */
   applyInput(input: LogicInput): void {
+    this.applyInputs([input]);
+  }
+  /** One interaction may route several writes; no prefix is accepted on failure. */
+  applyInputs(inputs: readonly LogicInput[]): void {
+    if (!Array.isArray(inputs)) throw new Error('Logic inputs must be an array.');
+    if (this.pending.length + inputs.length > 1024)
+      throw new Error('At most 1024 Logic inputs may wait for a step.');
+    const prepared = inputs.map((input) => this.prepareInput(input));
+    this.pending.push(...prepared);
+  }
+  private prepareInput(input: LogicInput): LogicInput {
     if (!input || typeof input !== 'object') throw new Error('Logic input must be an object.');
     const p = this.byName.get(input.name);
     if (!p) throw new Error(`Unknown Logic parameter "${input.name}".`);
@@ -149,8 +160,7 @@ export class LogicMachine {
     validateLogicValue(p.type, input.value, `Parameter ${p.name}`);
     for (const binding of this.boundParameters.get(p.id) ?? [])
       validateLogicBindingValue(binding.property, input.value, binding.id);
-    if (this.pending.length >= 1024) throw new Error('At most 1024 Logic inputs may wait for a step.');
-    this.pending.push({ ...input, value: canonicalLogicValue(p.type, input.value) } as LogicInput);
+    return { ...input, value: canonicalLogicValue(p.type, input.value) } as LogicInput;
   }
   /** Integer ticks are the only time source; one transition at most per step. */
   step(): void {

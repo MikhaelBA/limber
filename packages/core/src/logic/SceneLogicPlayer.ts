@@ -17,7 +17,11 @@ export class SceneLogicPlayer extends LogicPlayback {
     if (!source.logic) throw new Error('Scene Logic playback needs an artboard graph.');
     const board = structuredClone(source),
       clips = new Map((board.clips ?? []).map((c) => [c.id, c]));
-    super(board.logic!, new Map([...clips].map(([id, c]) => [id, { duration: c.duration }])));
+    super(
+      board.logic!,
+      new Map([...clips].map(([id, c]) => [id, { duration: c.duration }])),
+      new Set(board.nodes.map((n) => n.id)),
+    );
     this.board = board;
     this.bindings = new LogicSceneBindings(board.logic!, board, structuredClone(components));
     this.clips = clips;

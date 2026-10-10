@@ -1,4 +1,5 @@
 import type { LogicGraph, LogicClipCatalog, LogicParameter, LogicValue, LogicBinding } from './model';
+import { LOGIC_ROUTE_EVENTS } from './model';
 export class LogicValidationError extends Error {
   constructor(
     readonly code: string,
@@ -204,6 +205,28 @@ export function validateLogicGraph(value: unknown, catalog: LogicClipCatalog): a
     const target = JSON.stringify([b.instanceId, b.exposureName]);
     if (writers.has(target)) fail('DUPLICATE_BINDING', 'Only one parameter may write an exposure.', id);
     writers.add(target);
+  }
+  for (const item of list(graph.routes === undefined ? [] : graph.routes, 256, 'Routes')) {
+    const route = record(item, 'Route'),
+      id = take(route.id, 'Route ID');
+    for (const key of Object.keys(route))
+      if (!['id', 'targetId', 'event', 'parameterId', 'value'].includes(key))
+        fail('INVALID_ROUTE', `Unknown route field ${key}.`, id);
+    if (route.targetId !== null) text(route.targetId, 'Route target');
+    if (!(LOGIC_ROUTE_EVENTS as readonly unknown[]).includes(route.event))
+      fail('INVALID_ROUTE_EVENT', 'Use a pointer, focus or test event.', id);
+    text(route.parameterId, 'Route parameter');
+    const p = parameters.get(route.parameterId);
+    if (!p) fail('MISSING_PARAMETER', 'Route parameter does not exist.', id);
+    if (p.type === 'trigger') {
+      if (Object.hasOwn(route, 'value'))
+        fail('INVALID_ROUTE_VALUE', 'Trigger routes fire without a value.', id);
+    } else {
+      validateLogicValue(p.type as LogicParameter['type'], route.value, `Route ${id}`);
+      for (const binding of (graph.bindings ?? []) as LogicBinding[])
+        if (binding.parameterId === route.parameterId)
+          validateLogicBindingValue(binding.property, route.value, id);
+    }
   }
   // Reject only unconditional immediate cycles. Guarded locomotion cycles are valid.
   const indegree = new Map([...states.keys()].map((id) => [id, 0]));

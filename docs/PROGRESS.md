@@ -844,8 +844,42 @@ fixture is retained and its authored RTL screenshot was visually checked. The co
 fresh twenty-six-suite browser regression passed, keeping Scene/RTL golden tolerances
 unchanged. Standard/Heavy combined CPU p95 was 1.80/5.20ms with 10000/40004 weighted
 transforms and exact source preservation. Software frame-gap p95 was 21.70/57.10ms,
-separate from hardware GPU claims. Remote CI follows commit/push.
+separate from hardware GPU claims. Commit `0251d1b` passed CI 38015600435:
+Test & Build, Docker, VPS and GitHub Pages all succeeded.
 
 Phase 8 remains partial. Next: portable pointer/focus/test routing, graph authoring UI,
 scene/character preview/debug integration and the final interactive gate. Sol 6.1 / High
 remains appropriate; no user decision currently blocks progress.
+
+## 10 October 2026 Phase 8E1 portable interaction routing
+
+Schema 13 adds optional graph routes for pointerDown/Up/Enter/Leave, click, focus,
+blur and test. Routes reference stable parameter IDs and owner-scoped scene targets
+or the viewport (null); rig graphs accept only viewport targets. Typed writes match
+their parameter and every bound property domain; trigger routes omit value and fire.
+Matching routes dispatch in authored order as a single batch. All values and combined
+1024-input queue capacity validate before any enqueue. Disabled/native graphs also
+validate targets. Source, raw clips and stored overrides stay unchanged.
+
+Players expose the same DOM-free dispatch API through core/runtime. Paused/disabled
+inputs are retained, callbacks enqueue at the next tick, and reset clears pending
+input plus trace. Receipt copies record accepted tick/sequence, event, target, route
+IDs and authored input values; history is bounded to 256 receipts and 1024 total
+writes. Commands add/edit/remove routes and preserve parameter rename/delete and
+scene duplicate/delete references with exact history. Routed-content extraction
+requires explicit migration instead of changing interaction meaning silently.
+
+Eleven new tests cover typed order, triggers, queue-prefix isolation, invalid batches,
+trace isolation/bounds, paused/disabled/reset behavior, exact native/reference/history
+transactions and callback-driven replay across six frame groupings. All 524 tests in
+74 files, lint/boundaries, formatting, TypeScript and builds passed. Targeted Chromium
+passed all signals, scene/rig pose and receipt parity, exact Save/Open and malformed
+target/domain/trigger import isolation. Its actual saved schema-13 fixture is retained.
+The complete fresh twenty-seven-suite browser regression passed, retaining Scene/RTL
+golden tolerances. Standard/Heavy combined CPU p95 was 1.80/5.30ms with 10000/40004
+weighted transforms and exact source preservation. Software frame-gap p95 was
+21.80/58.60ms, separate from hardware GPU claims. Remote CI follows commit/push.
+
+Phase 8 remains partial. Visual graph authoring, pointer/focus preview delivery,
+debug overlay and the final integrated gate remain. The next UI/session/renderer
+increment is suitable for Sol 6.1 / High, with no material user question outstanding.

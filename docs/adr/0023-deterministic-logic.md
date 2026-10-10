@@ -5,7 +5,8 @@ the Phase 7 gate. Phase 8B adds native schema 10 graph ownership, validation and
 atomic authoring commands. Phase 8C1 implements portable scene/rig pose adapters and
 chronological fixed-step event delivery. Phase 8C2 adds explicit typed event payloads,
 source validation and scene/rig event authoring. Phase 8D adds one-way scene bindings
-and reference-safe authoring history. Interaction and graph UI remain later increments.
+and reference-safe authoring history. Phase 8E1 implements portable interaction routing;
+graph UI and visual interaction preview remain later increments.
 Sol 6.1 / High is appropriate.
 
 ## Model and ownership
@@ -173,6 +174,21 @@ no code strings, network actions or source mutations. UI and native adapters del
 these routes to the same input queue. Browser event ordering is recorded as received;
 replay preserves its integer tick/sequence. Preview pause retains state/parameters;
 resume starts with an empty fractional clock. Structural publication resets preview.
+
+Schema 13 stores optional `routes` on each graph: stable ID, targetId (null for the
+owner viewport), event, parameter ID and an exact typed value. Trigger routes omit
+value and fire the trigger. Signals are pointerDown/Up/Enter/Leave, click, focus, blur
+and test. Matching routes dispatch in authored order as one batch; every value and
+the combined 1024-input queue capacity validate before enqueueing any prefix. Parameter
+IDs bake current names; route values also satisfy all bound property domains. Artboard
+targets must belong to that board; rig graphs accept only their viewport target. IDs
+share the graph namespace. Native validation applies even while disabled. Parameter
+and node deletion remove dependent routes, node duplication remaps target/route IDs,
+and extraction of routed content requires explicit migration. Reset clears receipts.
+Receipt trace is limited to 256 dispatches and 1024 total writes; copied records carry
+the received tick/sequence, signal, target, route IDs and authored typed inputs. The
+same portable dispatch API is used by editor and native adapters; no DOM event or
+external action is part of the core model. Visual preview delivery follows in 8E2.
 
 ## Validation and acceptance
 

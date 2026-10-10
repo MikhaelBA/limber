@@ -42,6 +42,27 @@ export interface LogicGraph {
   states: LogicState[];
   transitions: LogicTransition[];
   bindings?: LogicBinding[];
+  routes?: LogicRoute[];
+}
+export const LOGIC_ROUTE_EVENTS = [
+  'pointerDown',
+  'pointerUp',
+  'pointerEnter',
+  'pointerLeave',
+  'click',
+  'focus',
+  'blur',
+  'test',
+] as const;
+export type LogicRouteEvent = (typeof LOGIC_ROUTE_EVENTS)[number];
+export interface LogicRoute {
+  id: string;
+  /** null means the owner's preview viewport. */
+  targetId: string | null;
+  event: LogicRouteEvent;
+  parameterId: string;
+  /** Trigger routes fire; every other parameter requires its exact typed value. */
+  value?: LogicValue;
 }
 /** Explicit component exposure in the graph owner's artboard. */
 export interface LogicBinding {

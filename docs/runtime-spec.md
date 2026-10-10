@@ -289,3 +289,18 @@ a graph direct names are dormant. Parameter rename/delete and scene duplicate/de
 preserve valid references with exact history. Destructive exposure changes/extraction
 are blocked with migration diagnostics. Headers advance to 12; graph editing/interaction
 preview and debug UI remain for the next Phase 8 increment.
+
+## Typed interaction routes and schema 13 (Phase 8E1)
+
+SceneLogicPlayer and RigLogicPlayer expose dispatch(event,targetId), sharing a portable
+LogicInputRouter. Signals are pointerDown/Up/Enter/Leave, click, focus, blur and test.
+Null target means the owner viewport; artboard routes can target their own scene nodes,
+while rig routes accept only null. Routes reference stable parameter IDs; non-trigger
+values must match the declared type and every bound property domain. Trigger routes
+omit value and fire. Matching routes queue in authored order, as one atomic batch with
+full type/domain/capacity preflight. The queue remains bounded to 1024 waiting writes.
+Paused/disabled input is retained; reset clears input and receipt history. Trace copies
+contain tick, sequence, signal, target, route IDs and inputs, bounded to 256 receipts
+and 1024 total writes. Structural deletion/duplication and parameter history preserve
+valid references. Native validation includes disabled graphs; source advances to 13.
+Visual graph authoring, pointer/focus preview delivery and debug overlay remain separate.

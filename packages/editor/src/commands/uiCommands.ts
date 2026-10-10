@@ -61,7 +61,8 @@ export class EditUICommand implements Command {
           (board.nodes.some(
             (node) => included.has(node.id) && node.type === 'text' && node.binding !== undefined,
           ) ||
-            board.logic.bindings?.some((binding) => included.has(binding.instanceId)))
+            board.logic.bindings?.some((binding) => included.has(binding.instanceId)) ||
+            board.logic.routes?.some((route) => route.targetId !== null && included.has(route.targetId)))
         )
           throw new Error('Remove or migrate Logic bindings before extracting this component.');
         if (

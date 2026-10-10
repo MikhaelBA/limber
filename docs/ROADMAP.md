@@ -99,6 +99,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Portable scene/character playback with blend/interruption and fixed-step event sampling.
 - [x] Strengthened typed event payloads and native/editor event authoring.
 - [x] One-way bindings to exposed properties with source preservation.
+- [x] Portable typed pointer/focus/test routes with atomic input batches and receipt tracing.
 - [ ] Logic graph editing, pointer/focus/test preview and debug overlay.
 - [ ] Disabled-logic/raw-animation parity, native/history/browser fixtures and full Phase 8 CI gate.
 

@@ -1,5 +1,6 @@
 import { FixedStepClock } from '../animation/FixedStepClock';
-import type { LogicGraph, LogicClipCatalog, LogicInput, LogicValue } from './model';
+import type { LogicGraph, LogicClipCatalog, LogicInput, LogicValue, LogicRouteEvent } from './model';
+import { LogicInputRouter } from './LogicInputRouter';
 import { LogicMachine, type LogicSnapshot, type LogicChange } from './LogicMachine';
 import type { LogicFiredEvent } from './eventSampling';
 /** Shared clock/input/event policy. Derived adapters sample poses without renderer dependencies. */
@@ -11,8 +12,10 @@ export abstract class LogicPlayback {
   private playingValue = true;
   private advancing = false;
   readonly events: LogicFiredEvent[] = [];
-  constructor(graph: LogicGraph, catalog: LogicClipCatalog) {
+  readonly inputRouter: LogicInputRouter;
+  constructor(graph: LogicGraph, catalog: LogicClipCatalog, routeTargets?: ReadonlySet<string>) {
     this.machine = new LogicMachine(graph, catalog);
+    this.inputRouter = new LogicInputRouter(graph, catalog, this, routeTargets);
   }
   protected abstract sample(snapshot: LogicSnapshot, entered: boolean): void;
   protected abstract evaluate(advance: boolean, entered: boolean): void;
@@ -55,6 +58,7 @@ export abstract class LogicPlayback {
   }
   reset(): void {
     this.machine.reset();
+    this.inputRouter.resetTrace();
     this.clock.reset();
     this.epoch++;
     this.events.length = 0;
@@ -138,6 +142,12 @@ export abstract class LogicPlayback {
   }
   applyInput(input: LogicInput): void {
     this.machine.applyInput(input);
+  }
+  applyInputs(inputs: readonly LogicInput[]): void {
+    this.machine.applyInputs(inputs);
+  }
+  dispatch(event: LogicRouteEvent, targetId: string | null = null): number {
+    return this.inputRouter.dispatch(event, targetId);
   }
   setBool(name: string, value: boolean): void {
     this.machine.setBool(name, value);

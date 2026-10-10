@@ -6,6 +6,7 @@ import {
   type LogicState,
   type LogicTransition,
   type LogicBinding,
+  type LogicRoute,
   type TextNode,
 } from '@limber/core';
 import type { Command } from '../history/history';
@@ -28,7 +29,10 @@ export type LogicEdit =
   | { kind: 'removeTransition'; id: string }
   | { kind: 'addBinding'; binding: LogicBinding }
   | { kind: 'binding'; id: string; patch: Partial<Omit<LogicBinding, 'id'>> }
-  | { kind: 'removeBinding'; id: string };
+  | { kind: 'removeBinding'; id: string }
+  | { kind: 'addRoute'; route: LogicRoute }
+  | { kind: 'route'; id: string; patch: Partial<Omit<LogicRoute, 'id'>> }
+  | { kind: 'removeRoute'; id: string };
 function requireIndex(values: readonly { id: string }[], id: string, label: string): number {
   const index = values.findIndex((v) => v.id === id);
   if (index < 0) throw new Error(`${label} no longer exists.`);
@@ -111,6 +115,7 @@ export class EditLogicCommand implements Command {
               (t) => !t.conditions.some((c) => c.parameterId === edit.id),
             );
             if (after.bindings) after.bindings = after.bindings.filter((b) => b.parameterId !== edit.id);
+            if (after.routes) after.routes = after.routes.filter((r) => r.parameterId !== edit.id);
             break;
           }
           case 'addState':
@@ -162,6 +167,20 @@ export class EditLogicCommand implements Command {
           case 'removeBinding':
             requireIndex(after.bindings ?? [], edit.id, 'Binding');
             after.bindings = after.bindings!.filter((b) => b.id !== edit.id);
+            break;
+          case 'addRoute':
+            (after.routes ??= []).push(edit.route);
+            break;
+          case 'route': {
+            const routes = after.routes ?? [],
+              route = routes[requireIndex(routes, edit.id, 'Route')]!;
+            patchAllowed(route, edit.patch, ['targetId', 'event', 'parameterId', 'value']);
+            if (Object.hasOwn(edit.patch, 'value') && edit.patch.value === undefined) delete route.value;
+            break;
+          }
+          case 'removeRoute':
+            requireIndex(after.routes ?? [], edit.id, 'Route');
+            after.routes = after.routes!.filter((r) => r.id !== edit.id);
             break;
         }
       }

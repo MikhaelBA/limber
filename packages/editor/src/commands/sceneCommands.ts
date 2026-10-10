@@ -30,6 +30,7 @@ export type SceneEdit =
       idMap: Record<string, string>;
       motionIdMap?: Record<string, string>;
       bindingIdMap?: Record<string, string>;
+      routeIdMap?: Record<string, string>;
     }
   | { kind: 'reorder'; nodeId: string; beforeId: string | null };
 
@@ -181,6 +182,16 @@ export class EditSceneCommand implements Command {
           .map((binding) => [binding.id, uuid()]),
       );
     }
+    if (this.edit.kind === 'duplicate' && !this.edit.routeIdMap) {
+      this.edit.routeIdMap = Object.fromEntries(
+        (this.artboard().logic?.routes ?? [])
+          .filter(
+            (route) =>
+              route.targetId !== null && this.edit.kind === 'duplicate' && this.edit.idMap[route.targetId],
+          )
+          .map((route) => [route.id, uuid()]),
+      );
+    }
     this.label = `${edit.kind[0]!.toUpperCase()}${edit.kind.slice(1)} scene nodes`;
   }
 
@@ -208,6 +219,13 @@ export class EditSceneCommand implements Command {
           this.afterLogic = {
             ...artboard.logic,
             bindings: artboard.logic.bindings.filter((binding) => remaining.has(binding.instanceId)),
+          };
+        if (artboard.logic?.routes)
+          this.afterLogic = {
+            ...this.afterLogic!,
+            routes: artboard.logic.routes.filter(
+              (route) => route.targetId === null || remaining.has(route.targetId),
+            ),
           };
       } else if (this.edit.kind === 'duplicate') {
         const intent = this.edit;
@@ -237,6 +255,16 @@ export class EditSceneCommand implements Command {
               return { ...binding, id, instanceId: intent.idMap[binding.instanceId]! };
             });
           this.afterLogic = { ...artboard.logic, bindings: [...artboard.logic.bindings, ...copies] };
+        }
+        if (artboard.logic?.routes) {
+          const copies = artboard.logic.routes
+            .filter((route) => route.targetId !== null && intent.idMap[route.targetId])
+            .map((route) => {
+              const id = intent.routeIdMap![route.id];
+              if (!id) throw new Error(`Duplicate route mapping is missing ${route.id}.`);
+              return { ...route, id, targetId: intent.idMap[route.targetId!]! };
+            });
+          this.afterLogic = { ...this.afterLogic!, routes: [...artboard.logic.routes, ...copies] };
         }
       }
       const active = this.project.editor.activeArtboardId === artboard.id;

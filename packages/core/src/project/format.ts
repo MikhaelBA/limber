@@ -11,6 +11,7 @@ import { validateEventPayload, validateEventName } from '../animation/eventPaylo
 import { LogicEventSampler } from '../logic/eventSampling';
 import type { LogicGraph } from '../logic/model';
 import { LogicSceneBindings } from '../logic/LogicSceneBindings';
+import { validateLogicRouteTargets } from '../logic/LogicInputRouter';
 
 export class ProjectFormatError extends Error {
   constructor(
@@ -204,6 +205,7 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
           if (names.size !== animations.length)
             fail('DUPLICATE_CLIP_NAME', 'Logic rigs require unique animation names.', node.id);
           validateLogicGraph(node.logic, new Map(animations.map((a) => [a.name, { duration: a.duration }])));
+          validateLogicRouteTargets(node.logic);
           if ((node.logic as LogicGraph).bindings?.length)
             fail('RIG_SCENE_BINDING', 'Scene exposure bindings belong to the artboard Logic graph.', node.id);
           for (const state of (node.logic as LogicGraph).states)
@@ -266,7 +268,10 @@ export function validateProject(value: unknown): asserts value is BoneByBoneProj
   validateUIProject(project as unknown as BoneByBoneProject);
   const typed = project as unknown as BoneByBoneProject;
   for (const board of typed.artboards)
-    if (board.logic) new LogicSceneBindings(board.logic, board, typed.components);
+    if (board.logic) {
+      new LogicSceneBindings(board.logic, board, typed.components);
+      validateLogicRouteTargets(board.logic, new Set(board.nodes.map((n) => n.id)));
+    }
 }
 
 export function serializeProject(project: BoneByBoneProject): string {
@@ -296,7 +301,8 @@ export function deserializeProject(json: string, legacyName = 'Imported project'
     project.schemaVersion === 8 ||
     project.schemaVersion === 9 ||
     project.schemaVersion === 10 ||
-    project.schemaVersion === 11
+    project.schemaVersion === 11 ||
+    project.schemaVersion === 12
   )
     project.schemaVersion = PROJECT_SCHEMA_VERSION;
   validateProject(project);
