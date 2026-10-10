@@ -3,6 +3,7 @@ import { expandUIComponents, meshGeometryOwner, type AttachmentData } from '@lim
 import { NativeRuntimeAsset, nativeAssetState } from './NativeRuntimeAsset';
 import { RuntimeFormatError, runtimeFail, type RuntimeDiagnostic } from './model';
 import { diagnoseNativeFonts } from './fonts';
+import type { NativeArtboardPlayer } from './NativeArtboardPlayer';
 
 export const RUNTIME_BUDGET_KEYS = [
   'nodes',
@@ -372,4 +373,77 @@ export function inspectRuntimeInventory(
     return { id: board.id, name: board.name, metrics };
   });
   return { resources, artboards, diagnostics, budget };
+}
+
+export interface RuntimeFrameWork {
+  nodes: number;
+  visibleNodes: number;
+  rigs: number;
+  bones: number;
+  constraints: number;
+  slots: number;
+  attachments: number;
+  vertices: number;
+  rigidVertices: number;
+  weightedVertices: number;
+  vertexTransforms: number;
+  weightedVertexTransforms: number;
+  bindMatrixProducts: number;
+  triangles: number;
+  clippingVertices: number;
+  maxInfluences: number;
+  activeTracks: number;
+}
+/** Current pose skinning workload, including hidden rigs. No solver/skinning call or mutation. */
+export function inspectRuntimeFrame(player: NativeArtboardPlayer): RuntimeFrameWork {
+  const entries = player.evaluate();
+  const work: RuntimeFrameWork = {
+    nodes: entries.length,
+    visibleNodes: entries.filter((entry) => entry.visible && entry.opacity > 0).length,
+    rigs: 0,
+    bones: 0,
+    constraints: 0,
+    slots: 0,
+    attachments: 0,
+    vertices: 0,
+    rigidVertices: 0,
+    weightedVertices: 0,
+    vertexTransforms: 0,
+    weightedVertexTransforms: 0,
+    bindMatrixProducts: 0,
+    triangles: 0,
+    clippingVertices: 0,
+    maxInfluences: 0,
+    activeTracks: player.scene.activeTrackCount,
+  };
+  for (const id of player.getRigIds()) {
+    const rig = player.getRig(id),
+      skeleton = rig.skeleton,
+      { data, pose } = skeleton;
+    work.rigs++;
+    work.bones += data.bones.length;
+    work.slots += data.slots.length;
+    work.constraints += skeleton.constraintOrder.length;
+    work.activeTracks += rig.activeTrackCount;
+    for (const slot of pose.slots) {
+      if (!slot.attachmentId) continue;
+      const attachment = skeleton.attachmentById.get(slot.attachmentId),
+        state = pose.attachments.get(slot.attachmentId);
+      if (!attachment || !state) continue;
+      const vertices = state.verts.length / 2,
+        weighted = attachmentWork(attachment, vertices);
+      work.attachments++;
+      work.vertices += vertices;
+      work.rigidVertices += vertices - weighted.weightedVertices;
+      work.weightedVertices += weighted.weightedVertices;
+      work.vertexTransforms += weighted.transforms;
+      work.weightedVertexTransforms += weighted.weightedTransforms;
+      work.maxInfluences = Math.max(work.maxInfluences, weighted.maxInfluences);
+      if (state.bindMatrices) work.bindMatrixProducts += data.bones.length;
+      if (attachment.type === 'region') work.triangles += 2;
+      if (attachment.type === 'mesh') work.triangles += (attachment.meshTriangles?.length ?? 0) / 3;
+      if (attachment.type === 'clipping') work.clippingVertices += vertices;
+    }
+  }
+  return work;
 }

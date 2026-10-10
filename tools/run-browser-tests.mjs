@@ -59,6 +59,7 @@ try {
     'native-fonts.mjs',
     'font-authoring.mjs',
     'native-doctor.mjs',
+    'native-profiler.mjs',
     'weight-tools.mjs',
     'mesh-binding.mjs',
     'auto-weights.mjs',

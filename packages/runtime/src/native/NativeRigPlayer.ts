@@ -140,6 +140,13 @@ export class NativeRigPlayer {
   get playing(): boolean {
     return this.playingValue;
   }
+  /** Incoming selected timelines; paused poses retain selection, Stop/disabled Logic do not. */
+  get activeTrackCount(): number {
+    if (this.stopped) return 0;
+    const snapshot = this.snapshot();
+    if (snapshot.logic && !snapshot.logic.enabled) return 0;
+    return this.source.animations.find((clip) => clip.name === snapshot.clip)?.timelines.length ?? 0;
+  }
   /** Read-only adapter view. Buffers are live; do not mutate or replace them. */
   get skeleton(): Skeleton {
     return this.adapter().skeleton;

@@ -1,6 +1,7 @@
 # ADR 0025: Ship Doctor inventory, budgets and measured work
 
-Status: inventory and warning policies implemented; live profiler and Ship UI pending.
+Status: inventory, warning policies, live posed work and measured profiler implemented;
+Ship UI and saved custom policy integration pending.
 
 ## Contract
 
@@ -40,7 +41,36 @@ actual/limit, object ID, explanation and remedy. Inventory, frame, resource and 
 scopes remain distinct. Unmeasured draw calls/timings are not fabricated as zero. Native
 font coverage/fallback/license diagnostics compose with inventory/resource findings.
 
-## Remaining measured-work acceptance
+## Live posed work and measured profiling
+
+`inspectRuntimeFrame(player)` reads current expanded scene and selected rig attachments
+without invoking solver/skinning or advancing clocks. Vertex/influence/bind-matrix counts
+describe **one eligible skinning publication of this pose**, even while playback is paused.
+They are not an assertion that a zero-tick update performed skinning. Hidden rigs still
+contribute their configured CPU workload. Vertex/triangle fields are skeletal content;
+they exclude UI tessellation and mask GPU triangles. Clipping vertices include selected
+polygons even when the renderer's exclusive boundary leaves a mask unused. Configured
+constraints count solver entries, not a fabricated number of arithmetic operations.
+
+`activeTrackCount` counts incoming selected animation timelines. Pausing retains the
+selected pose, while Stop or disabled Logic returns zero. The runtime freezes outgoing
+blend poses, so those captured poses do not invent an additional sampled track.
+
+`RuntimeFrameProfiler` owns 1–600 retained samples (default 120), with no per-record array
+allocation. It validates each sample before mutation, retains accepted ticks (0–12),
+distinguishes missing draw counts from zero, and returns detached nearest-rank min/median/
+p95/max statistics over the current window. Failed render submissions do not masquerade
+as successful samples.
+
+`NativeWebFrameProfiler` measures actual CPU update **including adapter sync**, then actual
+CPU render submission separately. Core WebGL2 draw methods are temporarily wrapped for
+that submission and restored on success/failure; mask passes count. Other backends,
+extension draw paths and nested instrumentation are unavailable rather than assumed zero.
+This is neither GPU elapsed time nor target hardware FPS certification. The actual native
+golden records seven calls with stencil masks versus fewer after removing them, agrees
+with an independent observer and preserves exact rendered pixels and context methods.
+
+## Remaining workspace acceptance
 
 Active scene/rig counts must follow live attachment selection, draw order, component
 expansion and clipping semantics. Selected animation tracks, solver/skinning work and
@@ -58,3 +88,6 @@ mixed weights, packed page deduplication, resource errors, equality/unknown boun
 malformed custom policy/measurements. Browser acceptance compares all fifteen actual worker
 exports against host-decoded physical source dimensions and RGBA memory, verifies expanded
 node counts and unchanged source/player state, and restores owned font resources.
+Live work also matches independent core skinning counters on the weighted Fox sample and
+ordinary poses. Window rollover/unknown coverage/atomic invalid samples are unit-tested;
+actual native Web CPU samples, stencil draw counts and failed-render cleanup are browser-tested.

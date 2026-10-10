@@ -111,6 +111,13 @@ export class NativeScenePlayer {
   get playing(): boolean {
     return this.playingValue;
   }
+  /** Incoming selected timelines; paused poses retain selection, Stop/disabled Logic do not. */
+  get activeTrackCount(): number {
+    if (this.stopped) return 0;
+    const snapshot = this.snapshot();
+    if (snapshot.logic && !snapshot.logic.enabled) return 0;
+    return this.board.clips?.find((clip) => clip.id === snapshot.clip)?.tracks.length ?? 0;
+  }
   get currentTick(): number {
     return this.adapter().currentTick;
   }

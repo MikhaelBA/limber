@@ -206,3 +206,16 @@ distinguish inventory, frame, resources and profile. Each finding retains code, 
 object reference and remedy; font findings compose automatically. The report does not
 decode pixels, install resources or mutate playback. Live measured profiling and saved
 workspace policies remain separate tasks; see ADR 0025.
+
+`inspectRuntimeFrame(player)` reports currently selected skeletal geometry/influences,
+configured solvers and incoming selected timeline counts, including hidden rig CPU
+workload. It never advances the clock or runs skinning. Counts describe one eligible
+pose publication, not operations executed by a paused/zero-tick update; UI tessellation
+and mask GPU geometry remain renderer concerns. Pausing keeps selected tracks; Stop
+and disabled Logic clear them.
+
+`RuntimeFrameProfiler` retains a fixed 1–600-frame window of measured update/render-submit
+milliseconds, accepted ticks and known/unknown draw calls. `inspect()` returns detached
+nearest-rank min/median/p95/max and coverage. Invalid samples are rejected atomically.
+The Web adapter's `NativeWebFrameProfiler` performs actual CPU timing and temporary core
+WebGL2 draw instrumentation; it never infers GPU time or target hardware FPS.

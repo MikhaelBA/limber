@@ -127,3 +127,20 @@ and explicit `fontSources` can supply local font/license URLs. Bounded streaming
 the per-file and combined resource budgets before accumulating bytes. The editor host
 automatically supplies bundled Noto Sans Arabic/OFL only when referenced. No OS font
 files are discovered. Packaged font bytes need no playback network or host option.
+
+## Measured native frame profiling
+
+`new NativeWebFrameProfiler(view)` owns a bounded `RuntimeFrameProfiler` (or accepts one).
+Use `profile.run(deltaSeconds, () => app.render(), app.renderer.gl)` in a host-owned
+manual render loop. It measures CPU update including adapter synchronization separately
+from CPU render submission, records accepted fixed ticks and temporarily counts actual
+core WebGL2 draws, including stencil passes. Context methods are restored on failure;
+failed submissions are propagated and do not create a successful sample.
+
+`profile.frames.inspect()` reports retained-window nearest-rank timing/draw percentiles
+and measured sample coverage. Without a supported core WebGL2 context, draw counts remain
+`null`; extension draw paths are outside this native renderer gate. Timings are not GPU
+elapsed time and software-rendered browser evidence does not certify hardware FPS.
+`inspectRuntimeFrame(view.player)` separately reads current skeletal pose workload without
+running skinning. Its triangle count excludes UI/mask GPU geometry; selected pose costs
+are not work performed by a paused update. See ADR 0025 for the complete counting contract.

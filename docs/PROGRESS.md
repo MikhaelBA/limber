@@ -1410,3 +1410,42 @@ and packed native pixel browser gates passed; full browser acceptance now has 36
 Remote CI follows publication. Live frame work/draw-call instrumentation, bounded measured
 profiling, saved custom policies and Ship inspector/export workflow remain open.
 Sol 6.1 / High remains suitable; no user decision is required.
+
+Commit `f6095de` initially reached/passed the new Doctor gate but failed a later existing
+Smooth Weights download timeout. That suite passed locally; rerun attempt 2 of CI
+38060477640 completed successfully with all 36 browser suites, Test & Build, Docker,
+VPS and GitHub Pages green. No remote gate is counted complete from the failed attempt.
+
+## 10 October 2026 Phase 9E2 live posed work and measured frame profiler
+
+The native SDK now exposes incoming selected timeline counts and detached current pose
+work: active attachments/vertices, rigid and weighted vertex transforms, bind-matrix
+products, skeletal content triangles, selected clipping polygons and configured solver
+entries. Expanded and hidden independent rigs contribute their CPU workload. Reading
+counts does not run skinning or advance clocks; these describe one eligible pose
+publication, not work executed by a paused/zero-tick update. UI and mask GPU tessellation
+are separate renderer costs. Pause retains selected tracks; Stop/disabled Logic clear them.
+
+The portable profiler owns a fixed 1–600-frame window, validates samples atomically and
+publishes detached nearest-rank min/median/p95/max plus accepted-tick/draw coverage.
+Actual zero draws differ from an unavailable backend. Native Web profiling measures CPU
+update including adapter sync, then CPU render submission. It temporarily instruments
+core WebGL2 draw methods and restores descriptors/receivers on success/failure. Unsupported
+backends/extension paths remain unknown. Failed submissions propagate without a fake
+successful sample. This is not GPU timing or hardware FPS certification.
+
+Six new unit tests compare ordinary/Fox work against independent core skinning counters,
+preserve live pose buffers/clocks, cover hidden rigs/null attachments/Stop/disable, exact
+window rollover, unknown coverage, invalid samples and temporary method restoration.
+The new actual native golden browser gate records 16 frames into an 8-frame window,
+observes seven stencil-inclusive draw calls matching an independent GL observer and
+fewer after removing clipping attachments, with exact unchanged rendered pixels.
+Failed rendering restores context methods and leaves successful samples unchanged.
+
+All 671 tests in 89 files, lint/boundaries, formatting, semantic TypeScript and both
+builds passed. Profiler, native Web, Doctor and Smooth Weights browser suites passed.
+The Web tests now use the production DOM.Iterable lib so imported font publication
+sources receive correct semantic checking. Complete browser acceptance is 37 suites;
+remote CI follows publication. Saved custom policies, actionable Ship/Rig inspector,
+atlas inspection and the complete export/load/play workflow remain open.
+Sol 6.1 / High remains suitable; no user decision is required.
