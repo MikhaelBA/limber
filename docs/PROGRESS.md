@@ -1130,8 +1130,38 @@ tests, lint/boundaries/format/TypeScript and package/editor builds passed locall
 SDK test files are now also semantically checked by the root TypeScript command. All
 31 browser suites passed; native pixel/corpus checks were rerun after the lookup-cache
 change. The Linux Docker image also builds successfully with the new workspace included.
-Remote CI follows publication of this increment.
+Commit `9bf8b05` passed CI 38045453040: Test & Build (including all 31 browser suites),
+Docker, VPS and GitHub Pages succeeded.
 
 The next task is the cancellable image/SVG/font/atlas pipeline, followed by Ship Doctor,
 measured profiler and the integrated Ship export/load/play workspace. Phase 9 remains
 in progress. Sol 6.1 / High remains suitable; no material user decision is required.
+
+## 10 October 2026 Phase 9D1 portable atlas layout and RGBA kernels
+
+The renderer-free `@limber/atlas` package prepares detached straight RGBA8, preserving
+logical source dimensions and crop coordinates. Trim retains every nonzero alpha;
+per-image trim locks protect full-domain rig/mesh/nine-slice UV consumers. Bilinear
+scale uses premultiplied intermediates and returns straight pixels, avoiding colored
+transparent fringes. Source images and authored geometry remain unchanged.
+
+Bounded MaxRects layout supports multiple pages, optional clockwise rotation, padding,
+power-of-two caps and deterministic identity ties independent of input order/locale.
+Composition validates all frames and extruded gutters, including overlap, before
+allocating output or changing work counters. Exact edge/corner extrusion and transparent
+unused pixels are preserved. Coded errors identify image/settings remedies; region,
+dimension, page, pixel and search-work limits bound each stage. Real work counters
+record fit/prune comparisons and scanned/resized/composited pixels.
+
+Eleven new tests include one hundred seeded heterogeneous jobs with independent
+occupancy/orientation checks, RGBA rotation/gutter goldens, faint alpha/crop isolation,
+alpha-aware scaling, deterministic permutation ties and invalid-layout atomicity.
+Atlas tests are semantically checked by TypeScript. The workspace is included in
+root builds and Linux Docker installation/builds. All 627 tests in 80 files, lint,
+boundaries, formatting, semantic TypeScript and package/editor builds passed locally.
+Remote CI follows publication of this increment; browser/rendering code is unchanged.
+
+This is the portable preparation/layout stage. Actual worker SVG decode, PNG page
+encoding, packed native manifest/load/render acceptance and packaged fonts remain
+required before the asset-pipeline checklist can close. Next task: cancellable worker
+jobs with real raster/SVG decoding. Sol 6.1 / High is suitable; no user decision needed.

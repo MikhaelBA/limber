@@ -114,6 +114,7 @@ Before each implementation task, recommend a model and reasoning effort suited t
 - [x] Native scene raw playback, responsive expanded UI, bindings and rendered-node routing.
 - [x] Native artboard orchestration with scene and independent/instanced character parity.
 - [x] Independent Web render adapter sharing tested clipping/RGBA behavior with the editor.
+- [x] Portable deterministic multipage atlas layout, trim/scale, RGBA rotation and gutter composition.
 - [ ] Real image/SVG rasterization, font staging and cancellable atlas workers.
 - [ ] Rig/Ship Doctor, platform budgets, work counts and measured profiler.
 - [ ] Ship workspace, atlas inspection and complete export/load/play browser workflow.

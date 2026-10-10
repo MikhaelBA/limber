@@ -1,0 +1,13 @@
+{
+  "name": "@limber/atlas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable deterministic atlas layout and RGBA preparation/composition kernels.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

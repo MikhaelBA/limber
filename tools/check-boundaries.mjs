@@ -39,6 +39,7 @@ function check(directory, allowedPackages, externals = []) {
   }
 }
 check(resolve(root, 'packages/mesh/src'), ['mesh'], ['cdt2d']);
+check(resolve(root, 'packages/atlas/src'), ['atlas']);
 check(resolve(root, 'packages/core/src'), ['core', 'mesh']);
 check(resolve(root, 'packages/runtime/src'), ['core', 'runtime']);
 check(resolve(root, 'packages/runtime-web/src'), ['core', 'runtime', 'runtime-web'], ['pixi.js']);

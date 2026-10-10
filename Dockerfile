@@ -7,6 +7,7 @@ WORKDIR /app
 # Dependency layer first for cache efficiency (workspace manifests only).
 COPY package.json package-lock.json ./
 COPY packages/mesh/package.json packages/mesh/
+COPY packages/atlas/package.json packages/atlas/
 COPY packages/core/package.json packages/core/
 COPY packages/runtime/package.json packages/runtime/
 COPY packages/runtime-web/package.json packages/runtime-web/
@@ -16,6 +17,7 @@ RUN npm ci
 # Sources + toolchain configs.
 COPY tsconfig.json tsconfig.base.json vitest.config.ts ./
 COPY packages/mesh packages/mesh
+COPY packages/atlas packages/atlas
 COPY packages/core packages/core
 COPY packages/runtime packages/runtime
 COPY packages/runtime-web packages/runtime-web

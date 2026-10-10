@@ -7,6 +7,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
+      '@limber/atlas': fileURLToPath(new URL('./packages/atlas/src/index.ts', import.meta.url)),
       '@limber/runtime-web': fileURLToPath(new URL('./packages/runtime-web/src/index.ts', import.meta.url)),
       '@limber/mesh/triangulate': fileURLToPath(new URL('./packages/mesh/src/triangulate.ts', import.meta.url)),
       '@limber/mesh': fileURLToPath(new URL('./packages/mesh/src/index.ts', import.meta.url)),
