@@ -74,5 +74,30 @@ halt stale delivery, and reentrant update/Step fails before advancing. Callback 
 propagate while preserving the already accepted skinned pose. Event density is checked
 against 4096 keys per accepted tick before starting a potentially dense loop.
 
-Native artboard orchestration, expanded UI, the Web render adapter and integrated
+Native artboard orchestration, the Web render adapter and integrated
 export/load/render acceptance follow separately; this character API does not close Phase 9.
+
+## Scene playback and UI
+
+`NativeScenePlayer(program, { artboardId, autoplay })` starts paused by default, using
+the default runtime artboard and its authored graph when present. It has the same
+Play/Pause/Step/Stop/reset, typed Logic, callback and raw FIFO/fade contract as characters.
+Scene `play(clipId)` and `queueAnimation(clipId)` use stable IDs because display names
+may repeat. `useLogic()` resets only the scene graph session.
+
+`getView()` returns cached expanded scene/UI nodes without private sampling metadata.
+`getView({ expanded: false })` returns authored instance nodes with their transient
+bound overrides. Both are read-only live views. `getNodeOwner(renderedId)` identifies
+the authored node responsible for a rendered descendant; `dispatch(event, renderedId)`
+uses that owner when routing component interactions. A null target routes the viewport.
+Raw mode or an artboard without Logic has no active scene interaction routes.
+
+`resize(width, height, safeArea)` changes host layout dimensions, preserving source,
+clip state and current parameters. Insets must fit the new viewport; omitting them
+retains the current safe area. `evaluate()` returns portable world transforms/boxes,
+inherited visibility/tint/opacity and subtree order. Masks, nine-slice source/borders,
+RTL text and exposures remain part of the native view. Host viewport settings survive
+playback reset. Held/zero-step frames reuse the cached view.
+
+Scene/UI playback is now available; scene/character orchestration, actual Web rendering
+and the integrated shipping workflow are still separate pending gates.

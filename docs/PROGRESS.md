@@ -1019,9 +1019,41 @@ all parameter types, callback failures and exact native/source Logic parity. Sta
 Heavy compiled characters retain every solver stage and match continuous/paused-Step
 matrices and vertices plus the unblended source player. The complete local check passed
 all 580 tests in 77 files, lint/boundaries, formatting, TypeScript and package/editor
-builds. Remote CI remains pending for this increment.
+builds. Commit `32fd170` passed CI 38039147949: Test & Build (including thirty existing
+browser suites), Docker, VPS and GitHub Pages succeeded.
 
 The next task is native artboard orchestration and expanded UI with a shared raw track
 clock; Web rendering/asset workers and Ship Doctor remain separate gates. Phase 9 is
 still in progress. Sol 6.1 / High remains suitable; no model switch or user decision is
 required for the next task.
+
+## 10 October 2026 Phase 9B2a native scene playback and expanded UI
+
+`NativeScenePlayer` adds paused authored Logic or raw scene clips addressed by stable
+clip ID. It shares the tested accepted-tick/FIFO/event kernel with character playback,
+preserving held crossfades, shortest-arc rotations, pivots, opacity, complete queue
+delay and loop endpoint/entry ordering. Existing character numeric/constraint/vertex
+goldens remain unchanged after the clock extraction.
+
+The cached render view expands components, applies exposed/direct text bindings and
+maps rendered descendants back to their authored interaction owner. Private clip/FPS/
+selection metadata is absent from that view. Host viewport/safe-area changes resolve
+the existing layout contract without changing source or playback state. Held/zero-step
+frames retain the cached view. Raw/Logic switching, disablement, Stop/reset, typed
+inputs and isolated callback delivery follow the native lifecycle; viewport settings
+survive playback reset.
+
+Fourteen new tests prove independent transform/pivot/opacity fade goldens, FIFO/loop
+events, frame grouping, cache retention, full source Logic/binding/event parity, all
+exposure domains, rendered-node routes, four device aspects, masks/nine-slice metadata,
+invalid resize/play isolation and callback lifecycle. All 594 tests in 78 files passed
+the complete local lint/boundary/format/TypeScript/package/editor-build check. No new
+Web-renderer acceptance is claimed: the actual native render adapter is still pending.
+Remote CI is pending for this increment.
+
+Native artboard orchestration must still coordinate scene and independent/instanced
+characters on accepted ticks, preserve callback-input ordering and publish skinning
+once per display frame. Reusable validated assets should prevent repeated whole-project
+validation for each rig. That is the next task, suitable for Sol 6.1 / High, followed
+by the shared Web renderer and real image/font/atlas workers. No user decision or model
+switch is currently required.

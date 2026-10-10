@@ -2,8 +2,10 @@
 
 Status: Phase 9A defines the portable compiler and strict loader after the Phase 8
 acceptance gate. Phase 9B1 adds native character playback with raw fade/FIFO and authored
-Logic. Artboard orchestration, Web rendering, image/font workers, atlas packing, Ship
-Doctor and the final exported-playback gate remain required. Sol 6.1 / High is suitable.
+Logic. Phase 9B2a shares the raw clock with native scene animation and expanded responsive
+UI/bindings/routing. Artboard orchestration, Web rendering, image/font workers, atlas
+packing, Ship Doctor and the final exported-playback gate remain required. Sol 6.1 / High
+is suitable.
 
 ## File and ownership contract
 
