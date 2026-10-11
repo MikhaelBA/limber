@@ -49,7 +49,9 @@ describe('automatic weights publication', () => {
     const { engine, mesh } = fixture(),
       history = new HistoryManager();
     const attachment = engine.skeleton.attachmentById.get(mesh)!;
-    attachment.boneBindings = [attachment.boneBindings![0]!];
+    attachment.boneBindings = attachment.boneBindings!.filter(
+      (binding) => engine.skeleton.boneIndexMap.get(binding.boneId) === 0,
+    );
     engine.skeleton.rebuild();
     const fingerprint = rigFingerprint(engine);
     history.execute(

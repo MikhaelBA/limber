@@ -1,5 +1,6 @@
 import { Container, Graphics, Mesh, MeshGeometry } from 'pixi.js';
 import type { Skeleton, AttachmentData } from '@limber/core';
+import { attachmentTriangleOrder } from '@limber/core';
 import type { TextureProvider } from './TextureProvider';
 /** Slot geometry caches survive frames and switches; publication owns disposal. */
 export class RigSceneDisplay {
@@ -52,7 +53,9 @@ export class RigSceneDisplay {
             : (attachment.meshUVs ?? []),
         ),
         indices: new Uint32Array(
-          attachment.type === 'region' ? [0, 1, 2, 0, 2, 3] : (attachment.meshTriangles ?? []),
+          attachment.type === 'region'
+            ? [0, 1, 2, 0, 2, 3]
+            : attachmentTriangleOrder(attachment, this.skeleton),
         ),
       }),
       texture: this.textures.get(attachment.textureId) ?? this.textures.placeholder,

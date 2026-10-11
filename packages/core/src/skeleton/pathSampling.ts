@@ -1,4 +1,5 @@
 import type { PathData, PathSegment } from '../types/data';
+const WORLD_BASIS = [1, 0, 0, 1, 0, 0] as const;
 
 /** Fixed deterministic approximation; baked coordinates, metric refreshed only when basis changes. */
 export const PATH_SUBDIVISIONS = 128;
@@ -31,19 +32,96 @@ export class PathSampler {
   readonly lengths: Float64Array;
   private readonly basis = new Float64Array([NaN, NaN, NaN, NaN]);
   length = 0;
-  constructor(readonly path: PathData) {
+  readonly controlWorld: Float32Array;
+  private readonly segments: PathSegment[];
+  private readonly matrices: Float64Array;
+  private weights: number[] | undefined;
+  private bindings: PathData['boneBindings'];
+  private readonly ids: string[];
+  private offsets: number[] = [];
+  constructor(
+    readonly path: PathData,
+    private readonly boneIndices: ReadonlyMap<string, number> = new Map(),
+  ) {
     const count = path.segments.length * PATH_SUBDIVISIONS + 1;
     this.points = new Float64Array(count * 2);
     this.lengths = new Float64Array(count);
+    this.controlWorld = new Float32Array(path.segments.length * 8);
+    this.segments = path.segments.map((segment) => [...segment]);
+    this.matrices = new Float64Array(Math.max(1, boneIndices.size) * 6).fill(NaN);
+    this.ids = [];
+    for (const [id, index] of boneIndices) this.ids[index] = id;
+    this.bake();
+  }
+  private bake(): void {
+    const count = this.lengths.length;
     for (let i = 0; i < count; i++) {
-      const segment = Math.min(path.segments.length - 1, Math.floor(i / PATH_SUBDIVISIONS));
+      const segment = Math.min(this.segments.length - 1, Math.floor(i / PATH_SUBDIVISIONS));
       const t = (i - segment * PATH_SUBDIVISIONS) / PATH_SUBDIVISIONS;
-      this.points[i * 2] = coordinate(path.segments[segment]!, t, 0);
-      this.points[i * 2 + 1] = coordinate(path.segments[segment]!, t, 1);
+      this.points[i * 2] = coordinate(this.segments[segment]!, t, 0);
+      this.points[i * 2 + 1] = coordinate(this.segments[segment]!, t, 1);
     }
   }
   /** Translation does not change lengths. Collapsed paths have zero length. */
   updateMetric(m: ArrayLike<number>, o: number): void {
+    let changed = this.weights !== this.path.weights || this.bindings !== this.path.boneBindings;
+    if (changed || !this.offsets.length)
+      this.offsets = [
+        o,
+        ...(this.path.weights
+          ? (this.path.boneBindings ?? []).map((binding) => this.boneIndices.get(binding.boneId)! * 6)
+          : []),
+      ];
+    for (const offset of this.offsets)
+      for (let k = 0; k < 6; k++) {
+        const i = offset + k;
+        if (this.matrices[i] !== m[i]) {
+          this.matrices[i] = m[i]!;
+          changed = true;
+        }
+      }
+    if (changed) {
+      const wasWeighted = !!this.weights;
+      this.weights = this.path.weights;
+      this.bindings = this.path.boneBindings;
+      let cursor = 0;
+      for (let s = 0; s < this.path.segments.length; s++)
+        for (let k = 0; k < 8; k += 2) {
+          const x = this.path.segments[s]![k]!,
+            y = this.path.segments[s]![k + 1]!;
+          const count = this.path.weights?.[cursor++] ?? 0;
+          let wx = 0,
+            wy = 0;
+          if (!count) {
+            wx = m[o]! * x + m[o + 2]! * y + m[o + 4]!;
+            wy = m[o + 1]! * x + m[o + 3]! * y + m[o + 5]!;
+          }
+          for (let i = 0; i < count; i++) {
+            const index = this.path.weights![cursor++]!,
+              weight = this.path.weights![cursor++]!;
+            const boneId = this.ids[index];
+            const bind = this.path.boneBindings?.find((binding) => binding.boneId === boneId)?.matrix;
+            const bx = bind ? bind[0]! * x + bind[2]! * y + bind[4]! : x,
+              by = bind ? bind[1]! * x + bind[3]! * y + bind[5]! : y;
+            const offset = index * 6;
+            wx += weight * (m[offset]! * bx + m[offset + 2]! * by + m[offset + 4]!);
+            wy += weight * (m[offset + 1]! * bx + m[offset + 3]! * by + m[offset + 5]!);
+          }
+          this.controlWorld[s * 8 + k] = wx;
+          this.controlWorld[s * 8 + k + 1] = wy;
+          // Weighted controls are measured in world space, including a singular owner.
+          this.segments[s]![k] = this.path.weights ? wx : x;
+          this.segments[s]![k + 1] = this.path.weights ? wy : y;
+        }
+      if (this.path.weights || wasWeighted) {
+        this.bake();
+        this.basis.fill(NaN);
+      }
+    }
+    if (this.path.weights) {
+      m = WORLD_BASIS;
+      o = 0;
+    }
     if (
       this.basis[0] === m[o] &&
       this.basis[1] === m[o + 1] &&
@@ -64,6 +142,10 @@ export class PathSampler {
   /** Returns false for a wholly collapsed path or nonfinite distance; out stays untouched. */
   sample(distance: number, m: ArrayLike<number>, o: number, out: PathSample): boolean {
     this.updateMetric(m, o);
+    if (this.path.weights) {
+      m = WORLD_BASIS;
+      o = 0;
+    }
     const length = this.length;
     if (!(length > 0) || !Number.isFinite(length) || !Number.isFinite(distance)) return false;
     const d = this.path.closed
@@ -84,7 +166,7 @@ export class PathSampler {
     const segment = Math.floor((lo - 1) / PATH_SUBDIVISIONS),
       start = ((lo - 1) % PATH_SUBDIVISIONS) / PATH_SUBDIVISIONS,
       end = start + 1 / PATH_SUBDIVISIONS;
-    const s = this.path.segments[segment]!;
+    const s = this.segments[segment]!;
     let t = start + fraction / PATH_SUBDIVISIONS;
     // Refine chord progress on the actual cubic. Bounded Newton iterations remove
     // straight-path parameterization error without changing the baked arc metric.

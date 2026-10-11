@@ -29,6 +29,8 @@ export type {
 export * from './skeleton/skinning';
 export * from './skeleton/markers';
 export * from './skeleton/meshLinks';
+export * from './skeleton/weightTriangleOrder';
+export * from './skeleton/pathWeights';
 
 // Animation
 export * from './animation/bezier';

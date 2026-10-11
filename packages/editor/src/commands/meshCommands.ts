@@ -1,8 +1,8 @@
-import { paintInfluence, validateHull, validateMeshTopology } from '@limber/mesh';
+import { paintInfluence, editInfluences, validateHull, validateMeshTopology } from '@limber/mesh';
 import { triangulateMesh } from '@limber/mesh/triangulate';
 export { triangulateMesh } from '@limber/mesh/triangulate';
 import type { AttachmentData, SkeletonData, Animation } from '@limber/core';
-import { uuid, meshGeometryOwner, resolveMeshLinks } from '@limber/core';
+import { uuid, meshGeometryOwner, resolveMeshLinks, weightAttachment } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { regionOf, type AttachmentTarget } from './attachmentCommands';
@@ -320,6 +320,16 @@ export class AddMeshCommand extends MeshEditCommand {
       meshTriangles: grid.triangles,
       meshUVs: grid.uvs,
       meshHull: grid.hull,
+      weightEdges: grid.vertices.flatMap((_, i) => {
+        if (i % 2) return [];
+        const v = i / 2,
+          col = v % (params.cols + 1),
+          row = Math.floor(v / (params.cols + 1));
+        return [
+          ...(col < params.cols ? [v, v + 1] : []),
+          ...(row < params.rows ? [v, v + params.cols + 1] : []),
+        ];
+      }),
     };
   }
   protected edit(data: SkeletonData): void {
@@ -430,6 +440,15 @@ export class RemoveMeshVertexCommand extends MeshEditCommand {
     mesh.meshHull = meshBoundary(mesh);
     mesh.meshVertices!.splice(i * 2, 2);
     mesh.meshUVs?.splice(i * 2, 2);
+    if (mesh.weightEdges) {
+      const next: number[] = [];
+      for (let edge = 0; edge < mesh.weightEdges.length; edge += 2) {
+        const a = mesh.weightEdges[edge]!,
+          b = mesh.weightEdges[edge + 1]!;
+        if (a !== i && b !== i) next.push(a > i ? a - 1 : a, b > i ? b - 1 : b);
+      }
+      mesh.weightEdges = next;
+    }
     for (const instance of geometryInstances(data, mesh)) {
       if (instance.weights) {
         const entry = weightEntryAt(instance.weights, i)!;
@@ -516,7 +535,7 @@ export class SetMeshVerticesCommand implements Command {
 }
 
 /** Weight brush behavior (§5.3 weights tool). */
-export type BrushMode = 'add' | 'set' | 'smooth';
+export type BrushMode = 'add' | 'remove' | 'replace' | 'direct' | 'set' | 'smooth';
 
 /**
  * Continuous weight-paint stroke (§5.3): update() accumulates weight toward
@@ -540,7 +559,7 @@ export class PaintWeightsCommand implements Command {
   ) {}
 
   private mesh(): AttachmentData {
-    const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
+    const a = weightAttachment(this.engine.skeleton.data, this.attachmentId);
     if (!a || !a.meshVertices) {
       // Any polygon-bearing attachment (mesh/bbox/clipping).
       throw new Error(`PaintWeightsCommand: mesh "${this.attachmentId}" not found.`);
@@ -575,6 +594,7 @@ export class PaintWeightsCommand implements Command {
     slotBoneIndex: number,
     amount: number,
     mode: BrushMode = 'add',
+    boneIndices: readonly number[] = [boneIndex],
   ): void {
     const a = this.mesh();
     if (
@@ -588,21 +608,54 @@ export class PaintWeightsCommand implements Command {
     )
       throw new Error('Invalid weight brush input.');
     const weights = a.weights ?? this.baseline();
-    if (a.boneBindings && [boneIndex, slotBoneIndex].some((index) => !a.boneBindings!.some((binding) => binding.boneId === this.engine.skeleton.data.bones[index]!.id))) {
-      throw new Error('Bind the target and slot bones before painting this mesh.');
+    if (
+      a.boneBindings &&
+      !a.boneBindings.some((binding) => binding.boneId === this.engine.skeleton.data.bones[boneIndex]!.id)
+    ) {
+      throw new Error('Bind the target bone before painting this mesh.');
     }
-    const current = vertexWeightOf(weights, vertexIndex, boneIndex, slotBoneIndex);
+    if (
+      boneIndices.some(
+        (index) =>
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= this.engine.skeleton.data.bones.length ||
+          (a.boneBindings &&
+            !a.boneBindings.some((binding) => binding.boneId === this.engine.skeleton.data.bones[index]!.id)),
+      )
+    )
+      throw new Error('Select bound bones before painting.');
+    const locked = new Set((a.weightLocks ?? []).map((id) => this.engine.skeleton.boneIndexMap.get(id)!));
+    const selected = new Set(boneIndices.filter((index) => !locked.has(index)));
+    const current = [...selected].reduce(
+      (sum, index) => sum + vertexWeightOf(weights, vertexIndex, index, slotBoneIndex),
+      0,
+    );
     let next = current;
     if (mode === 'set') next = Math.max(current, Math.min(1, amount));
+    else if (mode === 'replace') next = amount;
+    else if (mode === 'remove') next = current - amount;
     else if (mode === 'smooth') {
       const nbrs = this.adjacency?.[vertexIndex] ?? [];
       if (nbrs.length > 0) {
         let sum = 0;
-        for (const n of nbrs) sum += vertexWeightOf(weights, n, boneIndex, slotBoneIndex);
+        for (const n of nbrs)
+          for (const index of selected) sum += vertexWeightOf(weights, n, index, slotBoneIndex);
         next = current + (sum / nbrs.length - current) * Math.min(1, amount);
       }
     } else next = current + amount;
-    a.weights = setVertexWeight(weights, vertexIndex, boneIndex, next, slotBoneIndex);
+    const entry = weightEntryAt(weights, vertexIndex)!;
+    const row = Array.from({ length: entry.count }, (_, i) => ({
+      boneIndex: weights[entry.start + 1 + i * 2]!,
+      weight: weights[entry.start + 2 + i * 2]!,
+    }));
+    const result = editInfluences(row, selected, next, locked, slotBoneIndex);
+    a.weights = [
+      ...weights.slice(0, entry.start),
+      result.length,
+      ...result.flatMap((item) => [item.boneIndex, item.weight]),
+      ...weights.slice(entry.start + 1 + entry.count * 2),
+    ];
   }
 
   commit(): void {

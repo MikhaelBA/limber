@@ -1,4 +1,5 @@
 import { MeshWeightsPanel } from './MeshWeightsPanel';
+import { useWeightEditingStore } from '../store/weightEditingStore';
 import { SharedMeshControls } from './SharedMeshControls';
 import { AutoMeshControls } from './AutoMeshControls';
 import { useEffect, useRef, useState } from 'react';
@@ -155,6 +156,7 @@ export function PropertiesPanel() {
   useEditorStore((s) => s.dataRevision); // Re-read engine data on undo/redo/commands.
   const selected = useEditorStore((s) => s.selectedBoneId);
   const selectedSlotId = useEditorStore((s) => s.selectedSlotId);
+  const pathId = useWeightEditingStore((s) => s.pathId);
   const mode = useEditorStore((s) => s.mode);
   const execute = useEditorStore((s) => s.execute);
   const setStatus = useEditorStore((s) => s.setStatus);
@@ -227,7 +229,12 @@ export function PropertiesPanel() {
         Properties — {title}
       </div>
 
-      {!slot && !bone && <p className="p-3 text-xs text-neutral-500">Select a bone or slot to edit it.</p>}
+      {!slot && !bone && !pathId && (
+        <p className="p-3 text-xs text-neutral-500">Select a bone or slot to edit it.</p>
+      )}
+      {!slot && pathId && data.paths?.some((p) => p.id === pathId) && (
+        <MeshWeightsPanel key={pathId} attachmentId={pathId} />
+      )}
 
       {/* ---------------- Slot (Phase 4) ---------------- */}
       {slot && (
@@ -358,7 +365,7 @@ export function PropertiesPanel() {
               tris · ◈ drag / dbl-click add / Alt+click delete · animate mode drags key deform
             </p>
           )}
-          {shownAtt?.type === 'mesh' && <MeshWeightsPanel key={shownAtt.id} attachmentId={shownAtt.id} />}
+          {shownAtt?.meshVertices && <MeshWeightsPanel key={shownAtt.id} attachmentId={shownAtt.id} />}
           {shownAtt?.type === 'mesh' && (
             <SharedMeshControls key={`shared-${shownAtt.id}`} attachmentId={shownAtt.id} />
           )}

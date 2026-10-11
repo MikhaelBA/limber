@@ -9,6 +9,7 @@ import {
 } from '@limber/core';
 import type { EditorEngine } from '../engine/EditorEngine';
 import { AtomicConstraintCommand } from './rigEdits';
+import { decodeWeights, encodeWeights, normalizeInfluences } from '@limber/mesh';
 const identity = () => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0 });
 export class AddPathConstraintCommand extends AtomicConstraintCommand {
   readonly label = 'Follow path';
@@ -144,6 +145,7 @@ export class EditPathShapeCommand extends AtomicConstraintCommand {
   protected edit(data: SkeletonData): void {
     const p = data.paths?.find((p) => p.id === this.pathId);
     if (!p) throw new Error('Path no longer exists.');
+    const rows = p.weights ? decodeWeights(p.weights, p.segments.length * 4, data.bones.length) : null;
     if (this.action === 'open') {
       p.closed = false;
       return;
@@ -152,6 +154,7 @@ export class EditPathShapeCommand extends AtomicConstraintCommand {
     if (this.action === 'removeLast') {
       if (p.segments.length === 1) throw new Error('Keep at least one cubic segment.');
       p.segments.pop();
+      if (rows) p.weights = encodeWeights(rows.slice(0, -4));
       return;
     }
     const last = p.segments[p.segments.length - 1]!,
@@ -170,6 +173,16 @@ export class EditPathShapeCommand extends AtomicConstraintCommand {
         start[1],
       ]);
       p.closed = true;
+      if (rows) {
+        const end = rows.at(-1)!,
+          startWeights = rows[0]!;
+        const blend = (t: number) =>
+          normalizeInfluences([
+            ...end.map((item) => ({ ...item, weight: item.weight * (1 - t) })),
+            ...startWeights.map((item) => ({ ...item, weight: item.weight * t })),
+          ]);
+        p.weights = encodeWeights([...rows, end, blend(1 / 3), blend(2 / 3), startWeights]);
+      }
     } else {
       let dx = x - last[4],
         dy = y - last[5];
@@ -179,6 +192,7 @@ export class EditPathShapeCommand extends AtomicConstraintCommand {
         dy = (dy / length) * 100;
       } else dx = 100;
       p.segments.push([x, y, x + dx / 3, y + dy / 3, x + (2 * dx) / 3, y + (2 * dy) / 3, x + dx, y + dy]);
+      if (rows) p.weights = encodeWeights([...rows, ...Array.from({ length: 4 }, () => rows.at(-1)!)]);
     }
   }
 }

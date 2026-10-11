@@ -3,6 +3,10 @@ import { ApplyAutoWeightsCommand, prepareAutoWeights, rigFingerprint } from '../
 import { runAutoWeightJob } from '../engine/autoWeightJob';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
+import { useWeightEditingStore } from '../store/weightEditingStore';
+import { decodeWeights, encodeWeights, mergeLockedInfluences } from '@limber/mesh';
+import { weightContext } from '../commands/weightEditingCommands';
+import { weightAttachment } from '@limber/core';
 
 export function AutoWeightsControls({
   attachmentId,
@@ -34,6 +38,22 @@ export function AutoWeightsControls({
     running.current = controller;
     try {
       const input = prepareAutoWeights(engine, attachmentId, slotId, maxInfluences);
+      const context = weightContext(engine, attachmentId),
+        ui = useWeightEditingStore.getState();
+      const selected = new Set(ui.vertices),
+        locked = new Set(context.locked);
+      const primary = useEditorStore.getState().weightBoneId;
+      const selectedBones = ui.bones.includes(primary ?? '')
+        ? ui.bones
+        : primary && context.mesh.boneBindings?.some((binding) => binding.boneId === primary)
+          ? [primary]
+          : [];
+      if (selectedBones.length) {
+        const chosen = new Set(selectedBones);
+        input.bones = input.bones.filter((bone) =>
+          chosen.has(engine.skeleton.data.bones[bone.boneIndex]!.id),
+        );
+      }
       const project = engine.project,
         skeleton = engine.skeleton,
         fingerprint = rigFingerprint(engine);
@@ -49,7 +69,20 @@ export function AutoWeightsControls({
         throw new Error('Auto weights discarded because the project changed. Run it again.');
       useEditorStore
         .getState()
-        .execute(new ApplyAutoWeightsCommand(engine, attachmentId, result.weights, fingerprint));
+        .execute(
+          new ApplyAutoWeightsCommand(
+            engine,
+            attachmentId,
+            encodeWeights(
+              decodeWeights(result.weights, context.count, engine.skeleton.data.bones.length).map((row, v) =>
+                selected.size && !selected.has(v)
+                  ? context.rows[v]!
+                  : mergeLockedInfluences(context.rows[v]!, row, locked, context.fallback),
+              ),
+            ),
+            fingerprint,
+          ),
+        );
       useEditorStore
         .getState()
         .setStatus(`Auto weights applied (${Math.round(result.durationMs)} ms computation).`);
@@ -65,7 +98,7 @@ export function AutoWeightsControls({
       if (mounted.current) setFraction(null);
     }
   };
-  const bound = !!engine.skeleton.attachmentById.get(attachmentId)?.boneBindings?.length;
+  const bound = !!weightAttachment(engine.skeleton.data, attachmentId)?.boneBindings?.length;
   return (
     <div className="space-y-1">
       <div className="flex gap-2">

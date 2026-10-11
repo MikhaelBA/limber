@@ -5,6 +5,7 @@ import { runSmoothWeightJob } from '../engine/smoothWeightJob';
 import { useEngine } from '../hooks/useEngine';
 import { useWorkerTask } from '../hooks/useWorkerTask';
 import { useEditorStore } from '../store/editorStore';
+import { weightAttachment } from '@limber/core';
 
 export function SmoothWeightsControls({
   attachmentId,
@@ -44,7 +45,7 @@ export function SmoothWeightsControls({
         );
       return `Weights smoothed (${Math.round(result.durationMs)} ms computation).`;
     });
-  const mesh = engine.skeleton.attachmentById.get(attachmentId),
+  const mesh = weightAttachment(engine.skeleton.data, attachmentId),
     enabled = !!mesh?.weights && !!mesh.boneBindings;
   return (
     <div className="space-y-1 border-t border-neutral-700 pt-1">

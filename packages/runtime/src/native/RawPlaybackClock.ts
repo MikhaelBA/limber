@@ -88,9 +88,12 @@ export class RawPlaybackClock<T> {
     if (!this.entry) return 0;
     const { clip, loop, tick } = this.entry;
     if (this.boundary && tick >= this.boundary.end) return clip.duration;
-    if (!loop || clip.duration === 0) return Math.min(clip.duration, tick * STEP);
+    if (!loop || clip.duration === 0) return Math.min(clip.duration, tick / (1 / STEP));
     const cycles = canonical((tick * STEP) / clip.duration);
-    return (cycles - Math.floor(cycles)) * clip.duration;
+    const time = (cycles - Math.floor(cycles)) * clip.duration;
+    // Restore exact tick boundaries after the divide/multiply loop reduction.
+    // Otherwise a step key (viseme, attachment, visibility) can arrive one tick late.
+    return canonical(time / STEP) / (1 / STEP);
   }
   get blendProgress(): number {
     return !this.entry || this.entry.fadeDuration === 0

@@ -15,6 +15,10 @@ to see soft jaw/cheek/brow movement and try real weight-brush painting. Select i
 slot in Setup, choose Weights and a Paint bone, then drag over vertices.
 [Face sample guide, generation prompt and verification](examples/face-weights/README.md).
 
+Open the [Facial Performance sample](examples/face-performance/Face-Performance.bbbproj)
+for talking, crying, head tilt and laughter with visemes, blinking, tears and localized
+mesh weights. [Instructions, original generated artwork and previews](examples/face-performance/README.md).
+
 [Import and package project fonts](docs/FONTS.md) for Scene/Game UI and Logic preview.
 
 [Prepare and inspect native exports in Ship](docs/SHIP.md), including packed atlas pages,

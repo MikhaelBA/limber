@@ -19,7 +19,12 @@ import {
   vertexWeightOf,
   weightEntryAt,
 } from '../src/commands/meshCommands';
-import { AutoKeyDeformCommand, DeleteDeformKeyframeCommand, SetKeyframeCurveCommand, upsertDeformKeyframe } from '../src/commands/animationCommands';
+import {
+  AutoKeyDeformCommand,
+  DeleteDeformKeyframeCommand,
+  SetKeyframeCurveCommand,
+  upsertDeformKeyframe,
+} from '../src/commands/animationCommands';
 import { AddSlotCommand } from '../src/commands/slotCommands';
 import { AddBoneCommand } from '../src/commands/boneCommands';
 import { AddAttachmentCommand, AddTextureCommand } from '../src/commands/attachmentCommands';
@@ -39,7 +44,15 @@ function setupSlot() {
 /** Slot + grid mesh + an active animation (for deform auto-key tests). */
 function setupAnimatedMesh() {
   const { engine, slotId } = setupSlot();
-  const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+  const add = new AddMeshCommand(engine, slotId, {
+    textureId: TEX,
+    x: 0,
+    y: 0,
+    width: 20,
+    height: 10,
+    cols: 2,
+    rows: 2,
+  });
   add.do();
   engine.document.animations.push({ name: 'a1', duration: 1, loop: true, timelines: [] });
   engine.setAnimation('a1');
@@ -106,7 +119,15 @@ describe('weight helpers', () => {
 describe('AddMeshCommand', () => {
   it('creates a grid mesh, assigns it, and skins it rigidly', () => {
     const { engine, slotId } = setupSlot();
-    const cmd = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    const cmd = new AddMeshCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+      cols: 2,
+      rows: 2,
+    });
     cmd.do();
     const att = engine.skeleton.data.attachments[0]!;
     expect(att.type).toBe('mesh');
@@ -129,7 +150,15 @@ describe('AddMeshCommand', () => {
 describe('SetMeshVerticesCommand', () => {
   it('open → update → commit records one undoable vertex move', () => {
     const { engine, slotId } = setupSlot();
-    const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    const add = new AddMeshCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+      cols: 2,
+      rows: 2,
+    });
     add.do();
 
     const cmd = new SetMeshVerticesCommand(engine, add.attachmentId);
@@ -158,7 +187,15 @@ describe('PaintWeightsCommand', () => {
     const slotCmd = new AddSlotCommand(engine, rootId);
     slotCmd.do();
     new AddTextureCommand(engine, TEX, 'spot.png').do();
-    const add = new AddMeshCommand(engine, slotCmd.slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    const add = new AddMeshCommand(engine, slotCmd.slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+      cols: 2,
+      rows: 2,
+    });
     add.do();
 
     const cmd = new PaintWeightsCommand(engine, add.attachmentId);
@@ -192,9 +229,19 @@ describe('PaintWeightsCommand', () => {
   it('set mode raises weights to the dab amount (never lowers)', () => {
     const { engine, slotId } = setupSlot();
     const second = structuredClone(engine.skeleton.data.bones[0]!);
-    second.id = 'brush-target'; second.name = 'brush target';
-    engine.skeleton.data.bones.push(second); engine.skeleton.rebuild();
-    const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    second.id = 'brush-target';
+    second.name = 'brush target';
+    engine.skeleton.data.bones.push(second);
+    engine.skeleton.rebuild();
+    const add = new AddMeshCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+      cols: 2,
+      rows: 2,
+    });
     add.do();
     const cmd = new PaintWeightsCommand(engine, add.attachmentId);
     cmd.open();
@@ -207,9 +254,19 @@ describe('PaintWeightsCommand', () => {
   it('smooth mode relaxes toward the neighbor average', () => {
     const { engine, slotId } = setupSlot();
     const second = structuredClone(engine.skeleton.data.bones[0]!);
-    second.id = 'brush-target'; second.name = 'brush target';
-    engine.skeleton.data.bones.push(second); engine.skeleton.rebuild();
-    const add = new AddMeshCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10, cols: 2, rows: 2 });
+    second.id = 'brush-target';
+    second.name = 'brush target';
+    engine.skeleton.data.bones.push(second);
+    engine.skeleton.rebuild();
+    const add = new AddMeshCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+      cols: 2,
+      rows: 2,
+    });
     add.do();
     const mesh = engine.skeleton.data.attachments[0]!;
     const adjacency = meshAdjacency(mesh.meshTriangles!);
@@ -283,7 +340,13 @@ describe('hull helpers', () => {
 describe('CreateHullMeshCommand', () => {
   it('converts the shown region into a hull mesh; undo restores the region', () => {
     const { engine, slotId } = setupSlot();
-    const region = new AddAttachmentCommand(engine, slotId, { textureId: TEX, x: 0, y: 0, width: 20, height: 10 });
+    const region = new AddAttachmentCommand(engine, slotId, {
+      textureId: TEX,
+      x: 0,
+      y: 0,
+      width: 20,
+      height: 10,
+    });
     region.do();
     engine.tick(0);
 
@@ -324,10 +387,13 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
     const command = new AddMeshVertexCommand(engine, meshId, 2, 0);
     command.do();
     expect(engine.skeleton.data.attachments[0]!.meshHull).toHaveLength(8);
-    command.undo(); expect(engine.project).toEqual(before);
+    command.undo();
+    expect(engine.project).toEqual(before);
     const remove = new RemoveMeshVertexCommand(engine, meshId, 4);
-    remove.do(); expect(engine.skeleton.data.attachments[0]!.meshHull).toHaveLength(8);
-    remove.undo(); expect(engine.project).toEqual(before);
+    remove.do();
+    expect(engine.skeleton.data.attachments[0]!.meshHull).toHaveLength(8);
+    remove.undo();
+    expect(engine.project).toEqual(before);
   });
 
   it('rejects bad inserts/removals without losing deform keys, pose or redo', () => {
@@ -354,8 +420,10 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
       expect([...engine.skeleton.pose.attachments.get(meshId)!.verts]).toEqual(pose);
       expect(history.canRedo).toBe(true);
     }
-    history.redo(); expect(engine.project).toEqual(added);
-    history.undo(); expect(engine.project).toEqual(before);
+    history.redo();
+    expect(engine.project).toEqual(added);
+    history.undo();
+    expect(engine.project).toEqual(before);
   });
 
   it('rejects a removal that strands an interior vertex on the new boundary', () => {
@@ -372,15 +440,24 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
     const { engine, meshId } = setupAnimatedMesh();
     upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, new Array(18).fill(1));
     const before = structuredClone(engine.project);
-    const cmd = new SetMeshVerticesCommand(engine, meshId); cmd.open();
+    const cmd = new SetMeshVerticesCommand(engine, meshId);
+    cmd.open();
     cmd.update(4, 2, 1);
     const preview = structuredClone(engine.project);
-    for (const [index, x, y] of [[4, NaN, 0], [4, 30, 0], [4, -10, -5], [-1, 0, 0]]) {
+    for (const [index, x, y] of [
+      [4, NaN, 0],
+      [4, 30, 0],
+      [4, -10, -5],
+      [-1, 0, 0],
+    ]) {
       expect(() => cmd.update(index!, x!, y!)).toThrow();
       expect(engine.project).toEqual(preview);
     }
-    cmd.commit(); cmd.undo(); expect(engine.project).toEqual(before);
-    cmd.do(); expect(engine.project).toEqual(preview);
+    cmd.commit();
+    cmd.undo();
+    expect(engine.project).toEqual(before);
+    cmd.do();
+    expect(engine.project).toEqual(preview);
   });
 
   it('adds an interior vertex: UV barycentric, re-triangulated, deform keys stripped+restored', () => {
@@ -434,9 +511,14 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
 
     // A final triangle remains intact; every gesture is a fresh command.
     const triangle = engine.skeleton.data.attachments[0]!;
-    triangle.meshVertices = [0, 0, 10, 0, 0, 10]; triangle.meshUVs = [0, 0, 1, 0, 0, 1];
-    triangle.meshTriangles = [0, 1, 2]; triangle.meshHull = [0, 1, 2]; delete triangle.weights;
-    engine.document.animations[0]!.timelines = []; engine.skeleton.rebuild();
+    triangle.meshVertices = [0, 0, 10, 0, 0, 10];
+    triangle.meshUVs = [0, 0, 1, 0, 0, 1];
+    triangle.meshTriangles = [0, 1, 2];
+    triangle.meshHull = [0, 1, 2];
+    delete triangle.weights;
+    delete triangle.weightEdges;
+    engine.document.animations[0]!.timelines = [];
+    engine.skeleton.rebuild();
     const before = structuredClone(engine.project);
     for (let i = 0; i < 3; i++) new RemoveMeshVertexCommand(engine, meshId, 0).do();
     expect(engine.project).toEqual(before);
@@ -449,31 +531,51 @@ describe('AutoKeyDeformCommand', () => {
     upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, null);
     upsertDeformKeyframe(engine.currentAnimation!, meshId, 1, new Array(18).fill(8));
     const selection = { kind: 'deform' as const, attachmentId: meshId, time: 0 };
-    const history = new HistoryManager(), before = structuredClone(engine.project);
-    history.execute(new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: 0.3, c2: 2, c3: 0.7, c4: 2 }));
+    const history = new HistoryManager(),
+      before = structuredClone(engine.project);
+    history.execute(
+      new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: 0.3, c2: 2, c3: 0.7, c4: 2 }),
+    );
     const after = structuredClone(engine.project);
-    history.undo(); expect(engine.project).toEqual(before);
-    expect(() => history.execute(new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: -1 }))).toThrow(/Invalid Deform/);
-    expect(engine.project).toEqual(before); expect(history.canRedo).toBe(true);
-    history.redo(); expect(engine.project).toEqual(after);
+    history.undo();
+    expect(engine.project).toEqual(before);
+    expect(() =>
+      history.execute(new SetKeyframeCurveCommand(engine, selection, { type: 'bezier', c1: -1 })),
+    ).toThrow(/Invalid Deform/);
+    expect(engine.project).toEqual(before);
+    expect(history.canRedo).toBe(true);
+    history.redo();
+    expect(engine.project).toEqual(after);
   });
 
   it('rejects invalid drags and key times before changing tracks, then undoes the last valid preview', () => {
     const { engine, meshId } = setupAnimatedMesh();
     const before = structuredClone(engine.project);
-    const cmd = new AutoKeyDeformCommand(engine, meshId); cmd.open();
+    const cmd = new AutoKeyDeformCommand(engine, meshId);
+    cmd.open();
     cmd.update(4, 3, 2);
     const preview = structuredClone(engine.project);
-    for (const [index, x, y] of [[-1, 0, 0], [0.5, 0, 0], [99, 0, 0], [4, NaN, 0], [4, 1e40, 0]]) {
+    for (const [index, x, y] of [
+      [-1, 0, 0],
+      [0.5, 0, 0],
+      [99, 0, 0],
+      [4, NaN, 0],
+      [4, 1e40, 0],
+    ]) {
       expect(() => cmd.update(index!, x!, y!)).toThrow(/Invalid Deform/);
       expect(engine.project).toEqual(preview);
     }
     for (const time of [-1, NaN, Infinity]) {
-      expect(() => upsertDeformKeyframe(engine.currentAnimation!, meshId, time, null)).toThrow(/Invalid Deform/);
+      expect(() => upsertDeformKeyframe(engine.currentAnimation!, meshId, time, null)).toThrow(
+        /Invalid Deform/,
+      );
       expect(engine.project).toEqual(preview);
     }
-    cmd.commit(); cmd.undo(); expect(engine.project).toEqual(before);
-    cmd.do(); expect(engine.project).toEqual(preview);
+    cmd.commit();
+    cmd.undo();
+    expect(engine.project).toEqual(before);
+    cmd.do();
+    expect(engine.project).toEqual(preview);
   });
 
   it('keys offsets vs the setup mesh at the playhead; undo removes the timeline', () => {

@@ -1630,3 +1630,57 @@ The updated `npm run test:e2e:production` passed all four suites locally against
 main emitted build: three Ship suites and actual face weight painting. No source changes
 followed the complete unit/development gate. The production helper cleaned its owned
 ephemeral server after success.
+
+## 11 October 2026 practical weights and facial performance
+
+The weight workflow now includes Direct values and vertical drags, proportional group
+brushes (Add/Remove/Replace), feather, vertex selection, identity-based copy/paste,
+per-attachment locks, Swap/Remove, bone order and matching colored pies/GPU overlay.
+Direct and brush edits work during Animate/playback without adding or changing keys.
+Prune has a live posed preview that never changes saved source, plus multi-mesh publication.
+Smooth reads hull and authored internal edges. Auto propagates along mesh topology using
+an original geodesic solver; Spine's guide does not specify its numerical algorithm.
+Weld supports nearest shared influences and overlapping-only matching. Initial binding,
+current-pose binding updates and subtree duplication preserve identity and undo history.
+
+Weighted cubic controls now deform paths before arc measurement and following. Joined
+endpoints share influences; extending/closing paths retains valid rows. Constraint order
+includes all influence bones and rejects feedback. Bounding boxes and clipping polygons
+use the existing skinning kernel. Native transport preserves weights/binding order while
+excluding authoring locks and smoothing edges. ADR 0026 records these contracts.
+
+`examples/face-performance/Face-Performance.bbbproj` embeds two unchanged Image Generation
+PNGs and contains 13 bones, 8 editable layers, 25 meshes and four performances: Talking
+(4s) has timed visemes/blinks/brow emphasis; Crying (5s) has sad eyes/brows, sobs and falling
+tears; Head Tilt (4s) bends the weighted neck; Laughing (4s) combines jaw pulses, raised
+cheeks and squinted eyes. It is silent facial acting, without a supplied voice track.
+Each clip demonstrably uses weights: its geometry differs from the unweighted control
+by 9.19, 26.80, 60.83 and 22.26 rig units respectively. All 2,040 visible runtime frames
+match the editor with zero vertex error. Original embedded PNG bytes and source round trip
+pass. An actual native Web recording provides a clean preview.
+
+Verification exposed fixed-step float reduction delaying a stepped mouth shape at 1.7/3.7s.
+Native raw playback now canonicalizes sample time at exact tick boundaries; a two-loop
+attachment regression covers it. Full source acceptance passed 718 tests in 95 files,
+typecheck, lint/boundaries, formatting and both builds. Five production browser suites
+passed, including exact pointer/history editing and the new Direct/locks/copy/paste,
+GPU preview, Animate editing and four facial performance gate. The complete 42-suite
+development rerun passed, including responsive Heavy workers and combined constraint playback.
+Publication and the remote CI result are reported separately after the final source/build check.
+Phase 10 remains on hold. Sol 6.1 / High remains suitable.
+
+The final binding checks require an initial Bind to use exactly the chosen bones; Auto
+uses only selected candidates and preserves explicit locks. Weighted paths remain valid
+when their owner collapses and another bound bone still contributes. Browser checks cover
+the exact selected-bone Auto workflow and saving during a live Prune preview.
+
+The first complete development run stopped at the Heavy worker gate because topology-aware
+Auto omitted its initial 0% progress event. Restoring the shared initial event preserves
+the computed weights and lets the responsiveness harness observe computation. The folded
+topology regression now also checks progress starts at zero, increases and finishes at one.
+
+After the complete development run, the serial source gate passed all 718 tests in 95 files,
+lint/boundaries, formatting, typecheck and both builds. A concurrent attempt had timed out
+in the unchanged font preflight; its original five-second limit passed on the serial rerun.
+No assertion or timeout was relaxed. Final sample verification again matched all 2,040
+frames exactly and retained nonzero weight contributions for every performance.

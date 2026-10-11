@@ -11,6 +11,9 @@ import {
   updateSkinning,
   worldToAttachmentVertex,
   createSkinningStats,
+  attachmentTriangleOrder,
+  pathWeightAttachment,
+  weightAttachment,
 } from '@limber/core';
 import {
   AutoKeyBonePropCommand,
@@ -28,7 +31,6 @@ import { AddSlotCommand } from '../commands/slotCommands';
 import {
   AddMeshVertexCommand,
   CreateHullMeshCommand,
-  meshAdjacency,
   PaintWeightsCommand,
   pointInMeshHull,
   RemoveMeshVertexCommand,
@@ -40,6 +42,16 @@ import { CompositeCommand, type Command } from '../history/history';
 import { useEngine } from '../hooks/useEngine';
 import { distToSegment, inverseTransformPoint } from '../math/matrix';
 import { useEditorStore } from '../store/editorStore';
+import { useWeightEditingStore, weightColor } from '../store/weightEditingStore';
+import { brushFalloff, weightNeighbors } from '@limber/mesh';
+import {
+  DirectWeightsCommand,
+  weightContext,
+  pasteWeights,
+  weightWorldVertices,
+} from '../commands/weightEditingCommands';
+import { BindMeshCommand } from '../commands/bindMeshCommand';
+import { WeightVisuals } from './WeightVisuals';
 
 interface Camera {
   x: number;
@@ -95,17 +107,19 @@ function releaseApp(canvas: HTMLCanvasElement): void {
   if (!entry) return;
   entry.users--;
   if (entry.users <= 0) {
-      queueMicrotask(() => {
+    queueMicrotask(() => {
       const current = canvasApps.get(canvas);
       if (current && current.users <= 0) {
         canvasApps.delete(canvas);
         // removeView=false: React owns the canvas and removes it with the tree.
-        current.ready.then((app) => {
-          const watchdog = renderWatchdogs.get(app);
-          if (watchdog !== undefined) clearInterval(watchdog);
-          viewportCleanups.get(app)?.();
-          app.destroy(false, { children: true });
-        }).catch(() => {});
+        current.ready
+          .then((app) => {
+            const watchdog = renderWatchdogs.get(app);
+            if (watchdog !== undefined) clearInterval(watchdog);
+            viewportCleanups.get(app)?.();
+            app.destroy(false, { children: true });
+          })
+          .catch(() => {});
       }
     });
   }
@@ -295,7 +309,21 @@ function wireViewport(
       const tx = wm[o]! * len + ox;
       const ty = wm[o + 1]! * len + oy;
       const color =
-        st.selectedBoneId === bone.id ? 0xffa028 : st.hoveredBoneId === bone.id ? 0x9cc7ff : 0x6aa9ff;
+        st.activeTool === 'weights' && (st.selectedSlotId || useWeightEditingStore.getState().pathId)
+          ? (() => {
+              const slotIndex = st.selectedSlotId ? engine.skeleton.slotIndexMap.get(st.selectedSlotId)! : -1;
+              const id = engine.skeleton.pose.slots[slotIndex]?.attachmentId;
+              const geometry = id
+                ? engine.skeleton.attachmentById.get(id)
+                : weightAttachment(data, useWeightEditingStore.getState().pathId!);
+              const index = geometry?.boneBindings?.findIndex((b) => b.boneId === bone.id);
+              return index !== undefined && index >= 0 ? weightColor(index) : 0x555555;
+            })()
+          : st.selectedBoneId === bone.id
+            ? 0xffa028
+            : st.hoveredBoneId === bone.id
+              ? 0x9cc7ff
+              : 0x6aa9ff;
       bonesG.setStrokeStyle({ width: (st.selectedBoneId === bone.id ? 2.5 : 2) / s, color, cap: 'round' });
       bonesG.moveTo(ox, oy).lineTo(tx, ty).stroke();
       bonesG.circle(ox, oy, 3.5 / s).fill({ color });
@@ -305,7 +333,8 @@ function wireViewport(
     }
     // IK reach lines: chain tip → target, for constraints touching the selection.
     for (const c of data.ikConstraints) {
-      if (st.selectedBoneId !== c.targetId && !(st.selectedBoneId && c.bones.includes(st.selectedBoneId))) continue;
+      if (st.selectedBoneId !== c.targetId && !(st.selectedBoneId && c.bones.includes(st.selectedBoneId)))
+        continue;
       const endIdx = engine.skeleton.boneIndexMap.get(c.bones[c.bones.length - 1]!);
       const tIdx = engine.skeleton.boneIndexMap.get(c.targetId);
       if (endIdx === undefined || tIdx === undefined) continue;
@@ -315,7 +344,10 @@ function wireViewport(
       const tipY = wm[e + 1]! * endBone.length + wm[e + 5]!;
       const t = tIdx * 6;
       bonesG.setStrokeStyle({ width: 1.5 / s, color: 0xffc247, alpha: 0.85 });
-      bonesG.moveTo(tipX, tipY).lineTo(wm[t + 4]!, wm[t + 5]!).stroke();
+      bonesG
+        .moveTo(tipX, tipY)
+        .lineTo(wm[t + 4]!, wm[t + 5]!)
+        .stroke();
       bonesG.setStrokeStyle({ width: 2 / s, color: 0xffc247, alpha: 0.95 });
       bonesG.circle(wm[t + 4]!, wm[t + 5]!, 6 / s).stroke();
     }
@@ -360,6 +392,7 @@ function wireViewport(
     attachmentId: string | null;
     sourceUvs?: number[];
     sourceTriangles?: number[];
+    orderedTriangles?: number[];
     textureVersion?: number;
     textureId?: string;
   }
@@ -527,8 +560,14 @@ function wireViewport(
       if (!entry) continue;
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
-      const isTextured = attachment !== undefined && (attachment.type === 'region' || attachment.type === 'mesh');
-      const local = attachment === undefined || !isTextured ? null : attachment.type === 'mesh' ? attachment.meshVertices : attachment.vertices;
+      const isTextured =
+        attachment !== undefined && (attachment.type === 'region' || attachment.type === 'mesh');
+      const local =
+        attachment === undefined || !isTextured
+          ? null
+          : attachment.type === 'mesh'
+            ? attachment.meshVertices
+            : attachment.vertices;
       const state = attachment ? pose.attachments.get(attachment.id) : undefined;
 
       // Entering the end slot releases the active clip (Spine semantics).
@@ -551,7 +590,11 @@ function wireViewport(
       }
 
       const attachmentChanged = slotPose.attachmentId !== entry.attachmentId;
-      if (attachmentChanged || entry.textureVersion !== textureRegistry.version || entry.textureId !== attachment?.textureId) {
+      if (
+        attachmentChanged ||
+        entry.textureVersion !== textureRegistry.version ||
+        entry.textureId !== attachment?.textureId
+      ) {
         entry.attachmentId = slotPose.attachmentId;
         if (attachment && isTextured && local) {
           entry.mesh.texture = textureRegistry.get(attachment.textureId) ?? textureRegistry.placeholder;
@@ -561,16 +604,22 @@ function wireViewport(
       }
       const sourceUvs = attachment?.type === 'region' ? attachment.uvs : attachment?.meshUVs;
       const sourceTriangles = attachment?.type === 'mesh' ? attachment.meshTriangles : undefined;
-      if (attachment && isTextured && local && (attachmentChanged ||
-          entry.sourceUvs !== sourceUvs || entry.sourceTriangles !== sourceTriangles ||
-          entry.mesh.geometry.positions.length !== local.length)) {
+      if (
+        attachment &&
+        isTextured &&
+        local &&
+        (attachmentChanged ||
+          entry.sourceUvs !== sourceUvs ||
+          entry.sourceTriangles !== sourceTriangles ||
+          entry.mesh.geometry.positions.length !== local.length)
+      ) {
         // Topology changed (vertex count / triangles): swap in fresh geometry.
         geometryBuilds++;
         const uvs = new Float32Array(local.length);
         const srcUvs =
           attachment.type === 'region'
-            ? attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1]
-            : attachment.meshUVs ?? [];
+            ? (attachment.uvs ?? [0, 0, 1, 0, 1, 1, 0, 1])
+            : (attachment.meshUVs ?? []);
         for (let k = 0; k < uvs.length; k++) uvs[k] = srcUvs[k] ?? 0;
         const indices =
           attachment.type === 'region'
@@ -592,6 +641,13 @@ function wireViewport(
         continue;
       }
       entry.mesh.visible = true;
+      if (attachment.type === 'mesh') {
+        const ordered = attachmentTriangleOrder(attachment, skeleton);
+        if (ordered !== entry.orderedTriangles) {
+          entry.mesh.geometry.indices = new Uint32Array(ordered);
+          entry.orderedTriangles = ordered;
+        }
+      }
 
       const pos = entry.mesh.geometry.positions;
       for (let k = 0; k < state.verts.length; k++) pos[k] = state.verts[k]!;
@@ -669,11 +725,20 @@ function wireViewport(
       const slotPose = pose.slots[i]!;
       const attachment = slotPose.attachmentId ? attachmentById.get(slotPose.attachmentId) : undefined;
       if (!attachment || (slotPose.color & 0xff) === 0) continue;
-      if (attachment.type === 'mesh') {
+      if (attachment.meshVertices) {
         const state = pose.attachments.get(attachment.id);
-        if (state && pointInMeshHull({
-          meshVertices: Array.from(state.verts), meshHull: attachment.meshHull,
-        }, wx, wy)) return skeleton.data.slots[i]!.id;
+        if (
+          state &&
+          pointInMeshHull(
+            {
+              meshVertices: Array.from(state.verts),
+              meshHull: attachment.meshHull,
+            },
+            wx,
+            wy,
+          )
+        )
+          return skeleton.data.slots[i]!.id;
         continue;
       }
       if (attachment.type !== 'region' || !attachment.vertices) continue;
@@ -699,32 +764,58 @@ function wireViewport(
   const drawMarkers = () => {
     markersG.clear();
     for (const sampler of engine.skeleton.pathSamplers.values()) {
-      const wm=engine.skeleton.pose.worldMatrices,o=engine.skeleton.boneIndexMap.get(sampler.path.boneId)!*6;
-      const points=sampler.points;
-      markersG.setStrokeStyle({width:1.5/camera.scale,color:0x47ddbb,alpha:0.8});
-      for (let i=0;i<points.length;i+=2) {
-        const x=wm[o]!*points[i]!+wm[o+2]!*points[i+1]!+wm[o+4]!,y=wm[o+1]!*points[i]!+wm[o+3]!*points[i+1]!+wm[o+5]!;
-        if(i===0)markersG.moveTo(x,y);else markersG.lineTo(x,y);
+      const wm = engine.skeleton.pose.worldMatrices,
+        o = engine.skeleton.boneIndexMap.get(sampler.path.boneId)! * 6;
+      sampler.updateMetric(wm, o);
+      const points = sampler.points;
+      markersG.setStrokeStyle({ width: 1.5 / camera.scale, color: 0x47ddbb, alpha: 0.8 });
+      for (let i = 0; i < points.length; i += 2) {
+        const x = sampler.path.weights
+            ? points[i]!
+            : wm[o]! * points[i]! + wm[o + 2]! * points[i + 1]! + wm[o + 4]!,
+          y = sampler.path.weights
+            ? points[i + 1]!
+            : wm[o + 1]! * points[i]! + wm[o + 3]! * points[i + 1]! + wm[o + 5]!;
+        if (i === 0) markersG.moveTo(x, y);
+        else markersG.lineTo(x, y);
       }
       markersG.stroke();
     }
-    const evaluated = evaluateMarkers(engine.skeleton.data, engine.skeleton.pose, engine.skeleton.boneIndexMap);
+    const evaluated = evaluateMarkers(
+      engine.skeleton.data,
+      engine.skeleton.pose,
+      engine.skeleton.boneIndexMap,
+    );
     for (const { marker, world: matrix, outline } of evaluated) {
       const color = marker.kind === 'hitbox' ? 0xff6878 : marker.kind === 'hurtbox' ? 0x7aa8ff : 0x47ddbb;
-      const x = matrix[4], y = matrix[5], r = 5 / camera.scale;
+      const x = matrix[4],
+        y = matrix[5],
+        r = 5 / camera.scale;
       markersG.setStrokeStyle({ width: 1.5 / camera.scale, color });
-      markersG.moveTo(x - r, y).lineTo(x + r, y).moveTo(x, y - r).lineTo(x, y + r).stroke();
+      markersG
+        .moveTo(x - r, y)
+        .lineTo(x + r, y)
+        .moveTo(x, y - r)
+        .lineTo(x, y + r)
+        .stroke();
       // The short local X axis exposes orientation/reflection as well as position.
-      markersG.moveTo(x, y).lineTo(x + matrix[0] * 15, y + matrix[1] * 15).stroke();
+      markersG
+        .moveTo(x, y)
+        .lineTo(x + matrix[0] * 15, y + matrix[1] * 15)
+        .stroke();
       if (outline.length) {
         markersG.moveTo(outline[0]!, outline[1]!);
         for (let i = 2; i < outline.length; i += 2) markersG.lineTo(outline[i]!, outline[i + 1]!);
         markersG.closePath().stroke();
       }
     }
-    (window as unknown as Record<string, unknown>).__markers = evaluated.map(({ marker, world: matrix, outline }) => ({ id: marker.id, world: matrix, outline }));
+    (window as unknown as Record<string, unknown>).__markers = evaluated.map(
+      ({ marker, world: matrix, outline }) => ({ id: marker.id, world: matrix, outline }),
+    );
   };
   const handlesG = new Graphics();
+  const weightVisuals = new WeightVisuals();
+  world.addChild(weightVisuals.container);
   world.addChild(handlesG); // Above bones — handles are the active edit layer.
 
   type MeshAttachment = AttachmentData & { type: 'mesh' | 'boundingBox' | 'clipping' };
@@ -743,6 +834,16 @@ function wireViewport(
   const editableMesh = (): EditableMesh | null => {
     const st = useEditorStore.getState();
     if (st.activeTool !== 'mesh' && st.activeTool !== 'weights') return null;
+    const path =
+      st.activeTool === 'weights' && !st.selectedSlotId
+        ? engine.skeleton.data.paths?.find((p) => p.id === useWeightEditingStore.getState().pathId)
+        : undefined;
+    if (path)
+      return {
+        slotIndex: -1,
+        attachment: pathWeightAttachment(path) as MeshAttachment,
+        boneIndex: engine.skeleton.boneIndexMap.get(path.boneId)!,
+      };
     if (!st.selectedSlotId) return null;
     const skeleton = engine.skeleton;
     const slotIndex = skeleton.slotIndexMap.get(st.selectedSlotId);
@@ -751,7 +852,8 @@ function wireViewport(
     if (!attId) return null;
     const attachment = skeleton.attachmentById.get(attId);
     if (!attachment || !attachment.meshVertices) return null; // Any polygon-bearing attachment.
-    if (attachment.type !== 'mesh' && attachment.type !== 'boundingBox' && attachment.type !== 'clipping') return null;
+    if (attachment.type !== 'mesh' && attachment.type !== 'boundingBox' && attachment.type !== 'clipping')
+      return null;
     return {
       slotIndex,
       attachment: attachment as MeshAttachment,
@@ -810,9 +912,57 @@ function wireViewport(
    * later bubble-phase listener on window.
    */
   const onHullKey = (e: KeyboardEvent): void => {
-    if (!hullPts) return;
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (
+      t &&
+      (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+    )
+      return;
+    const st = useEditorStore.getState(),
+      ui = useWeightEditingStore.getState();
+    if (st.activeTool === 'weights') {
+      const ed = editableMesh(),
+        key = e.key.toLowerCase(),
+        modifier = e.ctrlKey || e.metaKey;
+      let handled = true;
+      try {
+        if ((key === 'escape' || key === ' ') && ui.binding) {
+          if (ed && (st.selectedSlotId || ui.pathId) && ui.bones.length)
+            st.execute(
+              new BindMeshCommand(engine, ed.attachment.id, st.selectedSlotId ?? ui.pathId!, ui.bones, true),
+            );
+          ui.patch({ binding: false });
+        } else if (key === 'escape' || key === ' ') ui.setVertices([]);
+        else if (modifier && key === 'a' && ed)
+          ui.setVertices(Array.from({ length: ed.attachment.meshVertices!.length / 2 }, (_, i) => i));
+        else if (modifier && key === 'c' && ed) {
+          const context = weightContext(engine, ed.attachment.id);
+          if (!ui.vertices.length) throw new Error('Select vertices to copy weights.');
+          ui.patch({
+            clipboard: {
+              rows: ui.vertices.map((v) =>
+                context.rows[v]!.map((item) => ({
+                  boneId: engine.skeleton.data.bones[item.boneIndex]!.id,
+                  weight: item.weight,
+                })),
+              ),
+            },
+          });
+          st.setStatus(`Copied ${ui.vertices.length} vertex weights.`);
+        } else if (modifier && key === 'v' && ed && ui.clipboard)
+          st.execute(pasteWeights(engine, ed.attachment.id, ui.vertices, ui.clipboard.rows));
+        else handled = false;
+      } catch (error) {
+        st.setStatus((error as Error).message);
+      }
+      if (handled) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        renderNow();
+        return;
+      }
+    }
+    if (!hullPts) return;
     if (e.key === 'Escape') {
       hullPts = null;
       hullSlotId = null;
@@ -832,6 +982,7 @@ function wireViewport(
 
   const drawHandles = () => {
     handlesG.clear();
+    weightVisuals.hide();
     const st = useEditorStore.getState();
     if (createDrag && mouseWorld) {
       handlesG.setStrokeStyle({ width: 2 / camera.scale, color: 0xffa028 });
@@ -840,7 +991,10 @@ function wireViewport(
     }
     const ed = editableMesh();
     if (ed) {
-      const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+      const state =
+        ed.slotIndex < 0
+          ? { verts: weightWorldVertices(engine, ed.attachment.id) }
+          : engine.skeleton.pose.attachments.get(ed.attachment.id);
       if (state) {
         const s = camera.scale;
         const count = ed.attachment.meshVertices!.length / 2;
@@ -867,20 +1021,42 @@ function wireViewport(
           }
         }
         const r = 4.5 / s;
+        if (st.activeTool === 'weights') {
+          const hull = ed.attachment.meshHull ?? [];
+          handlesG.setStrokeStyle({ width: 1.5 / s, color: 0x35d0d5 });
+          for (let i = 0; i < hull.length; i++) {
+            const a = hull[i]! * 2,
+              b = hull[(i + 1) % hull.length]! * 2;
+            handlesG
+              .moveTo(state.verts[a]!, state.verts[a + 1]!)
+              .lineTo(state.verts[b]!, state.verts[b + 1]!)
+              .stroke();
+          }
+          handlesG.setStrokeStyle({ width: 1 / s, color: 0xff9d48, alpha: 0.65 });
+          const edges = ed.attachment.weightEdges ?? [];
+          for (let i = 0; i < edges.length; i += 2) {
+            const a = edges[i]! * 2,
+              b = edges[i + 1]! * 2;
+            handlesG
+              .moveTo(state.verts[a]!, state.verts[a + 1]!)
+              .lineTo(state.verts[b]!, state.verts[b + 1]!)
+              .stroke();
+          }
+        }
+        if (st.activeTool === 'weights')
+          weightVisuals.draw(handlesG, ed.attachment, engine.skeleton, state.verts, ed.boneIndex, s);
         // Weights tool colors vertices by influence toward the selected bone.
         const targetIndex =
           st.activeTool === 'weights' && st.weightBoneId
             ? engine.skeleton.boneIndexMap.get(st.weightBoneId)
             : undefined;
         for (let k = 0; k < count; k++) {
+          if (st.activeTool === 'weights') continue;
           let color = 0x9cc7ff;
           if (targetIndex !== undefined) {
             const t = vertexWeightOf(ed.attachment.weights, k, targetIndex, ed.boneIndex);
             const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
-            color =
-              t <= 0
-                ? 0x4a5a70
-                : (mix(0x9c, 0xff) << 16) | (mix(0xc7, 0x50) << 8) | mix(0xff, 0x40);
+            color = t <= 0 ? 0x4a5a70 : (mix(0x9c, 0xff) << 16) | (mix(0xc7, 0x50) << 8) | mix(0xff, 0x40);
           }
           handlesG.circle(state.verts[k * 2]!, state.verts[k * 2 + 1]!, r).fill({ color });
         }
@@ -917,16 +1093,29 @@ function wireViewport(
     }
 
     // Weight brush radius follows the cursor.
-    if (st.activeTool === 'weights' && mouseWorld) {
+    if (st.activeTool === 'weights' && mouseWorld && st.brushMode !== 'direct') {
       handlesG.setStrokeStyle({ width: 1.25 / camera.scale, color: 0xffffff, alpha: 0.35 });
       handlesG.circle(mouseWorld.x, mouseWorld.y, st.brushRadius).stroke();
     }
+    if (weightBox)
+      handlesG
+        .rect(
+          Math.min(weightBox.start.x, weightBox.end.x),
+          Math.min(weightBox.start.y, weightBox.end.y),
+          Math.abs(weightBox.end.x - weightBox.start.x),
+          Math.abs(weightBox.end.y - weightBox.start.y),
+        )
+        .fill({ color: 0x54c4ff, alpha: 0.12 })
+        .stroke({ color: 0x54c4ff, width: 1 / camera.scale });
   };
 
   const pickVertex = (wx: number, wy: number): number => {
     const ed = editableMesh();
     if (!ed) return -1;
-    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+    const state =
+      ed.slotIndex < 0
+        ? { verts: weightWorldVertices(engine, ed.attachment.id) }
+        : engine.skeleton.pose.attachments.get(ed.attachment.id);
     if (!state) return -1;
     const radius = 12 / camera.scale;
     let best = -1;
@@ -971,6 +1160,15 @@ function wireViewport(
   let meshDragCmd: SetMeshVerticesCommand | null = null;
   let deformDragCmd: AutoKeyDeformCommand | null = null;
   let paintCmd: PaintWeightsCommand | null = null;
+  let directCmd: DirectWeightsCommand | null = null;
+  let directY = 0;
+  let weightBox: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    original: number[];
+    additive: boolean;
+  } | null = null;
+  let brushDown: { x: number; y: number; vertex: number } | null = null;
   let dragVertex = -1;
 
   // Transform-tool drags (spine-tools semantics).
@@ -1025,18 +1223,39 @@ function wireViewport(
     if (!ed || !paintCmd || !st.weightBoneId) return;
     const boneIndex = engine.skeleton.boneIndexMap.get(st.weightBoneId);
     if (boneIndex === undefined) return;
-    const state = engine.skeleton.pose.attachments.get(ed.attachment.id);
+    const state =
+      ed.slotIndex < 0
+        ? { verts: weightWorldVertices(engine, ed.attachment.id) }
+        : engine.skeleton.pose.attachments.get(ed.attachment.id);
     if (!state) return;
     const r = st.brushRadius;
     const r2 = r * r;
+    const weightUI = useWeightEditingStore.getState(),
+      selected = new Set(weightUI.vertices);
+    const boneIndices = (weightUI.bones.includes(st.weightBoneId) ? weightUI.bones : [st.weightBoneId])
+      .filter((id) => !ed.attachment.weightLocks?.includes(id))
+      .map((id) => engine.skeleton.boneIndexMap.get(id)!);
     for (let k = 0; k < state.verts.length / 2; k++) {
+      if (selected.size && !selected.has(k)) continue;
       const dx = state.verts[k * 2]! - wx;
       const dy = state.verts[k * 2 + 1]! - wy;
       const d2 = dx * dx + dy * dy;
       if (d2 >= r2) continue;
-      const t = 1 - Math.sqrt(d2) / r; // 1 at center → 0 at the rim.
-      const falloff = t * t * (3 - 2 * t); // smoothstep
-      try { paintCmd.update(k, boneIndex, ed.boneIndex, falloff * st.brushStrength, st.brushMode); } catch (error) { st.setStatus((error as Error).message); return; }
+      const falloff = brushFalloff(Math.sqrt(d2), r, weightUI.feather);
+      const current = boneIndices.reduce(
+        (sum, index) => sum + vertexWeightOf(ed.attachment.weights, k, index, ed.boneIndex),
+        0,
+      );
+      const amount =
+        st.brushMode === 'replace'
+          ? current + (st.brushStrength - current) * falloff
+          : falloff * st.brushStrength;
+      try {
+        paintCmd.update(k, boneIndex, ed.boneIndex, amount, st.brushMode, boneIndices);
+      } catch (error) {
+        st.setStatus((error as Error).message);
+        return;
+      }
     }
   };
 
@@ -1080,13 +1299,21 @@ function wireViewport(
       }
       const ed = editableMesh();
       if (!ed) {
-        st.setStatus('Select a slot showing a region (draw a hull) or a mesh (edit vertices) — or Properties → Grid mesh.');
+        st.setStatus(
+          'Select a slot showing a region (draw a hull) or a mesh (edit vertices) — or Properties → Grid mesh.',
+        );
         return;
       }
       const v = pickVertex(wp.x, wp.y);
       if (e.altKey) {
         // Alt+click deletes a vertex (hull or interior; never below 3 total).
-        if (v >= 0) { try { st.execute(new RemoveMeshVertexCommand(engine, ed.attachment.id, v)); } catch (error) { st.setStatus((error as Error).message); } }
+        if (v >= 0) {
+          try {
+            st.execute(new RemoveMeshVertexCommand(engine, ed.attachment.id, v));
+          } catch (error) {
+            st.setStatus((error as Error).message);
+          }
+        }
         return;
       }
       if (v < 0) return;
@@ -1096,9 +1323,20 @@ function wireViewport(
         deformDragCmd.open();
         dragVertex = v;
         try {
-          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, v, wp.x, wp.y, scratchPoint);
+          worldToAttachmentVertex(
+            ed.attachment,
+            ed.boneIndex,
+            engine.skeleton.pose.worldMatrices,
+            engine.skeleton.pose.attachments.get(ed.attachment.id)!,
+            v,
+            wp.x,
+            wp.y,
+            scratchPoint,
+          );
           deformDragCmd.update(v, scratchPoint.x, scratchPoint.y);
-        } catch (error) { st.setStatus((error as Error).message); }
+        } catch (error) {
+          st.setStatus((error as Error).message);
+        }
       } else {
         meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
         meshDragCmd.open();
@@ -1110,22 +1348,74 @@ function wireViewport(
 
     // Weights tool: radius brush over the selected slot's mesh.
     if (st.activeTool === 'weights') {
-      if (st.mode !== 'setup') {
-        st.setStatus('Switch to Setup to paint weights. Animate mode preserves the mesh binding.');
+      const ui = useWeightEditingStore.getState();
+      if (ui.binding) {
+        const bone = pickBone(wp.x, wp.y);
+        if (bone) {
+          ui.setBones(ui.bones.includes(bone) ? ui.bones.filter((id) => id !== bone) : [...ui.bones, bone]);
+          st.setWeightBone(bone);
+          return;
+        }
+        const slot = pickSlot(wp.x, wp.y);
+        if (slot && !st.selectedSlotId && ui.bones.length) {
+          const index = engine.skeleton.slotIndexMap.get(slot)!,
+            id = engine.skeleton.pose.slots[index]!.attachmentId;
+          if (id) {
+            try {
+              st.execute(new BindMeshCommand(engine, id, slot, ui.bones, true));
+              st.selectSlot(slot);
+              ui.patch({ binding: false });
+            } catch (error) {
+              st.setStatus((error as Error).message);
+            }
+          }
+        }
         return;
       }
+      if (!editableMesh()) st.selectSlot(pickSlot(wp.x, wp.y));
       const ed = editableMesh();
       if (!ed) {
         st.setStatus('Select a slot showing a mesh attachment (or create one: Properties → Grid mesh).');
         return;
       }
-      if (!st.weightBoneId || !engine.skeleton.boneIndexMap.has(st.weightBoneId)) {
-        st.setStatus('Choose a Paint bone in the toolbar, or click a bone in the hierarchy while the mesh is selected.');
+      const vertex = pickVertex(wp.x, wp.y);
+      const pickedBone = vertex < 0 ? pickBone(wp.x, wp.y) : null;
+      if (pickedBone && ed.attachment.boneBindings?.some((binding) => binding.boneId === pickedBone)) {
+        ui.setBones(e.ctrlKey || e.metaKey ? [...new Set([...ui.bones, pickedBone])] : [pickedBone]);
+        st.setWeightBone(pickedBone);
         return;
       }
-      paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);
-      paintCmd.open(meshAdjacency(ed.attachment.meshTriangles ?? []));
-      paintStrokeAt(wp.x, wp.y); // Immediate dab on press.
+      if (
+        e.ctrlKey ||
+        e.metaKey ||
+        (st.brushMode === 'direct' && (vertex < 0 || !ui.vertices.includes(vertex)))
+      ) {
+        if (vertex >= 0) ui.setVertices(e.ctrlKey || e.metaKey ? [...ui.vertices, vertex] : [vertex]);
+        else if (!e.ctrlKey && !e.metaKey) ui.setVertices([]);
+        weightBox = {
+          start: wp,
+          end: wp,
+          original: e.ctrlKey || e.metaKey ? ui.vertices : [],
+          additive: e.ctrlKey || e.metaKey,
+        };
+        return;
+      }
+      if (!st.weightBoneId || !engine.skeleton.boneIndexMap.has(st.weightBoneId)) {
+        st.setStatus(
+          'Choose a Paint bone in the toolbar, or click a bone in the hierarchy while the mesh is selected.',
+        );
+        return;
+      }
+      if (st.brushMode === 'direct') {
+        directCmd = new DirectWeightsCommand(
+          engine,
+          ed.attachment.id,
+          ui.vertices,
+          ui.bones.includes(st.weightBoneId) ? ui.bones : [st.weightBoneId],
+        );
+        directCmd.open();
+        directY = e.clientY;
+      } else brushDown = { x: wp.x, y: wp.y, vertex };
       canvas.style.cursor = 'crosshair';
       return;
     }
@@ -1256,15 +1546,66 @@ function wireViewport(
     }
     const wp = screenToWorld(e);
     mouseWorld = wp;
+    if (weightBox) {
+      weightBox.end = wp;
+      const ed = editableMesh(),
+        verts = ed ? weightWorldVertices(engine, ed.attachment.id) : undefined;
+      if (verts && Math.hypot(wp.x - weightBox.start.x, wp.y - weightBox.start.y) * camera.scale > 3) {
+        const selected = [...weightBox.original];
+        for (let v = 0; v < verts.length / 2; v++)
+          if (
+            verts[v * 2]! >= Math.min(wp.x, weightBox.start.x) &&
+            verts[v * 2]! <= Math.max(wp.x, weightBox.start.x) &&
+            verts[v * 2 + 1]! >= Math.min(wp.y, weightBox.start.y) &&
+            verts[v * 2 + 1]! <= Math.max(wp.y, weightBox.start.y)
+          )
+            selected.push(v);
+        useWeightEditingStore.getState().setVertices(selected);
+      }
+      return;
+    }
+    if (directCmd) {
+      try {
+        directCmd.update((directY - e.clientY) / 200, true);
+      } catch (error) {
+        useEditorStore.getState().setStatus((error as Error).message);
+      }
+      return;
+    }
+    if (brushDown && !paintCmd && Math.hypot(wp.x - brushDown.x, wp.y - brushDown.y) * camera.scale > 3) {
+      const ed = editableMesh();
+      if (ed) {
+        paintCmd = new PaintWeightsCommand(engine, ed.attachment.id);
+        paintCmd.open(
+          weightNeighbors(
+            ed.attachment.meshVertices!.length / 2,
+            ed.attachment.meshHull ?? [],
+            ed.attachment.weightEdges ?? [],
+          ),
+        );
+        paintStrokeAt(brushDown.x, brushDown.y);
+      }
+    }
     if (meshDragCmd && dragVertex >= 0) {
       // Drag writes BONE-LOCAL positions — the skinning step lifts them to
       // world space next tick, so the handle follows the cursor exactly.
       const ed = editableMesh();
       if (ed) {
         try {
-          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, dragVertex, wp.x, wp.y, scratchPoint);
+          worldToAttachmentVertex(
+            ed.attachment,
+            ed.boneIndex,
+            engine.skeleton.pose.worldMatrices,
+            engine.skeleton.pose.attachments.get(ed.attachment.id)!,
+            dragVertex,
+            wp.x,
+            wp.y,
+            scratchPoint,
+          );
           meshDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
-        } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
+        } catch (error) {
+          useEditorStore.getState().setStatus((error as Error).message);
+        }
       }
       return;
     }
@@ -1272,9 +1613,20 @@ function wireViewport(
       const ed = editableMesh();
       if (ed) {
         try {
-          worldToAttachmentVertex(ed.attachment, ed.boneIndex, engine.skeleton.pose.worldMatrices, engine.skeleton.pose.attachments.get(ed.attachment.id)!, dragVertex, wp.x, wp.y, scratchPoint);
+          worldToAttachmentVertex(
+            ed.attachment,
+            ed.boneIndex,
+            engine.skeleton.pose.worldMatrices,
+            engine.skeleton.pose.attachments.get(ed.attachment.id)!,
+            dragVertex,
+            wp.x,
+            wp.y,
+            scratchPoint,
+          );
           deformDragCmd.update(dragVertex, scratchPoint.x, scratchPoint.y);
-        } catch (error) { useEditorStore.getState().setStatus((error as Error).message); }
+        } catch (error) {
+          useEditorStore.getState().setStatus((error as Error).message);
+        }
       }
       return;
     }
@@ -1319,10 +1671,7 @@ function wireViewport(
     if (dragKind === 'shear' && dragBoneId) {
       inverseOf(grabWorld, wp.x, wp.y, scratchPoint);
       const len = Math.max(engine.skeleton.data.bones.find((b) => b.id === dragBoneId)!.length, 20);
-      const target = Math.max(
-        -1.4,
-        Math.min(1.4, startShear + (scratchPoint.x - grabLocalPt.x) / len),
-      );
+      const target = Math.max(-1.4, Math.min(1.4, startShear + (scratchPoint.x - grabLocalPt.x) / len));
       if (setupDragCmd) setupDragCmd.set('shearX', target);
       else propKeyCmd?.set(target);
       return;
@@ -1361,6 +1710,15 @@ function wireViewport(
     }
     const st = useEditorStore.getState();
     const wpUp = screenToWorld(e);
+    weightBox = null;
+    if (directCmd) {
+      directCmd.commit();
+      if (directCmd.changed) st.execute(directCmd);
+      directCmd = null;
+    }
+    if (brushDown && !paintCmd)
+      useWeightEditingStore.getState().setVertices(brushDown.vertex < 0 ? [] : [brushDown.vertex]);
+    brushDown = null;
     if (meshDragCmd) {
       meshDragCmd.commit();
       if (meshDragCmd.changed) st.execute(meshDragCmd); // One history entry per drag.
@@ -1392,10 +1750,15 @@ function wireViewport(
           const wm = engine.skeleton.pose.worldMatrices;
           parentAngle = Math.atan2(wm[p + 1]!, wm[p]!);
         }
-        cmd = new AddBoneCommand(engine, createDrag.parentId, { x: createDrag.lx, y: createDrag.ly }, {
-          rotation: Math.atan2(dy, dx) - parentAngle,
-          length: Math.hypot(dx, dy),
-        });
+        cmd = new AddBoneCommand(
+          engine,
+          createDrag.parentId,
+          { x: createDrag.lx, y: createDrag.ly },
+          {
+            rotation: Math.atan2(dy, dx) - parentAngle,
+            length: Math.hypot(dx, dy),
+          },
+        );
       } else {
         cmd = new AddBoneCommand(engine, createDrag.parentId, { x: createDrag.lx, y: createDrag.ly });
       }
@@ -1493,7 +1856,11 @@ function wireViewport(
       if (pickVertex(wp.x, wp.y) >= 0) return; // On a vertex — that's a drag, not an add.
       inverseTransformPoint(engine.skeleton.pose.worldMatrices, ed.boneIndex, wp.x, wp.y, scratchPoint);
       if (!pointInMeshHull(ed.attachment, scratchPoint.x, scratchPoint.y)) return;
-      try { st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y)); } catch (error) { st.setStatus((error as Error).message); }
+      try {
+        st.execute(new AddMeshVertexCommand(engine, ed.attachment.id, scratchPoint.x, scratchPoint.y));
+      } catch (error) {
+        st.setStatus((error as Error).message);
+      }
       return;
     }
     if (isTransformTool(st.activeTool)) st.clearSelection(); // Spine: dblclick deselects.
@@ -1502,8 +1869,15 @@ function wireViewport(
   let tickCount = 0;
   let lastTickAt = performance.now();
   // Bounded opt-in browser evidence. Normal playback allocates no profiling records.
-  type RigFrame = { coreMs: number; viewportMs: number; vertexTransforms: number;
-    bindMatrixProducts: number; vertices: number; attachments: number; maskedMeshes: number };
+  type RigFrame = {
+    coreMs: number;
+    viewportMs: number;
+    vertexTransforms: number;
+    bindMatrixProducts: number;
+    vertices: number;
+    attachments: number;
+    maskedMeshes: number;
+  };
   type RigCapture = { limit: number; frames: (RigFrame & { cpuMs: number; timestamp: number })[] };
   let measuredFrame: RigFrame | null = null;
   let measuredCapture: RigCapture | null = null;
@@ -1518,18 +1892,37 @@ function wireViewport(
       measuredStart = performance.now();
       measuredStats ??= createSkinningStats();
     }
-    engine.tick(deltaMS, recording ? measuredStats : undefined);
-    const coreMs = recording ? performance.now() - measuredStart : 0;
+    const previewWeights = useWeightEditingStore.getState().preview;
+    const originalWeights: { attachment: AttachmentData; weights: number[] | undefined }[] = [];
+    if (previewWeights)
+      for (const [id, weights] of Object.entries(previewWeights)) {
+        const attachment = weightAttachment(engine.skeleton.data, id);
+        if (attachment) {
+          originalWeights.push({ attachment, weights: attachment.weights });
+          attachment.weights = weights;
+        }
+      }
+    let coreMs = 0;
+    try {
+      engine.tick(deltaMS, recording ? measuredStats : undefined);
+      coreMs = recording ? performance.now() - measuredStart : 0;
 
-    const st = useEditorStore.getState();
-    if (st.dataRevision !== recDataRev || textureRegistry.version !== recTexVer || recSkeleton !== engine.skeleton) {
-      reconcileSlots(st.dataRevision, textureRegistry.version);
+      const st = useEditorStore.getState();
+      if (
+        st.dataRevision !== recDataRev ||
+        textureRegistry.version !== recTexVer ||
+        recSkeleton !== engine.skeleton
+      ) {
+        reconcileSlots(st.dataRevision, textureRegistry.version);
+      }
+      updateSlotMeshes();
+      drawGhosts();
+      drawBones();
+      drawMarkers();
+      drawHandles();
+    } finally {
+      for (const { attachment, weights } of originalWeights) attachment.weights = weights;
     }
-    updateSlotMeshes();
-    drawGhosts();
-    drawBones();
-    drawMarkers();
-    drawHandles();
 
     tickCount++;
     const w = window as unknown as Record<string, unknown>;
@@ -1540,7 +1933,8 @@ function wireViewport(
     w.__rigGeometryBuilds = geometryBuilds;
     w.__rigGhostBuilds = ghostBuilds;
     const first = slotsContainer.children[0] as Mesh | undefined;
-    w.__slotMesh0 = first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
+    w.__slotMesh0 =
+      first && first.visible ? [first.geometry.positions[0], first.geometry.positions[1]] : null;
     w.__slotMeshVerts0 = first && first.visible ? first.geometry.positions.length / 2 : 0;
     // Total deform keyframes across all animations (deform auto-key smoke).
     let deformKeys = 0;
@@ -1571,26 +1965,29 @@ function wireViewport(
       engine.skeleton.pose.worldMatrices[1]!,
       engine.skeleton.pose.worldMatrices[0]!,
     );
-    w.__boneOrigin0 = [
-      engine.skeleton.pose.worldMatrices[4]!,
-      engine.skeleton.pose.worldMatrices[5]!,
-    ];
+    w.__boneOrigin0 = [engine.skeleton.pose.worldMatrices[4]!, engine.skeleton.pose.worldMatrices[5]!];
     // First IK constraint's target world position (drag source in smoke).
     const ik0 = engine.skeleton.data.ikConstraints[0];
     if (ik0) {
       const ti = engine.skeleton.boneIndexMap.get(ik0.targetId);
-      w.__ikTarget0 = ti !== undefined
-        ? [engine.skeleton.pose.worldMatrices[ti * 6 + 4]!, engine.skeleton.pose.worldMatrices[ti * 6 + 5]!]
-        : null;
+      w.__ikTarget0 =
+        ti !== undefined
+          ? [engine.skeleton.pose.worldMatrices[ti * 6 + 4]!, engine.skeleton.pose.worldMatrices[ti * 6 + 5]!]
+          : null;
     } else {
       w.__ikTarget0 = null;
     }
-    if (recording) measuredFrame = {
-      coreMs, viewportMs: performance.now() - measuredStart,
-      vertices: measuredStats!.vertices, attachments: measuredStats!.attachments,
-      vertexTransforms: measuredStats!.vertexTransforms, bindMatrixProducts: measuredStats!.bindMatrixProducts,
-      maskedMeshes: [...slotMeshes.values()].filter((entry) => entry.mesh.visible && entry.mesh.mask).length,
-    };
+    if (recording)
+      measuredFrame = {
+        coreMs,
+        viewportMs: performance.now() - measuredStart,
+        vertices: measuredStats!.vertices,
+        attachments: measuredStats!.attachments,
+        vertexTransforms: measuredStats!.vertexTransforms,
+        bindMatrixProducts: measuredStats!.bindMatrixProducts,
+        maskedMeshes: [...slotMeshes.values()].filter((entry) => entry.mesh.visible && entry.mesh.mask)
+          .length,
+      };
   };
   theApp.ticker.add(() => {
     lastTickAt = performance.now();
@@ -1599,13 +1996,17 @@ function wireViewport(
   });
   // Pixi submits rendering at LOW; UTILITY observes completion of CPU submission.
   // GPU completion is asynchronous and is intentionally outside cpuMs.
-  theApp.ticker.add(() => {
-    if (measuredFrame && measuredCapture) {
-      const timestamp = performance.now();
-      measuredCapture.frames.push({ ...measuredFrame, timestamp, cpuMs: timestamp - measuredStart });
-      measuredFrame = null;
-    }
-  }, undefined, UPDATE_PRIORITY.UTILITY);
+  theApp.ticker.add(
+    () => {
+      if (measuredFrame && measuredCapture) {
+        const timestamp = performance.now();
+        measuredCapture.frames.push({ ...measuredFrame, timestamp, cpuMs: timestamp - measuredStart });
+        measuredFrame = null;
+      }
+    },
+    undefined,
+    UPDATE_PRIORITY.UTILITY,
+  );
 
   // rAF-frozen webviews (observed in the in-app browser: 0 frames in 2.5s
   // while visibility reports "visible") leave the canvas on its very first
@@ -1618,10 +2019,12 @@ function wireViewport(
   }, 120);
   renderWatchdogs.set(theApp, watchdog);
 
-  const afterInput = <E extends Event,>(handler: (event: E) => void) => (event: E) => {
-    handler(event);
-    renderNow();
-  };
+  const afterInput =
+    <E extends Event>(handler: (event: E) => void) =>
+    (event: E) => {
+      handler(event);
+      renderNow();
+    };
   const down = afterInput(onPointerDown);
   const move = afterInput(onPointerMove);
   const up = afterInput(onPointerUp);
@@ -1647,8 +2050,14 @@ function wireViewport(
   let disposed = false;
   let queued = false;
   const unsubscribe = useEditorStore.subscribe((state, previous) => {
-    if (Object.keys(state).every((key) => key === 'statusMessage' ||
-          state[key as keyof typeof state] === previous[key as keyof typeof previous])) return;
+    if (
+      Object.keys(state).every(
+        (key) =>
+          key === 'statusMessage' ||
+          state[key as keyof typeof state] === previous[key as keyof typeof previous],
+      )
+    )
+      return;
     if (queued) return;
     queued = true;
     queueMicrotask(() => {
@@ -1656,9 +2065,13 @@ function wireViewport(
       if (!disposed) renderNow();
     });
   });
+  const unsubscribeWeights = useWeightEditingStore.subscribe(() => {
+    if (!disposed) renderNow();
+  });
   viewportCleanups.set(theApp, () => {
     disposed = true;
     unsubscribe();
+    unsubscribeWeights();
     resizeObserver.disconnect();
     window.removeEventListener('keydown', onHullKey, true);
     canvas.removeEventListener('pointerdown', down);

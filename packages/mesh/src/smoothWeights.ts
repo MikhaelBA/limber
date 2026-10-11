@@ -1,4 +1,5 @@
 import { decodeWeights, encodeWeights, normalizeInfluences, type Influence } from './weights';
+import { mergeLockedInfluences } from './weightEditing';
 
 export interface SmoothWeightInput {
   weights: readonly number[];
@@ -9,6 +10,10 @@ export interface SmoothWeightInput {
   strength: number;
   iterations: number;
   maxInfluences: number;
+  neighbors?: readonly (readonly number[])[];
+  selectedVertices?: readonly number[];
+  selectedBones?: readonly number[];
+  lockedBones?: readonly number[];
 }
 
 /** Jacobi smoothing: every pass reads the previous pass; edge/triangle order has no effect. */
@@ -31,10 +36,11 @@ export function smoothWeights(input: SmoothWeightInput, progress?: (fraction: nu
     throw new Error('Invalid smoothing dimensions or slot bone.');
   let rows = decodeWeights(input.weights, vertexCount, boneCount, true);
   if (
-    !Array.isArray(triangles) ||
-    !triangles.length ||
-    triangles.length % 3 ||
-    Array.from(triangles).some((index) => !Number.isInteger(index) || index < 0 || index >= vertexCount)
+    !input.neighbors &&
+    (!Array.isArray(triangles) ||
+      !triangles.length ||
+      triangles.length % 3 ||
+      Array.from(triangles).some((index) => !Number.isInteger(index) || index < 0 || index >= vertexCount))
   )
     throw new Error('Smoothing needs valid triangle indices.');
   const sets = Array.from({ length: vertexCount }, () => new Set<number>());
@@ -52,8 +58,20 @@ export function smoothWeights(input: SmoothWeightInput, progress?: (fraction: nu
       sets[to!]!.add(from!);
     }
   }
-  const neighbors = sets.map((set) => [...set].sort((a, b) => a - b));
-  if (neighbors.some((row) => !row.length)) throw new Error('Smoothing rejects unused vertices.');
+  const neighbors = input.neighbors ?? sets.map((set) => [...set].sort((a, b) => a - b));
+  if (
+    neighbors.length !== vertexCount ||
+    neighbors.some((row) =>
+      row.some((index) => !Number.isInteger(index) || index < 0 || index >= vertexCount),
+    )
+  )
+    throw new Error('Invalid smoothing neighbors.');
+  if (!input.neighbors && neighbors.some((row) => !row.length))
+    throw new Error('Smoothing rejects unused vertices.');
+  const selected = new Set(input.selectedVertices),
+    selectedBones = new Set(input.selectedBones),
+    locked = new Set(input.lockedBones);
+  if (selectedBones.size) for (let b = 0; b < boneCount; b++) if (!selectedBones.has(b)) locked.add(b);
   const rigid: Influence[] = [{ boneIndex: slotBoneIndex, weight: 1 }];
   progress?.(0);
   let lastProgress = 0;
@@ -62,6 +80,10 @@ export function smoothWeights(input: SmoothWeightInput, progress?: (fraction: nu
     for (let vertex = 0; vertex < vertexCount; vertex++) {
       const own = rows[vertex]!,
         adjacent = neighbors[vertex]!;
+      if (!adjacent.length || (selected.size && !selected.has(vertex))) {
+        next.push(own);
+        continue;
+      }
       const blend = new Map<number, number>();
       for (const entry of own.length ? own : rigid) blend.set(entry.boneIndex, entry.weight * (1 - strength));
       for (const neighbor of adjacent) {
@@ -73,9 +95,14 @@ export function smoothWeights(input: SmoothWeightInput, progress?: (fraction: nu
           );
       }
       next.push(
-        normalizeInfluences(
-          [...blend].map(([boneIndex, weight]) => ({ boneIndex, weight })),
-          { maxInfluences },
+        mergeLockedInfluences(
+          own,
+          normalizeInfluences(
+            [...blend].map(([boneIndex, weight]) => ({ boneIndex, weight })),
+            { maxInfluences },
+          ),
+          locked,
+          slotBoneIndex,
         ),
       );
       if ((vertex + 1) % 128 === 0) {

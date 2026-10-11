@@ -172,7 +172,11 @@ export function validateConstraints(data: SkeletonData): void {
       if (bones.get(c.bones[i]!)!.parentId !== c.bones[i - 1])
         throw new Error(`Path constraint "${c.id}" needs a direct parent/child chain.`);
     const path = paths.get(c.pathId);
-    if (!path || affected(c.bones[0]!, path.boneId))
+    if (
+      !path ||
+      affected(c.bones[0]!, path.boneId) ||
+      path.boneBindings?.some((binding) => affected(c.bones[0]!, binding.boneId))
+    )
       throw new Error(`Path constraint "${c.id}" needs a path outside its controlled subtree.`);
     if (c.driverId !== null && (!bones.has(c.driverId) || affected(c.bones[0]!, c.driverId)))
       throw new Error(`Path constraint "${c.id}" needs an independent progress driver.`);
@@ -235,6 +239,7 @@ export function validateConstraints(data: SkeletonData): void {
           owner = paths.get(c.pathId)!.boneId;
         depends =
           affected(root, owner) ||
+          (paths.get(c.pathId)!.boneBindings?.some((binding) => affected(root, binding.boneId)) ?? false) ||
           (parent !== null && affected(root, parent)) ||
           (c.driverId !== null && writesLocal(writing, c.driverId));
       } else if (reading.kind === 'transform' && reading.data.space === 'local') {

@@ -684,6 +684,42 @@ describe('native character player', () => {
     expect(player.currentTick).toBe(2);
   });
 
+  it('switches attachment steps on exact 1.7 and 3.7 second tick boundaries, including loops', () => {
+    const project = source(),
+      rig = project.artboards[0]!.nodes[0] as RigNode;
+    rig.animations = [
+      {
+        name: 'visemes',
+        duration: 5,
+        loop: true,
+        timelines: [
+          {
+            kind: 'slotAttachment',
+            slotId: 'slot',
+            keyframes: [
+              { time: 0, attachmentId: 'a', curve: { type: 'stepped' } },
+              { time: 1.7, attachmentId: 'b', curve: { type: 'stepped' } },
+              { time: 3.7, attachmentId: 'a', curve: { type: 'stepped' } },
+            ],
+          },
+        ],
+      },
+    ];
+    const { player } = make(project);
+    player.play('visemes');
+    player.pause();
+    for (let cycle = 0; cycle < 2; cycle++) {
+      steps(player, 203);
+      expect(player.getSlotAttachment('slot')).toBe('a');
+      player.step();
+      expect(player.getSlotAttachment('slot')).toBe('b');
+      steps(player, 239);
+      expect(player.getSlotAttachment('slot')).toBe('b');
+      player.step();
+      expect(player.getSlotAttachment('slot')).toBe('a');
+      steps(player, 156);
+    }
+  });
   for (const kind of ['Standard', 'Heavy'] as const)
     it(`${kind}: compiled raw playback matches all solver stages and continuous/Step vertices`, () => {
       const original = constraintFixture(kind),

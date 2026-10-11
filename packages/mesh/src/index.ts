@@ -4,3 +4,4 @@ export * from './affine';
 export * from './autoWeights';
 export * from './autoMesh';
 export * from './smoothWeights';
+export * from './weightEditing';

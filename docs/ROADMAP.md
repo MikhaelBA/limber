@@ -161,6 +161,24 @@ weights removes all facial movement. The browser gate now includes a real painti
 rather than relying on weight pruning or merely opening the Weights inspector. Phase 10
 remains pending at the user's request.
 
+## Practical weights and facial performance (11 October 2026)
+
+- [x] Direct, proportional Add/Remove/Replace, feather and selected vertex/bone groups.
+- [x] Per-attachment locks, copy/paste, Swap, Remove and retained tool selection.
+- [x] Colored bone list, vertex pies, interpolated overlay and Selected filtering.
+- [x] Binding workflows, initial topology-aware Auto, current-pose Update and triangle overlap order.
+- [x] Hull/manual-edge Smooth, live source-preserving Prune preview, batch Prune and Weld.
+- [x] Weighted path, bounding-box and clipping publication; copied subtree influence remapping.
+- [x] Generated facial layers and practical Talking/Crying/Head Tilt/Laughing clips.
+- [x] Source/PNG round trip and 2,040 native/editor frames with zero visible vertex error.
+- [x] Full source checks and five actual production browser suites.
+- [x] Complete all 42 development browser suites, including Heavy worker responsiveness.
+- [x] Prepare the tested increment for publication; remote CI is reported with delivery.
+
+This expands existing mesh/animation features using ADR 0026. Phases 0–9 remain complete;
+Phase 10 Unity remains on hold. Spine's undocumented Auto formula is not available;
+BoneByBone uses its own deterministic topology-aware algorithm.
+
 ## Layered character sample (10 October 2026)
 
 - [x] Generate transparent fox parts and a costume variant with Image Generation.

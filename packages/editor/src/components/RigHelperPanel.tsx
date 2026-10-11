@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AddHumanGuideCommand, MirrorBonesCommand } from '../commands/rigHelperCommands';
+import { DuplicateBonesCommand } from '../commands/duplicateBonesCommand';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 
@@ -16,7 +17,10 @@ export function RigHelperPanel() {
     [y, setY] = useState('0');
   const [axis, setAxis] = useState('0');
   const field = 'min-w-0 w-full rounded bg-neutral-800 px-1 py-0.5';
-  const run = (command: AddHumanGuideCommand | MirrorBonesCommand, message: string) => {
+  const run = (
+    command: AddHumanGuideCommand | MirrorBonesCommand | DuplicateBonesCommand,
+    message: string,
+  ) => {
     try {
       execute(command);
       select(command.rootBoneId);
@@ -113,6 +117,19 @@ export function RigHelperPanel() {
             }}
           >
             Mirror bones
+          </button>
+          <button
+            disabled={!selected}
+            className="mt-2 rounded bg-neutral-700 px-2 py-1 disabled:opacity-40"
+            onClick={() => {
+              if (selected)
+                run(
+                  new DuplicateBonesCommand(engine, selected),
+                  'Copied bones, artwork and tracks. Mesh weights reference the copied bones.',
+                );
+            }}
+          >
+            Duplicate bones and artwork
           </button>
         </div>
       </fieldset>

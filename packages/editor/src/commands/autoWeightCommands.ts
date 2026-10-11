@@ -1,4 +1,4 @@
-import { createPose, solveFK } from '@limber/core';
+import { createPose, solveFK, weightAttachment } from '@limber/core';
 import { validateWeights, type AutoWeightInput } from '@limber/mesh';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
@@ -15,9 +15,10 @@ export function prepareAutoWeights(
 ): AutoWeightInput {
   if (engine.mode !== 'setup') throw new Error('Switch to Setup for auto weights.');
   const data = engine.skeleton.data,
-    mesh = engine.skeleton.attachmentById.get(attachmentId);
-  const slot = data.slots.find((item) => item.id === slotId);
-  if (!slot || mesh?.type !== 'mesh' || !mesh.boneBindings?.length)
+    mesh = weightAttachment(data, attachmentId);
+  const path = data.paths?.find((item) => item.id === attachmentId);
+  const slot = path ? { boneId: path.boneId } : data.slots.find((item) => item.id === slotId);
+  if (!slot || !mesh?.meshVertices || !mesh.boneBindings?.length)
     throw new Error('Bind the mesh bones before computing auto weights.');
   if (!Number.isInteger(maxInfluences) || maxInfluences < 1)
     throw new Error('Auto weights need a positive integer influence limit.');
@@ -43,7 +44,15 @@ export function prepareAutoWeights(
       y1: wm[offset + 5]! + bone.length * wm[offset + 1]!,
     };
   });
-  return { vertices, bones, maxInfluences };
+  return {
+    vertices,
+    bones,
+    maxInfluences,
+    triangles: [...(mesh.meshTriangles ?? [])],
+    edges: !mesh.meshTriangles?.length
+      ? (mesh.weightEdges ?? mesh.meshHull?.flatMap((v, i, ring) => [v, ring[(i + 1) % ring.length]!]))
+      : undefined,
+  };
 }
 
 /** Weight-only publication validates new influences and keeps existing geometry/pose caches. */
@@ -63,8 +72,8 @@ export class ApplyAutoWeightsCommand implements Command {
     this.label = operation;
   }
   private mesh() {
-    const mesh = this.engine.skeleton.attachmentById.get(this.attachmentId);
-    if (mesh?.type !== 'mesh' || !mesh.boneBindings?.length) throw new Error('Bound mesh no longer exists.');
+    const mesh = weightAttachment(this.engine.skeleton.data, this.attachmentId);
+    if (!mesh?.meshVertices || !mesh.boneBindings?.length) throw new Error('Bound mesh no longer exists.');
     return mesh;
   }
   private apply(weights: number[] | undefined) {
@@ -76,7 +85,7 @@ export class ApplyAutoWeightsCommand implements Command {
     }
     // Unchanged topology, bindings, clips and bone order were already validated by authoring/load.
     // This command only changes weights; rebuilding the whole rig would unnecessarily block the UI.
-    if (weights === undefined) delete mesh.weights;
+    if (weights === undefined) mesh.weights = undefined;
     else mesh.weights = [...weights];
   }
   do(): void {
@@ -84,7 +93,11 @@ export class ApplyAutoWeightsCommand implements Command {
       this.apply(this.weights);
       return;
     }
-    if (this.engine.mode !== 'setup' || rigFingerprint(this.engine) !== this.fingerprint)
+    if (
+      ((this.operation === 'Auto weights' || this.operation === 'Smooth weights') &&
+        this.engine.mode !== 'setup') ||
+      rigFingerprint(this.engine) !== this.fingerprint
+    )
       throw new Error(`${this.operation} discarded because the rig changed. Run it again.`);
     const before = this.mesh().weights?.slice();
     this.apply(this.weights);

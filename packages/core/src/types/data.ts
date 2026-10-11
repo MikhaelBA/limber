@@ -70,6 +70,10 @@ export interface PathData {
   boneId: string;
   segments: PathSegment[];
   closed: boolean;
+  /** One influence row per cubic control point, including repeated endpoints. */
+  weights?: number[];
+  boneBindings?: { boneId: string; matrix: number[] }[];
+  weightLocks?: string[];
 }
 export interface PathConstraintData {
   id: string;
@@ -164,6 +168,9 @@ export interface AttachmentData {
    * Absent means identity binding. Bone identities survive sorting.
    */
   boneBindings?: { boneId: string; matrix: number[] }[];
+  /** Authoring only: locked bone weights, and manual internal smoothing edges. */
+  weightLocks?: string[];
+  weightEdges?: number[];
 }
 
 export interface SkinData {

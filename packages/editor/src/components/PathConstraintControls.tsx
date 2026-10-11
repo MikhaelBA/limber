@@ -12,6 +12,7 @@ import {
 } from '../commands/pathConstraintCommands';
 import { MoveConstraintCommand } from '../commands/ikCommands';
 import { SetKeyframeCommand } from '../commands/animationCommands';
+import { useWeightEditingStore } from '../store/weightEditingStore';
 function Numeric({
   label,
   value,
@@ -309,6 +310,19 @@ export function PathConstraintControls({ boneId }: { boneId: string }) {
             ))}
           </details>
         </fieldset>
+      ))}
+      {owned.map((p) => (
+        <button
+          key={`weights:${p.id}`}
+          className="mt-2 rounded bg-neutral-800 px-2 py-1 text-xs text-sky-200"
+          onClick={() => {
+            useEditorStore.getState().selectSlot(null);
+            useEditorStore.getState().setTool('weights');
+            useWeightEditingStore.getState().patch({ pathId: p.id });
+          }}
+        >
+          Edit weights: {p.name}
+        </button>
       ))}
     </div>
   );

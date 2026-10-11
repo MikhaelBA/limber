@@ -3,6 +3,7 @@ import type { BonePropertyName } from '../commands/animationCommands';
 import type { BrushMode } from '../commands/meshCommands';
 import { history, type Command } from '../history/history';
 import type { ShipFocusTarget } from '../persistence/shipFocus';
+import { useWeightEditingStore } from './weightEditingStore';
 
 /**
  * Transform tools mirror Spine's (spine-tools): translate V, rotate C, scale X,
@@ -218,6 +219,8 @@ export const useEditorStore = create<UIState>((set, get) => ({
   },
 
   documentReplaced: () => {
+    useWeightEditingStore.getState().setScope('');
+    useWeightEditingStore.getState().patch({ pathId: null, binding: false, clipboard: null, preview: null });
     history.clear();
     set((s) => ({
       documentEpoch: s.documentEpoch + 1,

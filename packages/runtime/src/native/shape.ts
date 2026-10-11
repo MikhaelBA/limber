@@ -105,11 +105,11 @@ const attachment = tagged('type', {
   ),
   boundingBox: object(
     { ...attachmentCommon, type: enumeration('boundingBox') },
-    { meshVertices: numbers, meshHull: numbers },
+    { ...attachmentOptional, meshVertices: numbers, meshHull: numbers },
   ),
   clipping: object(
     { ...attachmentCommon, type: enumeration('clipping') },
-    { meshVertices: numbers, meshHull: numbers, endSlotId: maybeStr },
+    { ...attachmentOptional, meshVertices: numbers, meshHull: numbers, endSlotId: maybeStr },
   ),
 });
 const markerCommon = { id: str, name: str, boneId: str, transform };
@@ -171,7 +171,9 @@ const skeleton = object(
         order: num,
       }),
     ),
-    paths: array(object({ id: str, name: str, boneId: str, segments: array(numbers), closed: bool })),
+    paths: array(
+      object({ id: str, name: str, boneId: str, segments: array(numbers), closed: bool }, attachmentOptional),
+    ),
     pathConstraints: array(
       object({
         id: str,
@@ -376,13 +378,18 @@ export const runtimeShape = object({
   name: str,
   defaultArtboardId: str,
   features: strings,
-  fonts: array(object({
-    id: str,
-    family: str,
-    format: enumeration('ttf', 'otf'),
-    base64: str,
-    license: object({ name: str, text: str, redistribution: enumeration('allowed', 'unknown', 'restricted') }, { sourceUrl: str }),
-  })),
+  fonts: array(
+    object({
+      id: str,
+      family: str,
+      format: enumeration('ttf', 'otf'),
+      base64: str,
+      license: object(
+        { name: str, text: str, redistribution: enumeration('allowed', 'unknown', 'restricted') },
+        { sourceUrl: str },
+      ),
+    }),
+  ),
   textures: array(
     tagged('type', {
       image: object({

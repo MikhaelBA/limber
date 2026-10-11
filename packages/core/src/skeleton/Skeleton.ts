@@ -4,6 +4,7 @@ import {
   validateMeshTopology,
   validateInvertibleAffine,
   decodeWeights,
+  weightNeighbors,
 } from '@limber/mesh';
 import type { AttachmentData, IKConstraintData, SkeletonData } from '../types/data';
 import type { BonePose, SkeletonPose, SlotPose } from '../types/pose';
@@ -14,6 +15,7 @@ import { resolveMeshLinks } from './meshLinks';
 import { validateConstraints, orderedConstraints, type ConstraintEntry } from './constraints';
 import { PathSampler } from './pathSampling';
 import { SecondaryMotion } from './SecondaryMotion';
+import { pathWeightAttachment } from './pathWeights';
 
 /**
  * Runtime wrapper: data (the rig definition, mutated only by editor commands)
@@ -186,7 +188,8 @@ export class Skeleton {
       : null;
     this.constraintLocalBackup = new Float64Array(this.data.bones.length * 7);
     this.pathSamplers.clear();
-    for (const path of this.data.paths ?? []) this.pathSamplers.set(path.id, new PathSampler(path));
+    for (const path of this.data.paths ?? [])
+      this.pathSamplers.set(path.id, new PathSampler(path, this.boneIndexMap));
   }
 
   /** Structural validation with descriptive errors — catches corrupted documents early. */
@@ -269,13 +272,24 @@ export class Skeleton {
         throw new Error(`Attachment "${attachment.name}" has invalid geometry: ${(error as Error).message}`);
       }
       validateAttachmentWeights(attachment, this.data.bones.length);
+      if (
+        attachment.weightLocks !== undefined &&
+        (!Array.isArray(attachment.weightLocks) ||
+          new Set(attachment.weightLocks).size !== attachment.weightLocks.length ||
+          attachment.weightLocks.some(
+            (id) => !attachment.boneBindings?.some((binding) => binding.boneId === id),
+          ))
+      )
+        throw new Error('Weight locks require unique bound bone IDs.');
+      if (attachment.weightEdges !== undefined)
+        weightNeighbors((attachment.meshVertices?.length ?? 0) / 2, [], attachment.weightEdges);
       if (attachment.boneBindings !== undefined) {
         if (
-          attachment.type !== 'mesh' ||
+          !attachment.meshVertices ||
           !Array.isArray(attachment.boneBindings) ||
           !attachment.boneBindings.length
         )
-          throw new Error('Bone bindings require a mesh and at least one bone.');
+          throw new Error('Bone bindings require polygon vertices and at least one bone.');
         const bound = new Set<string>();
         for (const binding of attachment.boneBindings) {
           if (!binding || !this.boneIndexMap.has(binding.boneId) || bound.has(binding.boneId))
@@ -315,7 +329,10 @@ export class Skeleton {
 
   /** Re-maps weight bone indices from the old index space to the current one (DESIGN.md §4.1). */
   private remapAttachmentWeights(oldIndexToId: string[]): void {
-    for (const attachment of this.data.attachments) {
+    for (const attachment of [
+      ...this.data.attachments,
+      ...(this.data.paths ?? []).map(pathWeightAttachment),
+    ]) {
       if (!attachment.weights) continue;
       const w = attachment.weights;
       const out: number[] = [];

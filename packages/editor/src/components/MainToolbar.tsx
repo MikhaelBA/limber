@@ -2,14 +2,27 @@ import { AddAnimationCommand } from '../commands/animationCommands';
 import type { BrushMode } from '../commands/meshCommands';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore, type Tool } from '../store/editorStore';
+import { useWeightEditingStore } from '../store/weightEditingStore';
 
 const TOOLS: { id: Tool; label: string; hint: string }[] = [
-  { id: 'translate', label: '✥ Translate', hint: 'Translate: drag a bone (or empty space with one selected) — setup edits, animate keys (V)' },
+  {
+    id: 'translate',
+    label: '✥ Translate',
+    hint: 'Translate: drag a bone (or empty space with one selected) — setup edits, animate keys (V)',
+  },
   { id: 'rotate', label: '↻ Rotate', hint: 'Rotate: drag around the bone origin; Shift snaps to 15° (C)' },
   { id: 'scale', label: '⤢ Scale', hint: 'Scale: drag from the bone origin (uniform) (X)' },
   { id: 'shear', label: '⇱ Shear', hint: 'Shear: drag to skew the bone along its x-axis (Z)' },
-  { id: 'create_bone', label: '＋ Bone', hint: 'Create: click for a default bone, drag to set length and rotation (B)' },
-  { id: 'mesh', label: '◈ Mesh', hint: 'Mesh tool (M): region shown → draw a hull; mesh shown → drag vertices, dbl-click adds, Alt+click deletes' },
+  {
+    id: 'create_bone',
+    label: '＋ Bone',
+    hint: 'Create: click for a default bone, drag to set length and rotation (B)',
+  },
+  {
+    id: 'mesh',
+    label: '◈ Mesh',
+    hint: 'Mesh tool (M): region shown → draw a hull; mesh shown → drag vertices, dbl-click adds, Alt+click deletes',
+  },
   { id: 'weights', label: '⚖ Weights', hint: 'Paint vertex weights toward the selected bone (W)' },
 ];
 
@@ -32,6 +45,8 @@ export function MainToolbar() {
   const brushStrength = useEditorStore((s) => s.brushStrength);
   const brushMode = useEditorStore((s) => s.brushMode);
   const setBrush = useEditorStore((s) => s.setBrush);
+  const feather = useWeightEditingStore((s) => s.feather),
+    patchWeightUI = useWeightEditingStore((s) => s.patch);
   const ghostingEnabled = useEditorStore((s) => s.ghostingEnabled);
   const toggleGhosting = useEditorStore((s) => s.toggleGhosting);
 
@@ -91,7 +106,9 @@ export function MainToolbar() {
 
       <button
         className={`rounded px-2 py-0.5 text-sm ${
-          ghostingEnabled ? 'bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50' : 'text-neutral-300 hover:bg-neutral-800'
+          ghostingEnabled
+            ? 'bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50'
+            : 'text-neutral-300 hover:bg-neutral-800'
         }`}
         title="Ghosting: onion-skin outlines before/after the playhead (G) — Animate mode"
         onClick={toggleGhosting}
@@ -113,11 +130,27 @@ export function MainToolbar() {
             >
               <option value="">Choose bone…</option>
               {engine.skeleton.data.bones.map((bone) => (
-                <option key={bone.id} value={bone.id}>{bone.name}</option>
+                <option key={bone.id} value={bone.id}>
+                  {bone.name}
+                </option>
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-1 text-xs text-neutral-400" title="Brush radius (world units)">
+          <button
+            className="rounded bg-neutral-800 px-2 text-xs"
+            onClick={() => {
+              const ui = useWeightEditingStore.getState();
+              ui.setBones(weightBoneId ? [weightBoneId] : []);
+              ui.patch({ binding: true });
+              useEditorStore.getState().setStatus('Select bones in the viewport, then click a mesh to bind.');
+            }}
+          >
+            Bind selected bones
+          </button>
+          <label
+            className="flex items-center gap-1 text-xs text-neutral-400"
+            title="Brush radius (world units)"
+          >
             R
             <input
               type="number"
@@ -129,7 +162,10 @@ export function MainToolbar() {
               className="w-14 rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
             />
           </label>
-          <label className="flex items-center gap-1 text-xs text-neutral-400" title="Brush strength (per dab)">
+          <label
+            className="flex items-center gap-1 text-xs text-neutral-400"
+            title="Brush strength (per dab)"
+          >
             S
             <input
               type="number"
@@ -149,13 +185,29 @@ export function MainToolbar() {
             title="Brush behavior"
             className="rounded bg-neutral-800 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
           >
-            <option value="add">add</option>
-            <option value="set">set</option>
-            <option value="smooth">smooth</option>
+            <option value="direct">Direct</option>
+            <option value="add">Add</option>
+            <option value="remove">Remove</option>
+            <option value="replace">Replace</option>
+            <option value="smooth">Smooth</option>
           </select>
           <span className="text-xs text-neutral-400">
-            {mode === 'setup' ? 'Select a mesh slot, choose a paint bone, then drag over vertices.' : 'Switch to Setup to paint weights.'}
+            Select vertices with Ctrl/Cmd; Direct drags adjust weights. Playback editing is supported.
           </span>
+          <label className="flex items-center gap-1 text-xs">
+            Feather %
+            <input
+              aria-label="Weight brush feather"
+              type="number"
+              min="0"
+              max="100"
+              value={feather * 100}
+              onChange={(e) =>
+                patchWeightUI({ feather: Math.max(0, Math.min(1, Number(e.target.value) / 100)) })
+              }
+              className="w-12 rounded bg-neutral-800 px-1"
+            />
+          </label>
           <div className="mx-1 h-4 w-px bg-neutral-700" />
         </>
       )}
@@ -175,9 +227,7 @@ export function MainToolbar() {
           Animate
         </button>
       </div>
-      {mode === 'animate' && (
-        <span className="ml-1 text-[11px] text-amber-300/80">auto-key at playhead</span>
-      )}
+      {mode === 'animate' && <span className="ml-1 text-[11px] text-amber-300/80">auto-key at playhead</span>}
     </div>
   );
 }

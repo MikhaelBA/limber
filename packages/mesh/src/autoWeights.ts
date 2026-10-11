@@ -1,4 +1,5 @@
 import { encodeWeights, normalizeInfluences, type Influence } from './weights';
+import { geodesicWeights } from './geodesicWeights';
 
 export interface BoneSegment {
   boneIndex: number;
@@ -12,6 +13,9 @@ export interface AutoWeightInput {
   vertices: readonly number[];
   bones: readonly BoneSegment[];
   maxInfluences: number;
+  /** Optional connectivity: authoring passes triangles for topology-aware propagation. */
+  triangles?: readonly number[];
+  edges?: readonly number[];
 }
 
 /** Deterministic nearest-segment inverse-square heuristic, not an anatomical solver. */
@@ -40,6 +44,7 @@ export function autoWeights(input: AutoWeightInput, progress?: (fraction: number
     throw new Error('Auto weights need unique valid bone segments.');
   const rows: Influence[][] = [];
   progress?.(0);
+  if (input.triangles?.length || input.edges?.length) return geodesicWeights(input, progress);
   for (let k = 0; k < vertices.length; k += 2) {
     const x = vertices[k]!,
       y = vertices[k + 1]!;

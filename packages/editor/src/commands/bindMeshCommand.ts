@@ -1,5 +1,5 @@
-import { createPose, solveFK } from '@limber/core';
-import { relativeAffine } from '@limber/mesh';
+import { createPose, solveFK, weightAttachment } from '@limber/core';
+import { relativeAffine, autoWeights } from '@limber/mesh';
 import type { EditorEngine } from '../engine/EditorEngine';
 import type { Command } from '../history/history';
 import { applyRigSnapshot, captureRig, prepareRigEdit, type RigSnapshot } from './rigEdits';
@@ -15,6 +15,7 @@ export class BindMeshCommand implements Command {
     private attachmentId: string,
     private slotId: string,
     boneIds: readonly string[],
+    private initializeWeights = false,
   ) {
     this.boneIds = [...boneIds];
   }
@@ -26,9 +27,10 @@ export class BindMeshCommand implements Command {
     if (this.engine.mode !== 'setup') throw new Error('Switch to Setup to bind mesh bones.');
     const before = captureRig(this.engine);
     const after = prepareRigEdit(this.engine, (data) => {
-      const mesh = data.attachments.find((item) => item.id === this.attachmentId);
-      const slot = data.slots.find((item) => item.id === this.slotId);
-      if (!mesh || mesh.type !== 'mesh' || !slot) throw new Error('Select a mesh slot before binding.');
+      const mesh = weightAttachment(data, this.attachmentId);
+      const path = data.paths?.find((item) => item.id === this.attachmentId);
+      const slot = path ? { boneId: path.boneId } : data.slots.find((item) => item.id === this.slotId);
+      if (!mesh?.meshVertices || !slot) throw new Error('Select a mesh slot before binding.');
       if (!this.boneIds.length || new Set(this.boneIds).size !== this.boneIds.length)
         throw new Error('Choose at least one unique bone to bind.');
       const indices = new Map(data.bones.map((bone, index) => [bone.id, index]));
@@ -38,17 +40,51 @@ export class BindMeshCommand implements Command {
       solveFK(data, indices, pose);
       const slotIndex = indices.get(slot.boneId)!;
       const slotWorld = pose.worldMatrices.subarray(slotIndex * 6, slotIndex * 6 + 6);
-      // Include rigid fallback's bone so painting an unweighted vertex is valid.
-      const selected = new Set([...this.boneIds, slot.boneId]);
-      mesh.boneBindings = data.bones
-        .filter((bone) => selected.has(bone.id))
-        .map((bone) => {
-          const index = indices.get(bone.id)!;
+      // First public binding makes all rows explicit; it binds only chosen bones.
+      // Legacy rigid rows still need their owner as a valid fallback.
+      const selected = [
+        ...new Set([...this.boneIds, ...(!this.initializeWeights || mesh.weights ? [slot.boneId] : [])]),
+      ];
+      const previous = new Map(mesh.boneBindings?.map((binding) => [binding.boneId, binding]));
+      mesh.boneBindings = selected.map((boneId) => {
+        const index = indices.get(boneId)!;
+        if (this.initializeWeights && previous.has(boneId)) return previous.get(boneId)!;
+        return {
+          boneId,
+          matrix: relativeAffine(pose.worldMatrices.subarray(index * 6, index * 6 + 6), slotWorld),
+        };
+      });
+      if (this.initializeWeights && !mesh.weights) {
+        const vertices = mesh.meshVertices.map((value, i) => {
+          const offset = i - (i % 2),
+            x = mesh.meshVertices![offset]!,
+            y = mesh.meshVertices![offset + 1]!;
+          return i % 2
+            ? slotWorld[1]! * x + slotWorld[3]! * y + slotWorld[5]!
+            : slotWorld[0]! * x + slotWorld[2]! * y + slotWorld[4]!;
+        });
+        const bones = selected.map((boneId) => {
+          const index = indices.get(boneId)!,
+            o = index * 6,
+            wm = pose.worldMatrices;
           return {
-            boneId: bone.id,
-            matrix: relativeAffine(pose.worldMatrices.subarray(index * 6, index * 6 + 6), slotWorld),
+            boneIndex: index,
+            x0: wm[o + 4]!,
+            y0: wm[o + 5]!,
+            x1: wm[o + 4]! + data.bones[index]!.length * wm[o]!,
+            y1: wm[o + 5]! + data.bones[index]!.length * wm[o + 1]!,
           };
         });
+        mesh.weights = autoWeights({
+          vertices,
+          bones,
+          triangles: mesh.meshTriangles,
+          edges: !mesh.meshTriangles?.length
+            ? (mesh.weightEdges ?? mesh.meshHull?.flatMap((v, i, ring) => [v, ring[(i + 1) % ring.length]!]))
+            : undefined,
+          maxInfluences: Math.min(4, bones.length),
+        });
+      }
     });
     applyRigSnapshot(this.engine, after);
     this.before = before;

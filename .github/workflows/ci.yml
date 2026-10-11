@@ -49,6 +49,9 @@ jobs:
       - name: Core and runtime build
         run: npm run build
 
+      - name: Practical facial sample parity
+        run: node examples/face-performance/verify-project.mjs
+
       - name: Install browser
         run: npx playwright install --with-deps chromium
 

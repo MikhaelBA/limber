@@ -380,7 +380,7 @@ export class RemoveBoneCommand implements Command {
     const newParentId = target.parentId;
 
     const boneIndex = this.engine.skeleton.boneIndexMap.get(this.boneId)!;
-    for (const attachment of data.attachments) {
+    for (const attachment of [...data.attachments, ...(data.paths ?? [])]) {
       const weights = attachment.weights ?? [];
       for (let p = 0; p < weights.length;) {
         const count = weights[p++]!;
@@ -438,6 +438,12 @@ export class RemoveBoneCommand implements Command {
           );
           if (!attachment.boneBindings.length) delete attachment.boneBindings;
         }
+        attachment.weightLocks = attachment.weightLocks?.filter((id) => id !== this.boneId);
+      }
+      for (const path of proposed.paths ?? []) {
+        path.boneBindings = path.boneBindings?.filter((binding) => binding.boneId !== this.boneId);
+        if (!path.boneBindings?.length) delete path.boneBindings;
+        path.weightLocks = path.weightLocks?.filter((id) => id !== this.boneId);
       }
       if (proposed.markers)
         proposed.markers = proposed.markers.filter((marker) => marker.boneId !== this.boneId);

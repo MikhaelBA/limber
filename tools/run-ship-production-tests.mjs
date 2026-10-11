@@ -32,7 +32,13 @@ try {
   const address = server.httpServer.address();
   assert(address && typeof address === 'object');
   const url = `http://127.0.0.1:${address.port}/`;
-  for (const test of ['ship-workspace.mjs', 'ship-inputs.mjs', 'ship-doctor-ui.mjs', 'weight-painting.mjs']) {
+  for (const test of [
+    'ship-workspace.mjs',
+    'ship-inputs.mjs',
+    'ship-doctor-ui.mjs',
+    'weight-painting.mjs',
+    'weight-workflow.mjs',
+  ]) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
         cwd: root,

@@ -1,0 +1,37 @@
+{
+  "roundTrip": "passed",
+  "originalGeneratedPixels": "passed",
+  "bones": 13,
+  "layers": 8,
+  "attachments": 25,
+  "clips": [
+    {
+      "name": "Talking",
+      "seconds": 4,
+      "runtimeFrames": 480,
+      "maxParityError": 0,
+      "maxWeightEffect": 9.189682006835938
+    },
+    {
+      "name": "Crying",
+      "seconds": 5,
+      "runtimeFrames": 600,
+      "maxParityError": 0,
+      "maxWeightEffect": 26.8013916015625
+    },
+    {
+      "name": "Head Tilt",
+      "seconds": 4,
+      "runtimeFrames": 480,
+      "maxParityError": 0,
+      "maxWeightEffect": 60.83341979980469
+    },
+    {
+      "name": "Laughing",
+      "seconds": 4,
+      "runtimeFrames": 480,
+      "maxParityError": 0,
+      "maxWeightEffect": 22.264755249023438
+    }
+  ]
+}
