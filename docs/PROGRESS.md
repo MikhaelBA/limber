@@ -1738,4 +1738,14 @@ from Animate, but that workflow still expected a disabled Detach button. Its ass
 now requires the control to be absent. Independent animated Deform, Setup detach,
 exact Undo/Redo, Save/Open and rejected-import checks remain intact. The complete
 43-suite development rerun passed, including the shared-mesh workflow and both final
-performance gates. Remote deployment status will be verified on the corrected commit.
+performance gates. Corrected commit 2157bd3 passed all CI jobs in run 38321728578,
+including the six production browser suites, Docker publication and VPS/Pages deployment.
+Checking the published Pages HTML then exposed a separate pre-existing deployment-path
+defect: JS/CSS URLs started at `/assets/`, outside the `/limber/` repository path, and
+returned 404. The shared Vite artifact now uses relative URLs for both root and subdirectory
+hosting. Production acceptance serves the actual built bundle at `/limber/`, verifies
+resource paths/status/content types and runs all six workflows there, including font,
+WASM and worker exports. This prevents a green deployment job from masking a broken page.
+The rebuilt artifact passed all six production workflows at the repository subpath,
+and a separate real-browser root-webroot bootstrap/font check passed. The bundle remains
+usable by the VPS and Docker webroots as well as Pages.

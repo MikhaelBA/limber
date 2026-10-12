@@ -26,12 +26,30 @@ assert(readFileSync(resolve(dist, 'fonts/OFL-NotoSansArabic.txt'), 'utf8').inclu
 const server = await preview({
   root: editor,
   configFile: resolve(editor, 'vite.config.ts'),
+  // Serve the same emitted artifact below a repository path, as GitHub Pages does.
+  base: '/limber/',
   preview: { host: '127.0.0.1', port: 0, strictPort: true },
 });
 try {
   const address = server.httpServer.address();
   assert(address && typeof address === 'object');
-  const url = `http://127.0.0.1:${address.port}/`;
+  const url = `http://127.0.0.1:${address.port}/limber/`;
+  const html = await (await fetch(url)).text();
+  const references = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
+  assert(references.some((reference) => reference.endsWith('.js')));
+  for (const reference of references) {
+    const resource = new URL(reference, url);
+    assert(
+      resource.pathname.startsWith('/limber/'),
+      `Resource must stay under the deployment path: ${resource}`,
+    );
+    const response = await fetch(resource);
+    assert.equal(response.status, 200, `Emitted resource must load: ${resource}`);
+    assert(
+      !response.headers.get('content-type')?.includes('text/html'),
+      `Resource must not resolve to SPA HTML: ${resource}`,
+    );
+  }
   for (const test of [
     'ship-workspace.mjs',
     'ship-inputs.mjs',
@@ -58,7 +76,7 @@ try {
     assert.equal(code, 0, `Production ${test} must pass.`);
   }
   console.log(
-    'PASS: main production Ship workflow uses emitted worker/WASM/font/license resources; all three packaged interaction/Doctor gates and real weight painting passed.',
+    'PASS: production resources and all six browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting and rig handles.',
   );
 } finally {
   await new Promise((done, reject) => {

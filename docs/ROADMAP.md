@@ -213,4 +213,8 @@ Phase 10 Unity is still on hold.
 - [x] Diagnose the CI failure before deployment: stale shared-mesh Animate control assertion.
 - [x] Require Setup-only Detach controls to be absent in Animate; retain functional mesh checks.
 - [x] Repeat all 43 development browser suites, including shared meshes and performance gates.
-- [ ] Verify corrected-commit CI and deployment.
+- [x] Verify corrected-commit CI and all deployment jobs (2157bd3, run 38321728578).
+- [x] Diagnose published Pages assets returning 404 outside the repository subdirectory.
+- [x] Use relative build URLs and enforce actual subdirectory production acceptance.
+- [x] Verify all six production suites at `/limber/` and actual root-webroot bootstrap/fonts.
+- [ ] Verify corrected deployment and published Pages resource responses.

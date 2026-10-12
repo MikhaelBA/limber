@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // One artifact serves both a root webroot and GitHub Pages' repository subdirectory.
+  base: './',
   plugins: [react(), tailwindcss()],
   // The first owned SVG worker must not trigger optimizer discovery and reload its host page.
   optimizeDeps: { include: ['@resvg/resvg-wasm', '@xmldom/xmldom'] },
