@@ -43,7 +43,7 @@ try {
   await page.locator('footer').getByText(/Detach shared meshes before deleting/).waitFor();
   assert.deepEqual(await save(), edited);
   await select('variant slot'); await page.getByRole('button', { name: 'Animate', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'Detach shared mesh', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Detach shared mesh', exact: true }).count(), 0);
   await page.locator('.cursor-ew-resize').first().click({ position: { x: 50, y: 12 } });
   await drag([-55,85], [-60,90]);
   const animated = await save();

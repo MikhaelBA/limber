@@ -1729,3 +1729,13 @@ rerun passed without changing the test or timeout. Mode isolation assertions now
 Setup-only inspectors to be absent in Animate, with their Setup editing and animation-key
 checks retained. The tested increment is ready for publication; remote CI is reported with
 delivery.
+
+## 13 October 2026 Publication regression correction
+
+CI run 38319946721 stopped before deployment in the shared-mesh browser workflow.
+The last Setup/Animate inspector refinement removes shared-mesh construction controls
+from Animate, but that workflow still expected a disabled Detach button. Its assertion
+now requires the control to be absent. Independent animated Deform, Setup detach,
+exact Undo/Redo, Save/Open and rejected-import checks remain intact. The complete
+43-suite development rerun passed, including the shared-mesh workflow and both final
+performance gates. Remote deployment status will be verified on the corrected commit.

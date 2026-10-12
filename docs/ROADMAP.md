@@ -207,3 +207,10 @@ separate mouse transform defects were reproduced and fixed. Pixel blending uses 
 editable slot color tracks and preserves the original generated PNG bytes. Numeric parity
 checks do not establish photorealistic acting. The sample remains a silent stylized example.
 Phase 10 Unity is still on hold.
+
+## Publication regression correction (13 October 2026)
+
+- [x] Diagnose the CI failure before deployment: stale shared-mesh Animate control assertion.
+- [x] Require Setup-only Detach controls to be absent in Animate; retain functional mesh checks.
+- [x] Repeat all 43 development browser suites, including shared meshes and performance gates.
+- [ ] Verify corrected-commit CI and deployment.
