@@ -2,8 +2,8 @@
   "roundTrip": "passed",
   "originalGeneratedPixels": "passed",
   "bones": 13,
-  "layers": 8,
-  "attachments": 25,
+  "layers": 13,
+  "attachments": 47,
   "clips": [
     {
       "name": "Talking",
@@ -17,7 +17,7 @@
       "seconds": 5,
       "runtimeFrames": 600,
       "maxParityError": 0,
-      "maxWeightEffect": 26.8013916015625
+      "maxWeightEffect": 29.840286254882812
     },
     {
       "name": "Head Tilt",
@@ -31,7 +31,9 @@
       "seconds": 4,
       "runtimeFrames": 480,
       "maxParityError": 0,
-      "maxWeightEffect": 22.264755249023438
+      "maxWeightEffect": 19.25347900390625
     }
-  ]
+  ],
+  "slotAttachmentAndAlphaParity": "passed",
+  "expressionOpacity": "passed"
 }

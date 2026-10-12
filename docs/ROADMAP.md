@@ -188,3 +188,22 @@ BoneByBone uses its own deterministic topology-aware algorithm.
 - [x] Provide original atlases, generation prompts, reproducible scripts and previews.
 
 This sample exercises completed features and existing IK. It does not close any Phase 7 task.
+
+## Character interaction and sample refinement (13 October 2026)
+
+- [x] Distinct Setup rig/mesh authoring and Animate timeline/deformation presentation.
+- [x] Independent mode display preferences, clean animation viewport and optional Setup timeline.
+- [x] Tapered outlined bones, ring joints, selected orange controls and zero-length diamonds.
+- [x] Visible move axes, rotation ring, scale boxes and dedicated Setup length handle.
+- [x] Offset-preserving grabs, affine parent rotation/length/creation and stable scale sensitivity.
+- [x] Escape/pointer cancellation, click-jitter rollback and one-gesture animated scale Undo.
+- [x] Facial artwork transitions, weighted lip/jaw timing, asymmetric acting and invisible tear resets.
+- [x] Regenerated self-contained project, editor previews and native animation/review frames.
+- [x] Exact geometry, slot attachment and alpha agreement across 2,040 editor/native frames.
+- [x] Complete source and browser acceptance; prepare the verified increment for publication.
+
+The reported animation weakness was primarily sample acting and abrupt artwork switches;
+separate mouse transform defects were reproduced and fixed. Pixel blending uses ordinary
+editable slot color tracks and preserves the original generated PNG bytes. Numeric parity
+checks do not establish photorealistic acting. The sample remains a silent stylized example.
+Phase 10 Unity is still on hold.

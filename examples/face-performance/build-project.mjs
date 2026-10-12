@@ -4,6 +4,7 @@ import { build } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { refinePerformance } from './refine-performance.mjs';
 const here = dirname(fileURLToPath(import.meta.url)),
   root = resolve(here, '../..'),
   scratch = join(root, '.smoke/face-performance');
@@ -494,6 +495,7 @@ const animations = [
     ]),
   ]),
 ];
+refinePerformance(skeleton, animations);
 const project = {
   format: core.PROJECT_FORMAT,
   schemaVersion: core.PROJECT_SCHEMA_VERSION,
@@ -533,5 +535,5 @@ const json = core.serializeProject(project);
 assert.deepEqual(JSON.parse(core.serializeProject(core.deserializeProject(json))), JSON.parse(json));
 writeFileSync(join(here, 'Face-Performance.bbbproj'), json + '\n');
 console.log(
-  `${bones.length} bones, ${slots.length} layers, ${attachments.length} UV sprites, four expressive clips; generated PNGs embedded unchanged.`,
+  `${bones.length} bones, ${slots.length} layers, ${skeleton.attachments.length} UV sprites, four expressive clips; generated PNGs embedded unchanged.`,
 );

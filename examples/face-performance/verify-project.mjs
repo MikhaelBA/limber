@@ -68,6 +68,22 @@ for (const clip of rig.animations) {
     engine.tick(0);
     control.scrub(time);
     control.tick(0);
+    for (const slot of rig.skeleton.slots) {
+      const expectedSlot = engine.skeleton.pose.slots[engine.skeleton.slotIndexMap.get(slot.id)];
+      assert.equal(
+        native.getSlotAttachment(slot.id),
+        expectedSlot.attachmentId,
+        `${clip.name} attachment ${slot.id}`,
+      );
+      assert.equal(native.getSlotColor(slot.id), expectedSlot.color, `${clip.name} alpha ${slot.id}`);
+      if (slot.id.endsWith(' — blend')) {
+        const base = engine.skeleton.pose.slots[engine.skeleton.slotIndexMap.get(slot.id.slice(0, -8))];
+        assert(
+          Math.abs((base.color & 255) + (expectedSlot.color & 255) - 255) <= 1,
+          'expression layers retain total authored opacity',
+        );
+      }
+    }
     const visible = new Set(engine.skeleton.pose.slots.map((slot) => slot.attachmentId).filter(Boolean));
     for (const attachment of rig.skeleton.attachments.filter((a) => visible.has(a.id))) {
       const actual = native.getDeformedVertices(attachment.id),
@@ -101,6 +117,8 @@ const report = {
   layers: rig.skeleton.slots.length,
   attachments: rig.skeleton.attachments.length,
   clips,
+  slotAttachmentAndAlphaParity: 'passed',
+  expressionOpacity: 'passed',
 };
 writeFileSync(join(here, 'validation.json'), JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report, null, 2));

@@ -1684,3 +1684,48 @@ lint/boundaries, formatting, typecheck and both builds. A concurrent attempt had
 in the unchanged font preflight; its original five-second limit passed on the serial rerun.
 No assertion or timeout was relaxed. Final sample verification again matched all 2,040
 frames exactly and retained nonzero weight contributions for every performance.
+
+## 13 October 2026 Character interaction and facial sample refinement
+
+The user confirmed that transform handles/mouse control were the concern and approved
+Setup for rig/mesh construction, Animate with an open timeline and a cleaner viewport.
+Setup now hides its optional timeline; Animate shows the timeline and selects a deformation
+workflow, hides Bone creation and disables the default grid. Grid/Bones preferences are
+independent by mode; the camera remains shared. Bones have tapered outlines and ring joints,
+with orange selection and diamond controls for zero length.
+
+Move arrows, rotation rings, axis/uniform scale boxes and a separate length handle provide
+actual pointer targets. Body grabs preserve their offset. Parent affine inversion fixes rotation
+and creation under reflected/sheared/nonuniform frames; length uses a normalized projection.
+Scale uses fixed screen sensitivity instead of dividing by a nearly zero grab radius. Escape
+and pointer cancellation restore live transforms without consuming redo, sub-threshold clicks
+roll back, and animated Scale X/Y commit as one undo entry. Four numeric tests and a real
+browser workflow cover these cases and Setup/Animate canvas continuity.
+
+The previous sample's abruptly stepped artwork and mechanically regular pulses were acting
+problems; prior vertex parity alone did not demonstrate naturalness. The revised project uses
+five additional expression blend layers with duplicated frozen weighted meshes. Jaw/lip timing,
+brow/cheek asymmetry and less regular laughing/sobbing movement refine the performances.
+Left/right tears fall on distinct schedules and reset only after alpha reaches zero. Original
+Image Generation PNG bytes are preserved. The sample remains silent and stylized; no voice
+synchronization or photorealistic quality is claimed.
+
+Sample verification passed 2,040 fixed-tick frames with zero vertex error and exact slot
+attachment/color equality. Review includes actual editor previews and 32 native rendered
+frames alongside the regenerated video. Full source/development/production acceptance and
+publication are being completed. Unity Phase 10 remains on hold.
+
+The complete development run passed all 43 suites. Initial harness updates qualify the
+Bone tool button by its exact accessible name, and compare the concave hull area within
+0.01 square units after Float32 roundoff from the larger Setup viewport (observed error
+0.0061 out of 22,000). The topology/triangle count assertions remain intact. Final view
+refinement adds a visible Shear handle, hides Setup construction inspectors while preserving
+Path progress keying, and prevents Animate Deform clicks from adding/removing topology.
+All nine affected pointer, hull, smoke, path, pin and structural workflows passed on a fresh
+owned server, followed by all six production browser suites. Final source acceptance passed
+722 unit tests in 96 files, lint/boundaries/format, TypeScript and both builds. A concurrent
+local run hit the existing five-second Arabic font inspection timeout; the serial full source
+rerun passed without changing the test or timeout. Mode isolation assertions now require
+Setup-only inspectors to be absent in Animate, with their Setup editing and animation-key
+checks retained. The tested increment is ready for publication; remote CI is reported with
+delivery.

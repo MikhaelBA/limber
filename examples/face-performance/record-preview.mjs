@@ -13,7 +13,7 @@ try {
     errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(new URL('tests/native-web.html', process.env.SPRINE_URL ?? 'http://127.0.0.1:5196/').href);
-  const bytes = await page.evaluate(async (program) => {
+  const recording = await page.evaluate(async (program) => {
     const { runtime, web, pixi } = await import('/tests/native-web-host.ts');
     const asset = new runtime.NativeRuntimeAsset(program),
       assets = await web.NativeWebAssets.load(asset),
@@ -37,7 +37,8 @@ try {
     app.stage.addChild(label);
     const stream = app.canvas.captureStream(0),
       track = stream.getVideoTracks()[0],
-      chunks = [];
+      chunks = [],
+      frames = [];
     const recorder = new MediaRecorder(stream, {
       mimeType: 'video/webm;codecs=vp9',
       videoBitsPerSecond: 2200000,
@@ -61,6 +62,8 @@ try {
       for (let frame = 0; frame < duration * 20; frame++) {
         for (let tick = 0; tick < 6; tick++) view.step();
         app.render();
+        if ([3, 6, 10, 16, 23, 32, 49, 66].includes(frame))
+          frames.push({ name, time: (frame + 1) / 20, image: app.canvas.toDataURL() });
         track.requestFrame();
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -72,11 +75,18 @@ try {
     view.destroy();
     app.destroy(true);
     assets.dispose();
-    return bytes;
+    return { bytes, frames };
   }, program);
   assert.deepEqual(errors, []);
-  writeFileSync(join(here, 'previews/Facial-Performances.webm'), Buffer.from(bytes));
-  console.log(`Recorded four native facial performances (${bytes.length} bytes).`);
+  writeFileSync(join(here, 'previews/Facial-Performances.webm'), Buffer.from(recording.bytes));
+  await page.setViewportSize({ width: 1280, height: 680 });
+  await page.setContent(
+    `<body style="margin:0;background:#242831;color:white;font:12px Arial"><div style="display:grid;grid-template-columns:repeat(8,160px)">${recording.frames.map((frame) => `<div><img width="160" height="160" src="${frame.image}"><div>${frame.name} ${frame.time.toFixed(2)}s</div></div>`).join('')}</div></body>`,
+  );
+  await page.screenshot({ path: join(here, 'previews/acting-review.png'), fullPage: true });
+  console.log(
+    `Recorded four native facial performances (${recording.bytes.length} bytes) and 32 review frames.`,
+  );
 } finally {
   await browser.close();
 }
