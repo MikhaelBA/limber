@@ -217,4 +217,5 @@ Phase 10 Unity is still on hold.
 - [x] Diagnose published Pages assets returning 404 outside the repository subdirectory.
 - [x] Use relative build URLs and enforce actual subdirectory production acceptance.
 - [x] Verify all six production suites at `/limber/` and actual root-webroot bootstrap/fonts.
+- [x] Explicitly root-mount the standalone Atlas test artifact; verify SVG/WASM and bundled font pixels.
 - [ ] Verify corrected deployment and published Pages resource responses.

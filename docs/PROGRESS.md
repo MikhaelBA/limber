@@ -1749,3 +1749,8 @@ WASM and worker exports. This prevents a green deployment job from masking a bro
 The rebuilt artifact passed all six production workflows at the repository subpath,
 and a separate real-browser root-webroot bootstrap/font check passed. The bundle remains
 usable by the VPS and Docker webroots as well as Pages.
+CI run 38323110331 then exposed the standalone Atlas harness's different hosting layout:
+its entry is under `/tests/`, but fixture fonts live at `/fonts/`. That dedicated build
+now declares its root base explicitly. The real editor artifact still uses relative URLs
+and its six production workflows still run under `/limber/`; no worker/font assertion
+or timeout is removed.

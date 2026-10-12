@@ -12,6 +12,9 @@ export async function verifyAtlasProduction(browser) {
   await build({
     root: editor,
     configFile: resolve(editor, 'vite.config.ts'),
+    // This standalone /tests/ entry uses root-mounted fixture resources.
+    // The real editor artifact is tested at /limber/ by run-ship-production-tests.
+    base: '/',
     logLevel: 'warn',
     build: {
       outDir: output,
