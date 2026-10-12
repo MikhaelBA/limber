@@ -137,21 +137,25 @@ export function HierarchyPanel() {
         <span className="mr-auto text-xs font-semibold uppercase tracking-wider text-neutral-400">
           Hierarchy
         </span>
-        <button
-          className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
-          title="Add root bone"
-          onClick={addRoot}
-        >
-          ＋⌂
-        </button>
-        <button
-          className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
-          title="Add child of selected"
-          disabled={!selected}
-          onClick={addChild}
-        >
-          ＋↳
-        </button>
+        {mode === 'setup' && (
+          <>
+            <button
+              className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+              title="Add root bone"
+              onClick={addRoot}
+            >
+              ＋⌂
+            </button>
+            <button
+              className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
+              title="Add child of selected"
+              disabled={!selected}
+              onClick={addChild}
+            >
+              ＋↳
+            </button>
+          </>
+        )}
         <button
           className="rounded px-1.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
           title="Delete selected (Del)"

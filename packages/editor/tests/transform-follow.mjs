@@ -153,7 +153,7 @@ try {
   await page.keyboard.press('Control+y');
   assert.deepEqual(await save(), reordered);
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
-  assert.equal(await page.getByLabel('Follow position', { exact: true }).isDisabled(), true);
+  assert.equal(await page.getByLabel('Follow position', { exact: true }).count(), 0);
   await page.getByRole('button', { name: 'Setup', exact: true }).click();
   await page.getByTitle('Delete transform follow', { exact: true }).click();
   assert.deepEqual((await save()).artboards[0].nodes[0].skeleton.transformConstraints, []);

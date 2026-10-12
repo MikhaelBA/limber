@@ -91,7 +91,11 @@ export function PathConstraintControls({ boneId }: { boneId: string }) {
   );
   return (
     <div className="mt-2 border-t border-neutral-800 pt-2">
-      <fieldset disabled={mode !== 'setup'} className="flex flex-col gap-1 disabled:opacity-60">
+      <fieldset
+        hidden={mode !== 'setup'}
+        disabled={mode !== 'setup'}
+        className="flex flex-col gap-1 disabled:opacity-60"
+      >
         <span className="text-xs font-semibold text-neutral-400">Path follow</span>
         <label className="flex items-center gap-1 text-xs text-neutral-400">
           Chain end
@@ -143,7 +147,7 @@ export function PathConstraintControls({ boneId }: { boneId: string }) {
             <span className="text-xs text-teal-300">
               {data.paths?.find((p) => p.id === c.pathId)?.name} · {c.bones.length} bones
             </span>
-            <fieldset disabled={mode !== 'setup'} className="disabled:opacity-60">
+            <fieldset hidden={mode !== 'setup'} disabled={mode !== 'setup'} className="disabled:opacity-60">
               <Numeric
                 label="Path progress %"
                 value={c.progress * 100}
@@ -259,6 +263,7 @@ export function PathConstraintControls({ boneId }: { boneId: string }) {
       {owned.map((p) => (
         <fieldset
           key={p.id}
+          hidden={mode !== 'setup'}
           disabled={mode !== 'setup'}
           className="mt-2 rounded bg-neutral-800/40 p-1.5 text-xs text-neutral-400 disabled:opacity-60"
         >

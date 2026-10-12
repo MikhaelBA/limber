@@ -131,8 +131,8 @@ try {
   await select(target.name);
   await page.screenshot({ path: `${out}/character-pins.png` });
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
-  assert.equal(await page.getByLabel('IK strength', { exact: true }).isDisabled(), true);
-  assert.equal(await page.getByRole('button', { name: 'Pin Hand', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByLabel('IK strength', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Pin Hand', exact: true }).count(), 0);
   // Target drags/property edits still author ordinary keys in Animate.
   await field('Y', wrist[1] + 5);
   const animated = await save();

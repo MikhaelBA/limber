@@ -366,7 +366,7 @@ export function PropertiesPanel() {
             </p>
           )}
           {shownAtt?.meshVertices && <MeshWeightsPanel key={shownAtt.id} attachmentId={shownAtt.id} />}
-          {shownAtt?.type === 'mesh' && (
+          {mode === 'setup' && shownAtt?.type === 'mesh' && (
             <SharedMeshControls key={`shared-${shownAtt.id}`} attachmentId={shownAtt.id} />
           )}
           {shownAtt &&
@@ -515,42 +515,49 @@ export function PropertiesPanel() {
           <div className="my-1 h-px bg-neutral-800" />
           {/* §5.6: Animate mode shows/keys the CURRENT animated pose; Setup edits the rig. */}
           <BoneTransformFields engine={engine} boneId={bone.id} />
-          <NumberField label="Length" value={bone.length} onCommit={(v) => editBone((s) => (s.length = v))} />
-          <div className="my-1 h-px bg-neutral-800" />
-          <label className="flex items-center gap-2">
-            <span className="w-16 shrink-0 text-xs text-neutral-400">Parent</span>
-            <select
-              aria-label="Bone parent"
-              value={bone.parentId ?? ''}
-              onChange={(e) => {
-                const next = e.target.value || null;
-                if (next === bone.id || (next && wouldCreateCycle(data, bone.id, next))) {
-                  setStatus('Cannot parent a bone under its own descendant.');
-                  return;
-                }
-                try {
-                  execute(new ReparentBoneCommand(engine, bone.id, next));
-                } catch (error) {
-                  setStatus((error as Error).message);
-                }
-              }}
-              className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-            >
-              <option value="">(root)</option>
-              {data.bones
-                .filter((b) => b.id !== bone.id && !wouldCreateCycle(data, bone.id, b.id))
-                .map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-
-          <IKControls boneId={bone.id} />
-          <TransformConstraintControls key={bone.id} boneId={bone.id} />
+          {mode === 'setup' && (
+            <>
+              <NumberField
+                label="Length"
+                value={bone.length}
+                onCommit={(v) => editBone((s) => (s.length = v))}
+              />
+              <div className="my-1 h-px bg-neutral-800" />
+              <label className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-xs text-neutral-400">Parent</span>
+                <select
+                  aria-label="Bone parent"
+                  value={bone.parentId ?? ''}
+                  onChange={(e) => {
+                    const next = e.target.value || null;
+                    if (next === bone.id || (next && wouldCreateCycle(data, bone.id, next))) {
+                      setStatus('Cannot parent a bone under its own descendant.');
+                      return;
+                    }
+                    try {
+                      execute(new ReparentBoneCommand(engine, bone.id, next));
+                    } catch (error) {
+                      setStatus((error as Error).message);
+                    }
+                  }}
+                  className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value="">(root)</option>
+                  {data.bones
+                    .filter((b) => b.id !== bone.id && !wouldCreateCycle(data, bone.id, b.id))
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </>
+          )}
+          {mode === 'setup' && <IKControls boneId={bone.id} />}
+          {mode === 'setup' && <TransformConstraintControls key={bone.id} boneId={bone.id} />}
           <PathConstraintControls key={`path:${bone.id}`} boneId={bone.id} />
-          <SecondaryMotionControls key={`secondary:${bone.id}`} boneId={bone.id} />
+          {mode === 'setup' && <SecondaryMotionControls key={`secondary:${bone.id}`} boneId={bone.id} />}
         </div>
       )}
 

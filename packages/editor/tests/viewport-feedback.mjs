@@ -157,7 +157,9 @@ try {
     const [a, b, c] = geometry.triangles.slice(i, i + 3).map((index) => geometry.vertices.slice(index * 2, index * 2 + 2));
     triangleArea += Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2;
   }
-  assert.equal(triangleArea, 22000, 'concave hull excludes its missing rectangle');
+  // The expanded Setup viewport can have a fractional camera origin. Mesh positions
+  // cross a Float32 boundary, so require geometric equality within rounding error.
+  assert.ok(Math.abs(triangleArea - 22000) < .01, 'concave hull excludes its missing rectangle');
   assert.equal(geometry.triangles.length, 12);
   await page.mouse.move(...await screen(-100, 80));
   await page.mouse.down();

@@ -68,7 +68,7 @@ if (!(await rootBoneRow.isVisible())) fail('root bone not listed in hierarchy');
 else log('hierarchy lists root bone');
 
 // 3. Create bones with the Bone tool: click toolbar, then the canvas twice.
-await page.getByRole('button', { name: /Bone/ }).click();
+await page.getByRole('button', { name: '＋ Bone', exact: true }).click();
 log('bone tool activated');
 const canvas = page.locator('canvas').first();
 const box = await canvas.boundingBox();

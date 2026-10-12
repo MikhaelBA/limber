@@ -136,7 +136,7 @@ try {
     .waitFor();
   assert.deepEqual(await save(), both);
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
-  assert.equal(await page.getByLabel('Secondary strength', { exact: true }).isDisabled(), true);
+  assert.equal(await page.getByLabel('Secondary strength', { exact: true }).count(), 0);
   await page.getByTitle('Play/Pause (Space)', { exact: true }).click();
   await page.waitForFunction(() => {
     const body = window.__markers?.find((m) => m.id === 'body')?.world,

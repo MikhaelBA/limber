@@ -54,6 +54,8 @@ function Shell() {
     });
   }, [engine]);
   const workspace = useEditorStore((s) => s.workspace);
+  const mode = useEditorStore((s) => s.mode);
+  const setupTimeline = useEditorStore((s) => s.setupTimeline);
   const documentEpoch = useEditorStore((s) => s.documentEpoch);
   const dataRevision = useEditorStore((s) => s.dataRevision);
   const selectedBoneId = useEditorStore((s) => s.selectedBoneId);
@@ -169,7 +171,7 @@ function Shell() {
         }
       } else if (e.key === ' ') {
         e.preventDefault();
-        if (engine.currentAnimation) {
+        if (st.mode === 'animate' && engine.currentAnimation) {
           if (engine.playing) {
             engine.pause();
             st.setPlaying(false);
@@ -190,7 +192,7 @@ function Shell() {
       } else if (e.key === 'z' || e.key === 'Z') {
         st.setTool('shear');
       } else if (e.key === 'b' || e.key === 'B') {
-        st.setTool('create_bone');
+        if (st.mode === 'setup') st.setTool('create_bone');
       } else if (e.key === 'm' || e.key === 'M') {
         st.setTool('mesh');
       } else if (e.key === 'w' || e.key === 'W') {
@@ -270,10 +272,14 @@ function Shell() {
                 </Panel>
               </PanelGroup>
             </Panel>
-            <PanelResizeHandle className="h-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
-            <Panel defaultSize={26} minSize={8}>
-              <TimelinePanel />
-            </Panel>
+            {(mode === 'animate' || setupTimeline) && (
+              <PanelResizeHandle className="h-1 bg-neutral-800 transition-colors hover:bg-sky-600" />
+            )}
+            {(mode === 'animate' || setupTimeline) && (
+              <Panel defaultSize={26} minSize={8}>
+                <TimelinePanel />
+              </Panel>
+            )}
           </PanelGroup>
         </>
       )}

@@ -44,6 +44,10 @@ interface UIState {
   activeTool: Tool;
   previousTool: Tool | null;
   mode: 'setup' | 'animate';
+  setupTimeline: boolean;
+  viewOptions: { setup: { grid: boolean; bones: boolean }; animate: { grid: boolean; bones: boolean } };
+  toggleViewOption: (option: 'grid' | 'bones') => void;
+  toggleSetupTimeline: () => void;
   isPlaying: boolean;
   /** Weight brush (weights tool): world-space radius, 0..1 strength, behavior. */
   brushRadius: number;
@@ -118,6 +122,16 @@ export const useEditorStore = create<UIState>((set, get) => ({
   activeTool: 'translate',
   previousTool: null,
   mode: 'setup',
+  setupTimeline: false,
+  viewOptions: { setup: { grid: true, bones: true }, animate: { grid: false, bones: true } },
+  toggleViewOption: (option) =>
+    set((s) => ({
+      viewOptions: {
+        ...s.viewOptions,
+        [s.mode]: { ...s.viewOptions[s.mode], [option]: !s.viewOptions[s.mode][option] },
+      },
+    })),
+  toggleSetupTimeline: () => set((s) => ({ setupTimeline: !s.setupTimeline })),
   isPlaying: false,
   brushRadius: 60,
   brushStrength: 0.4,
@@ -180,13 +194,18 @@ export const useEditorStore = create<UIState>((set, get) => ({
   setHover: (boneId) => set({ hoveredBoneId: boneId }),
   setTool: (tool) =>
     set((s) => ({
-      activeTool: tool,
+      activeTool: s.mode === 'animate' && tool === 'create_bone' ? 'translate' : tool,
       previousTool: s.activeTool,
       weightBoneId: tool === 'weights' ? (s.selectedBoneId ?? s.weightBoneId) : s.weightBoneId,
     })),
   toggleLastTool: () =>
     set((s) => {
-      if (!s.previousTool || s.previousTool === s.activeTool) return s;
+      if (
+        !s.previousTool ||
+        s.previousTool === s.activeTool ||
+        (s.mode === 'animate' && s.previousTool === 'create_bone')
+      )
+        return s;
       const activeTool = s.previousTool;
       return {
         activeTool,
@@ -194,7 +213,11 @@ export const useEditorStore = create<UIState>((set, get) => ({
         weightBoneId: activeTool === 'weights' ? (s.selectedBoneId ?? s.weightBoneId) : s.weightBoneId,
       };
     }),
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) =>
+    set((s) => ({
+      mode,
+      activeTool: mode === 'animate' && s.activeTool === 'create_bone' ? 'translate' : s.activeTool,
+    })),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setBrush: (patch) =>
     set((s) => ({
@@ -234,6 +257,8 @@ export const useEditorStore = create<UIState>((set, get) => ({
       weightBoneId: null,
       selectedKeyframe: null,
       mode: 'setup',
+      setupTimeline: false,
+      viewOptions: { setup: { grid: true, bones: true }, animate: { grid: false, bones: true } },
       isPlaying: false,
       statusMessage: '',
     }));

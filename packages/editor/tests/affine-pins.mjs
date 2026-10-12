@@ -138,8 +138,8 @@ try {
   close(await marker('wrist'), softWrist);
   await select(name);
   await page.getByRole('button', { name: 'Animate', exact: true }).click();
-  assert.equal(await page.getByLabel('IK pole', { exact: true }).isDisabled(), true);
-  assert.equal(await page.getByLabel('IK softness', { exact: true }).isDisabled(), true);
+  assert.equal(await page.getByLabel('IK pole', { exact: true }).count(), 0);
+  assert.equal(await page.getByLabel('IK softness', { exact: true }).count(), 0);
   await page.getByRole('button', { name: 'Setup', exact: true }).click();
   const broken = structuredClone(softened);
   broken.artboards[0].nodes[0].skeleton.ikConstraints[0].poleVectorId = 'lower';

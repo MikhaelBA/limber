@@ -81,6 +81,8 @@ export function TimelinePanel() {
       setPlaying(false);
       touch(); // Panels re-read the paused pose.
     } else {
+      engine.mode = 'animate';
+      useEditorStore.getState().setMode('animate');
       engine.play();
       setPlaying(true);
     }

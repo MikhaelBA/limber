@@ -11,7 +11,11 @@ const TOOLS: { id: Tool; label: string; hint: string }[] = [
     hint: 'Translate: drag a bone (or empty space with one selected) — setup edits, animate keys (V)',
   },
   { id: 'rotate', label: '↻ Rotate', hint: 'Rotate: drag around the bone origin; Shift snaps to 15° (C)' },
-  { id: 'scale', label: '⤢ Scale', hint: 'Scale: drag from the bone origin (uniform) (X)' },
+  {
+    id: 'scale',
+    label: '⤢ Scale',
+    hint: 'Scale: X/Y boxes control one axis; gold box scales both. Shift: uniform (X)',
+  },
   { id: 'shear', label: '⇱ Shear', hint: 'Shear: drag to skew the bone along its x-axis (Z)' },
   {
     id: 'create_bone',
@@ -38,6 +42,8 @@ export function MainToolbar() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const mode = useEditorStore((s) => s.mode);
+  const setupTimeline = useEditorStore((s) => s.setupTimeline);
+  const toggleSetupTimeline = useEditorStore((s) => s.toggleSetupTimeline);
   const setMode = useEditorStore((s) => s.setMode);
   const execute = useEditorStore((s) => s.execute);
   const setPlaying = useEditorStore((s) => s.setPlaying);
@@ -68,10 +74,14 @@ export function MainToolbar() {
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-neutral-800 bg-neutral-900/60 px-2 py-1">
-      {TOOLS.map((tool) => (
+      {TOOLS.filter((tool) => mode === 'setup' || tool.id !== 'create_bone').map((tool) => (
         <button
           key={tool.id}
-          title={tool.hint}
+          title={
+            mode === 'animate' && tool.id === 'mesh'
+              ? 'Deform: drag existing mesh vertices to key at the playhead (M)'
+              : tool.hint
+          }
           onClick={() => setTool(tool.id)}
           className={`rounded px-2 py-0.5 text-sm ${
             activeTool === tool.id
@@ -79,12 +89,22 @@ export function MainToolbar() {
               : 'text-neutral-300 hover:bg-neutral-800'
           }`}
         >
-          {tool.label}
+          {mode === 'animate' && tool.id === 'mesh' ? '◈ Deform' : tool.label}
         </button>
       ))}
 
       <div className="mx-2 h-4 w-px bg-neutral-700" />
 
+      {mode === 'setup' && (
+        <button
+          aria-pressed={setupTimeline}
+          onClick={toggleSetupTimeline}
+          className="rounded px-2 text-xs text-neutral-300 hover:bg-neutral-800"
+          title="Show the animation panel while building the rig"
+        >
+          Timeline
+        </button>
+      )}
       <button
         className="rounded px-2 py-0.5 text-sm text-neutral-300 hover:bg-neutral-800 disabled:opacity-35"
         disabled={!canUndo}
@@ -104,17 +124,19 @@ export function MainToolbar() {
 
       <div className="mx-2 h-4 w-px bg-neutral-700" />
 
-      <button
-        className={`rounded px-2 py-0.5 text-sm ${
-          ghostingEnabled
-            ? 'bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50'
-            : 'text-neutral-300 hover:bg-neutral-800'
-        }`}
-        title="Ghosting: onion-skin outlines before/after the playhead (G) — Animate mode"
-        onClick={toggleGhosting}
-      >
-        👁 Ghost
-      </button>
+      {mode === 'animate' && (
+        <button
+          className={`rounded px-2 py-0.5 text-sm ${
+            ghostingEnabled
+              ? 'bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50'
+              : 'text-neutral-300 hover:bg-neutral-800'
+          }`}
+          title="Ghosting: onion-skin outlines before/after the playhead (G) — Animate mode"
+          onClick={toggleGhosting}
+        >
+          👁 Ghost
+        </button>
+      )}
 
       <div className="mx-2 h-4 w-px bg-neutral-700" />
 

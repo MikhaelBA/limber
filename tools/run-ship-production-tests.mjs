@@ -38,6 +38,7 @@ try {
     'ship-doctor-ui.mjs',
     'weight-painting.mjs',
     'weight-workflow.mjs',
+    'rig-pointer-workflow.mjs',
   ]) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
