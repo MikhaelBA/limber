@@ -1810,3 +1810,11 @@ Scene UI and Standard/Heavy mesh performance, and all seven production workflows
 `/limber/`. Selection assertions inspect rendered pixels in both build modes. The Heavy
 CPU update/render-submit p95 was 4.2 ms; Scene interaction p95 was 0.8 ms. The tested
 increment is ready for publication; remote CI and deployment are recorded with delivery.
+
+Commit 446bcd3 passed CI run 38328245305: the full source gate, all 44 development
+browser workflows, all seven production workflows, Docker publication and VPS/Pages
+deployment. The complete selection-feedback workflow also passed against the actual
+published Pages site: region/mesh boundaries, Hierarchy/canvas selection, deselection,
+Setup/Animate, hidden Bones, zoom, changed geometry, Undo, Scene bounds and expanded
+component-instance artwork. No source-module imports or assertions were removed for
+that published-site check.

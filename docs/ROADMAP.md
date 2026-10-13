@@ -238,9 +238,9 @@ Phase 10 Unity remains on hold.
 - [x] Outline selected Character regions and posed meshes with a gold stroke and dark underlay.
 - [x] Retain selection feedback in Setup/Animate and when Bone/Grid guides are hidden.
 - [x] Follow changed vertices, attachment switches and zoom with constant screen-width strokes.
-- [x] Cache mesh boundary topology; exclude interior triangle edges and use it for accurate picking.
+- [x] Cache mesh boundaries, exclude interior triangle edges and use triangle topology for accurate picking.
 - [x] Strengthen Scene selection bounds and include expanded component-instance artwork.
 - [x] Pass source, affected browser and seven subdirectory production workflows.
-- [ ] Publish and verify remote CI, deployment and actual published-site selection pixels.
+- [x] Publish and verify remote CI, deployment and actual published-site selection pixels (446bcd3, run 38328245305).
 
 Phase 10 Unity remains on hold.
