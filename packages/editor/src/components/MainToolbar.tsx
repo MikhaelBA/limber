@@ -20,7 +20,7 @@ const TOOLS: { id: Tool; label: string; hint: string }[] = [
   {
     id: 'create_bone',
     label: '＋ Bone',
-    hint: 'Create: click for a default bone, drag to set length and rotation (B)',
+    hint: 'Create (B): click/drag on a bone to extend from its tip; empty canvas creates a root',
   },
   {
     id: 'mesh',

@@ -184,6 +184,89 @@ try {
   near(pose(await save(), 'child').rotation, 0.4);
   mkdirSync('packages/editor/.smoke/rig-pointer', { recursive: true });
   await page.screenshot({ path: 'packages/editor/.smoke/rig-pointer/setup.png' });
+  // Both creation entry points attach children at the parent's local tip.
+  await open([bone('root')]);
+  await select('root');
+  const beforeChildren = await save();
+  await page.getByTitle('Add child of selected', { exact: true }).click();
+  let added = (await save()).artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, 'root');
+  near(added.setupPose.x, 140);
+  near(added.setupPose.y, 0);
+  near((await gizmo()).origin.x, 140);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), beforeChildren);
+  await page.keyboard.press('Control+y');
+  near((await save()).artboards[0].nodes[0].skeleton.bones.at(-1).setupPose.x, 140);
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('b');
+  await page.mouse.click(...(await screen({ x: 70, y: 0 })));
+  const clickedChild = await save();
+  added = clickedChild.artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, 'root');
+  near(added.setupPose.x, 140);
+  near(added.setupPose.y, 0);
+  near(added.setupPose.rotation, 0);
+  near(added.length, 50);
+  // The next child extends the chain, rather than appearing at its parent's centre.
+  const firstChildId = added.id;
+  await page.mouse.click(...(await screen({ x: 165, y: 0 })));
+  added = (await save()).artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, firstChildId);
+  near(added.setupPose.x, 50);
+  near((await gizmo()).origin.x, 190);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), clickedChild);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), beforeChildren);
+  await drag({ x: 70, y: 0 }, { x: 180, y: 30 });
+  const draggedChild = await save();
+  added = draggedChild.artboards[0].nodes[0].skeleton.bones.at(-1);
+  near(added.setupPose.x, 140);
+  near(added.setupPose.y, 0);
+  near(added.setupPose.rotation, Math.atan2(30, 40));
+  near(added.length, 50);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), beforeChildren);
+  await page.keyboard.press('Control+y');
+  assert.deepEqual(await save(), draggedChild);
+  // Affine parents must snap to the actual world tip and resolve the release in local space.
+  await open([bone('parent', null, { rotation: 0.3, scaleX: -2, scaleY: 0.65, shearX: 0.35 })]);
+  await select('parent');
+  await page.keyboard.press('b');
+  const affineBefore = await save();
+  const affinePoint = (x, y) => ({ x: m[0] * x + m[2] * y, y: m[1] * x + m[3] * y });
+  await drag(affinePoint(70, 0), affinePoint(170, 40));
+  added = (await save()).artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, 'parent');
+  near(added.setupPose.x, 140);
+  near(added.setupPose.y, 0);
+  near(added.setupPose.rotation, Math.atan2(40, 30));
+  near(added.length, 50);
+  near((await gizmo()).origin.x, affinePoint(140, 0).x);
+  near((await gizmo()).origin.y, affinePoint(140, 0).y);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual(await save(), affineBefore);
+  // Cancelling creation preserves the existing rig and history.
+  await page.mouse.move(...(await screen(affinePoint(70, 0))));
+  await page.mouse.down();
+  await page.mouse.move(...(await screen(affinePoint(170, 40))));
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  assert.deepEqual(await save(), affineBefore);
+  // Empty canvas still permits independent roots, and point bones have coincident tips.
+  await drag({ x: 220, y: 150 }, { x: 260, y: 180 });
+  added = (await save()).artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, null);
+  near(added.setupPose.x, 220);
+  near(added.setupPose.y, 150);
+  await open([{ ...bone('controller'), length: 0 }]);
+  await page.keyboard.press('b');
+  await page.mouse.click(...(await screen({ x: 0, y: 0 })));
+  added = (await save()).artboards[0].nodes[0].skeleton.bones.at(-1);
+  assert.equal(added.parentId, 'controller');
+  near(added.setupPose.x, 0);
+  near(added.setupPose.y, 0);
   await open([bone('root')], {
     slots: [
       { id: 'mesh-slot', name: 'mesh-slot', boneId: 'root', defaultAttachmentId: 'mesh', color: 0xffffffff },
@@ -217,7 +300,7 @@ try {
   assert.deepEqual(await save(), topologyBefore);
   assert.deepEqual(errors, []);
   console.log(
-    'PASS: real rig handles, offset grabs, affine rotation, axis scale, atomic auto-key undo, cancellation and distinct Setup/Animate layouts.',
+    'PASS: real rig handles, tip-only child creation/click/drag/chaining under affine parents, exact history/cancellation, root/point bones and distinct Setup/Animate layouts.',
   );
 } finally {
   await browser.close();

@@ -220,3 +220,14 @@ Phase 10 Unity is still on hold.
 - [x] Explicitly root-mount the standalone Atlas test artifact; verify SVG/WASM and bundled font pixels.
 - [x] Verify corrected deployment and published Pages resource responses (0443142, run 38323653935).
 - [x] Verify actual published-site Ship export/reload pixels, playback and resource cleanup.
+
+## Tip-only child creation (13 October 2026)
+
+- [x] Start new children at the parent's tip in both Bone-tool and Hierarchy addition.
+- [x] Anchor previews and drag endpoints at the actual affine tip; retain default click length.
+- [x] Verify chains, reflected/sheared parents, point bones, cancellation and exact Undo/Redo.
+- [x] Pass the source gate and three affected development browser workflows; update the Persian guide.
+- [x] Pass all six production workflows under `/limber/`, including tip-only creation.
+- [ ] Publish the tested increment and verify remote CI/deployment.
+
+Phase 10 Unity remains on hold.

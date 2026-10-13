@@ -1762,3 +1762,22 @@ packaged download/reload pixel parity, playback, warnings, invalid-file isolatio
 font-I/O cancellation. That external smoke run waits for the bundled source font to load
 before capturing the font-count baseline; the first cold-network attempt timed out at
 the baseline comparison. The successful repeat retained all functional assertions.
+
+## 13 October 2026 Tip-only child creation
+
+The user requested that adding a child bone start at its parent's end. The viewport
+previously used the clicked point along the parent, while Hierarchy's Add child used
+the parent's origin. Both now initialize the child at `(parent.length, 0)` in parent
+space. The rubber-band origin uses the actual affine world tip; dragged rotation and
+length resolve from that tip to the release position. Click-vs-drag detection retains
+the actual press point, so clicking a parent's middle still creates a default-length
+child rather than a backwards bone. Empty-space root creation remains available.
+
+The real-pointer workflow now checks Hierarchy addition, middle click, chained children,
+drag endpoints, reflected/sheared/nonuniform parents, zero-length controllers, exact
+Undo/Redo and cancelled creation. All three affected development workflows passed
+(rig pointer, viewport feedback and smoke). The source gate passed 722 unit tests,
+lint, formatting, architecture boundaries, TypeScript and both builds. All six
+production workflows passed under `/limber/`, including the new creation checks.
+The verified increment is ready for publication; remote CI/deployment is reported
+with delivery. Phase 10 Unity remains on hold.

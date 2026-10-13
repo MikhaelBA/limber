@@ -1031,8 +1031,10 @@ function wireViewport(
         .fill({ color: 0xffbe45 })
         .stroke({ color: 0x16191e, width: 1 / camera.scale });
     if (createDrag && mouseWorld) {
+      const dragged =
+        Math.hypot(mouseWorld.x - createDrag.down.x, mouseWorld.y - createDrag.down.y) > 6 / camera.scale;
       handlesG.setStrokeStyle({ width: 2 / camera.scale, color: 0xffa028 });
-      handlesG.moveTo(createWx, createWy).lineTo(mouseWorld.x, mouseWorld.y).stroke();
+      if (dragged) handlesG.moveTo(createWx, createWy).lineTo(mouseWorld.x, mouseWorld.y).stroke();
       handlesG.circle(createWx, createWy, 3.5 / camera.scale).fill({ color: 0xffa028 });
     }
     const ed = editableMesh();
@@ -1284,7 +1286,12 @@ function wireViewport(
   /** Empty-space grabs: a plain click DESELECTS, a drag adjusts (Spine). */
   let emptyGrab = false;
   let downWp = { x: 0, y: 0 };
-  let createDrag: { parentId: string | null; lx: number; ly: number } | null = null;
+  let createDrag: {
+    parentId: string | null;
+    lx: number;
+    ly: number;
+    down: { x: number; y: number };
+  } | null = null;
   let createWx = 0;
   let createWy = 0;
 
@@ -1512,17 +1519,21 @@ function wireViewport(
     }
 
     if (st.activeTool === 'create_bone' && st.mode === 'setup') {
-      // Spine create tool: press sets the origin; release drops the bone. A
-      // plain click = default bone; a drag sets rotation + length.
+      // Child creation always starts at the parent's tip, regardless of where
+      // its body was clicked. Empty canvas presses place a new root.
       const hitId = pickBone(wp.x, wp.y); // Child of the hit bone, else a new root.
       const local = parentLocalOf(hitId, wp.x, wp.y);
       if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) {
         st.setStatus('Cannot create under a parent with zero scale.');
         return;
       }
-      createDrag = { parentId: hitId, lx: local.x, ly: local.y };
-      createWx = wp.x;
-      createWy = wp.y;
+      const index = hitId === null ? undefined : engine.skeleton.boneIndexMap.get(hitId);
+      const parent = index === undefined ? null : engine.skeleton.data.bones[index]!;
+      const o = (index ?? 0) * 6;
+      const wm = engine.skeleton.pose.worldMatrices;
+      createDrag = { parentId: hitId, lx: parent?.length ?? local.x, ly: parent ? 0 : local.y, down: wp };
+      createWx = parent ? wm[o + 4]! + wm[o]! * parent.length : wp.x;
+      createWy = parent ? wm[o + 5]! + wm[o + 1]! * parent.length : wp.y;
       dragKind = 'create';
       return;
     }
@@ -1898,7 +1909,9 @@ function wireViewport(
     if (dragKind === 'create' && createDrag) {
       const dx = wpUp.x - createWx;
       const dy = wpUp.y - createWy;
-      const dragged = Math.hypot(dx, dy) > 6 / camera.scale;
+      // A click on the parent's middle is still a click, despite the snapped origin.
+      const dragged =
+        Math.hypot(wpUp.x - createDrag.down.x, wpUp.y - createDrag.down.y) > 6 / camera.scale;
       let cmd: AddBoneCommand;
       if (dragged) {
         const parent =

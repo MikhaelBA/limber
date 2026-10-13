@@ -51,7 +51,9 @@ export function HierarchyPanel() {
 
   const addChild = () => {
     if (!selected) return;
-    const cmd = new AddBoneCommand(engine, selected, { x: 0, y: 0 });
+    const parent = data.bones.find((bone) => bone.id === selected);
+    if (!parent) return;
+    const cmd = new AddBoneCommand(engine, selected, { x: parent.length, y: 0 });
     execute(cmd);
     select(cmd.boneId);
   };
