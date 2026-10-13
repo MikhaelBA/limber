@@ -284,7 +284,7 @@ Phase 10 Unity remains on hold.
 - [x] Compare weighted/animated poses with the official test runtime.
 - [x] Add browser acceptance for pixels, history-independent Save/Open and failed imports.
 - [x] Verify 740 unit tests, full source checks, 47 development and ten production workflows.
-- [ ] Push and verify CI, VPS/Pages deployment and actual published-site import.
+- [x] Push and verify CI run 38453010563, VPS/Pages deployment and actual published-site import.
 - [ ] Future import work: original .spine/.skel, other JSON versions, constraints,
       special inheritance/shear, linked meshes/sequences, independent influence
       bind/deform data and complete color/event semantics.

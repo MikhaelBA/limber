@@ -1945,3 +1945,11 @@ The final clipping guard passed the full source gate (740 tests in 98 files, lin
 boundaries, formatting, TypeScript and both builds). Spine import acceptance then
 passed again in development and under production `/limber/`, including a real UI
 rejection for moved clipping ends that leaves the open project unchanged.
+
+Commit 866946f passed CI run 38453010563: 740 tests in 98 files, all 47 development
+browser workflows, all ten production workflows, Docker publication and successful
+VPS/GitHub Pages deployment. The full Spine import workflow then passed on the actual
+published Pages site, including selected/default skin fallback, exact rotated/trimmed
+texture pixels, animated weighted artwork, native Save/Open and isolation of missing
+assets, unsupported constraints, nonrepresentable clipping/order and .spine input.
+No source imports or browser assertions were removed for published acceptance.
