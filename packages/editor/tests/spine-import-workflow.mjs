@@ -74,6 +74,21 @@ try {
     .waitFor();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   assert.deepEqual(await save(), original, 'unsupported semantics preserve the previous project');
+  const clipped = structuredClone(source);
+  Object.assign(clipped.skins[0].attachments.badge.badge, {
+    type: 'clipping',
+    end: 'mesh',
+    vertexCount: 3,
+    vertices: [0, 0, 10, 0, 0, 10],
+  });
+  await chooseFiles([json(clipped), atlas, image]);
+  await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+  await dialog
+    .getByRole('alert')
+    .filter({ hasText: /finite clipping ends with draw-order/ })
+    .waitFor();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  assert.deepEqual(await save(), original, 'nonrepresentable clipping/order preserves the previous project');
   // Recover from missing assets in the dialog, then import the selected skin.
   await chooseFiles(json(source));
   await page.getByLabel('Spine assets', { exact: true }).setInputFiles([atlas, image]);

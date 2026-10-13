@@ -326,9 +326,37 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
   for (let i = 0; i < rawSlots.length; i++)
     skeleton.slots[i]!.defaultAttachmentId = resolve(skeleton.slots[i]!.name, rawSlots[i]!.attachment);
   new Skeleton(skeleton);
+  const clips = [...attachmentMap.entries()]
+    .filter(([, attachment]) => attachment.type === 'clipping')
+    .map(([key, attachment]) => {
+      const [slotName] = JSON.parse(key) as [string, string];
+      return {
+        start: skeleton.slots.findIndex((s) => s.name === slotName),
+        finite:
+          obj(obj(merged[slotName], 'Slot attachments')[attachment.name], 'Clipping attachment').end !==
+          undefined,
+        end:
+          attachment.endSlotId === null
+            ? skeleton.slots.length
+            : skeleton.slots.findIndex((s) => s.id === attachment.endSlotId),
+      };
+    });
+  for (const a of clips)
+    for (const b of clips) {
+      if (a.start < b.start && b.start < a.end) fail('Overlapping clipping ranges cannot be preserved yet.');
+      if (a.end <= a.start) fail('Clipping must end after its starting slot.');
+    }
   const animations: Animation[] = [];
   for (const [name, v] of Object.entries(obj(root.animations ?? {}, 'Animations'))) {
     const a = obj(v, 'Animation');
+    if (
+      clips.some((c) => c.finite) &&
+      a.drawOrder !== undefined &&
+      frames(a.drawOrder).some((k) => list(k.offsets ?? [], 'Draw order offsets').length)
+    )
+      fail(
+        `Animation "${name}" combines finite clipping ends with draw-order changes; this boundary cannot be preserved yet.`,
+      );
     for (const kind of Object.keys(a))
       if (!['bones', 'slots', 'attachments', 'events', 'drawOrder'].includes(kind))
         fail(`Animation "${name}" has unsupported ${kind} timelines.`);

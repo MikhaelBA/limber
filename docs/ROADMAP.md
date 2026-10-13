@@ -283,7 +283,7 @@ Phase 10 Unity remains on hold.
 - [x] Validate before replacing the project; report unsupported semantics explicitly.
 - [x] Compare weighted/animated poses with the official test runtime.
 - [x] Add browser acceptance for pixels, history-independent Save/Open and failed imports.
-- [x] Verify 739 unit tests, full source checks, 47 development and ten production workflows.
+- [x] Verify 740 unit tests, full source checks, 47 development and ten production workflows.
 - [ ] Push and verify CI, VPS/Pages deployment and actual published-site import.
 - [ ] Future import work: original .spine/.skel, other JSON versions, constraints,
       special inheritance/shear, linked meshes/sequences, independent influence
@@ -291,3 +291,5 @@ Phase 10 Unity remains on hold.
 
 Phase 10 Unity remains on hold. This increment imports one selected skin with
 its default fallback; it does not silently flatten every Spine skin into one rig.
+
+- [x] Guard nonrepresentable animated/overlapping Spine clipping boundaries.

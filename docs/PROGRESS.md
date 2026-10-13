@@ -1932,3 +1932,16 @@ by all ten production workflows under `/limber/`. The imported skin, rotated/tri
 pixels, weighted animation, native Save/Open and atomic rejected imports passed
 in both environments. Standard/Heavy mesh CPU submission p95 was 1.4/2.9 ms.
 The tested increment is ready for publication; CI/deployment results follow below.
+
+Final boundary review added an explicit rejection for finite Spine clipping ends
+combined with animated slot order, and for potentially overlapping clipping ranges.
+Native clipping ends are exclusive; a fixed next-slot mapping preserves static
+Spine inclusive ends, but cannot represent those changing/overlapping boundaries.
+The importer now reports these combinations before replacement. An added regression
+covers static inclusive clipping, animated end-slot movement (including the last
+setup slot) and overlapping ranges. These cases remain future compatibility work.
+
+The final clipping guard passed the full source gate (740 tests in 98 files, lint,
+boundaries, formatting, TypeScript and both builds). Spine import acceptance then
+passed again in development and under production `/limber/`, including a real UI
+rejection for moved clipping ends that leaves the open project unchanged.

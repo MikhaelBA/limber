@@ -114,6 +114,30 @@ describe('Spine import, verified against the official 4.2 runtime', () => {
     const event = load().document.animations[0]!.timelines.find((t) => t.kind === 'event');
     expect(event?.keyframes[0]).toMatchObject({ eventName: 'hello', payload: 'Spine imported' });
   });
+  it('preserves static inclusive clipping ends and rejects order changes that alter their boundary', () => {
+    const raw = structuredClone(source);
+    // A clip through its starting slot stops before the next native slot.
+    Object.assign(raw.skins[0]!.attachments.badge!.badge, {
+      type: 'clipping',
+      end: 'badge',
+      vertexCount: 3,
+      vertices: [0, 0, 10, 0, 0, 10],
+    });
+    expect(() => load(raw)).toThrow(/finite clipping ends with draw-order/);
+    Object.assign(raw.skins[0]!.attachments.badge!.badge, { end: 'mesh' });
+    expect(() => load(raw)).toThrow(/finite clipping ends with draw-order/);
+    Object.assign(raw.skins[0]!.attachments.badge!.badge, { end: 'badge' });
+    delete (raw.animations.wave as { drawOrder?: unknown }).drawOrder;
+    const imported = load(raw).document.skeleton;
+    expect(imported.attachments.find((a) => a.type === 'clipping')?.endSlotId).toBe(imported.slots[1]!.id);
+    Object.assign(raw.skins[0]!.attachments.badge!.badge, { end: 'mesh' });
+    Object.assign(raw.skins[0]!.attachments.mesh!.patch, {
+      type: 'clipping',
+      vertexCount: 3,
+      vertices: [0, 0, 10, 0, 0, 10],
+    });
+    expect(() => load(raw)).toThrow(/Overlapping clipping/);
+  });
   it.each([
     ['constraint', (r: typeof source) => Object.assign(r, { ik: [{ name: 'ik' }] }), /ik is not supported/],
     ['inheritance', (r: typeof source) => Object.assign(r.bones[1]!, { inherit: 'noScale' }), /inheritance/],
