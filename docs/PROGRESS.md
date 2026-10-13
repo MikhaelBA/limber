@@ -1989,3 +1989,12 @@ production workflows passed under `/limber/`; the actual supplied JSON/atlas/PNG
 also passed independently against that built artifact. The saved native project
 retains 1073 vertex positions, original UV/triangle indices, all 65 idle Deform
 keys and both clips. Publication verification follows after commit/push.
+
+Commit c40715f passed CI run 38476608890: Test & Build, Docker image, VPS and Pages
+jobs all completed successfully. The CI regression configuration includes 48
+development and eleven production workflows. The actual supplied 4.3.26 JSON,
+atlas and PNG then passed the complete import workflow on published Pages:
+1073 unchanged vertex/UV/triangle indices, repaired 128-point boundary, all idle
+Deform keys, visible idle/intro animation and exact native Save/Open. The converted
+self-contained project remains local in the ignored evidence directory; private
+source assets were not added to the public repository.

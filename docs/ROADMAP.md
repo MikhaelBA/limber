@@ -302,6 +302,6 @@ its default fallback; it does not silently flatten every Spine skin into one rig
 - [x] Display metadata repair feedback and keep malformed geometry rejection.
 - [x] Verify synthetic grid poses/PMA pixels and actual supplied-file idle/intro/Save/Open.
 - [x] Complete 745 unit tests, full source checks and eleven production workflows, including actual-file acceptance.
-- [ ] Commit/push and verify CI, deployment and actual-file import on the published site.
+- [x] Commit/push and verify CI run 38476608890, all deployment jobs and actual-file import on the published site.
 
 Original .spine/.skel and unsupported constraints remain future work. Phase 10 is on hold.
