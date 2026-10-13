@@ -1859,3 +1859,33 @@ The entire organization workflow also passed on the actual published Pages site:
 real drag-and-drop and cancellation, visible front/back layer pixels, Setup remapping,
 isolated animated order, scrub/Undo/Redo, Save/Open, custom bone-color pixels/reset
 and distinct root/bone/point/IK target icons. All browser assertions were retained.
+
+## 13 October 2026 Deform interaction repair
+
+The user reported that Deform did nothing on a facial mesh. A real pointer test on
+Laughing at 1.4 seconds moved the weighted Eye R Closed mesh and created a Deform key;
+the numerical inverse/skinning path also reached the requested coordinates. The exact
+reported gesture was not available. Inspection reproduced interaction defects:
+playback could continue changing time/attachments during a drag, between-vertex clicks
+returned silently, point clicks could write keys without movement, and Escape/pointer
+cancellation did not roll back mesh previews.
+
+Vertex editing now pauses playback, captures the key time, preserves the point's grab
+offset and requires three screen pixels of movement. Plain clicks/jitter leave source
+unchanged. Escape and pointer cancellation restore the original mesh/track. The hovered
+or dragged point is gold; a persistent Deform hint says to drag a blue vertex. Feedback
+explains between-vertex clicks and zero-alpha attachments. Deform commands also accept
+editable polygon vertex geometry rather than silently rejecting non-mesh polygons.
+
+The new source-independent browser workflow opens the actual facial sample, checks
+weighted grab coordinates, unchanged Setup/weights, one captured-time key, click/jitter,
+Escape/pointer rollback and exact Undo/Redo. With Bones/wireframe/selection guides removed,
+373 actual artwork pixels changed. Four affected development workflows passed, including
+shared mesh independence and stalled-frame feedback. Source/production/publication
+validation is recorded below when complete. Phase 10 remains on hold.
+
+Local source validation passed 727 tests in 97 files, lint, formatting, boundaries,
+TypeScript and both builds. All five affected development workflows passed, including
+Standard/Heavy CPU submission p95 of 1.3/4.4 ms. All nine built-artifact workflows
+passed under `/limber/`; the practical eye check again changed 373 clean artwork pixels.
+The tested increment is ready for publication; remote CI/deployment is recorded below.

@@ -819,6 +819,7 @@ export class AutoKeyDeformCommand implements Command {
   private after: DeformSnapshot | null = null;
   /** Interpolated offsets at grab time — the drag's starting point. */
   private base: number[] | null = null;
+  private time = 0;
 
   constructor(
     private engine: EditorEngine,
@@ -828,6 +829,7 @@ export class AutoKeyDeformCommand implements Command {
   open(): void {
     const anim = requireAnimation(this.engine);
     this.before = snapshotDeform(anim, this.attachmentId);
+    this.time = this.engine.currentTime;
     const state = this.engine.skeleton.pose.attachments.get(this.attachmentId);
     this.base = state ? [...state.deform] : null;
   }
@@ -835,7 +837,7 @@ export class AutoKeyDeformCommand implements Command {
   /** Writes bone-LOCAL vertex positions; offsets are vs the setup mesh. */
   update(vertexIndex: number, localX: number, localY: number): void {
     const a = this.engine.skeleton.data.attachments.find((x) => x.id === this.attachmentId);
-    if (!a || a.type !== 'mesh' || !a.meshVertices || !this.base) return;
+    if (!a?.meshVertices || !this.base) throw new Error('Select an attachment with editable vertices.');
     const i = vertexIndex * 2;
     if (
       !Number.isInteger(vertexIndex) ||
@@ -857,9 +859,9 @@ export class AutoKeyDeformCommand implements Command {
         ),
       ),
     };
-    upsertDeformKeyframe(draft, this.attachmentId, this.engine.currentTime, offsets);
+    upsertDeformKeyframe(draft, this.attachmentId, this.time, offsets);
     validateDeformTimelines(this.engine.skeleton.data, [draft]);
-    upsertDeformKeyframe(anim, this.attachmentId, this.engine.currentTime, offsets);
+    upsertDeformKeyframe(anim, this.attachmentId, this.time, offsets);
     refreshDuration(anim);
   }
 

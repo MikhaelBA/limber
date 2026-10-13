@@ -133,6 +133,7 @@ export function ViewportCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dropping, setDropping] = useState(false);
   const mode = useEditorStore((s) => s.mode);
+  const activeTool = useEditorStore((s) => s.activeTool);
   const options = useEditorStore((s) => s.viewOptions[s.mode]);
   const toggleViewOption = useEditorStore((s) => s.toggleViewOption);
 
@@ -223,6 +224,11 @@ export function ViewportCanvas() {
       onDrop={onDropFiles}
     >
       <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full touch-none" />
+      {activeTool === 'mesh' && mode === 'animate' && (
+        <div className="pointer-events-none absolute bottom-7 left-2 rounded bg-neutral-950/85 px-2 py-1 text-xs text-sky-200">
+          Deform · drag a blue vertex · Escape cancels · one key at the playhead
+        </div>
+      )}
       <div
         className="absolute left-2 top-2 flex items-center gap-2 rounded bg-neutral-950/80 px-2 py-1 text-xs"
         aria-label="Viewport display"
@@ -952,8 +958,9 @@ function wireViewport(
       return;
     const st = useEditorStore.getState(),
       ui = useWeightEditingStore.getState();
-    if (e.key === 'Escape' && dragKind) {
+    if (e.key === 'Escape' && (dragKind || meshDragCmd || deformDragCmd)) {
       cancelBoneGesture();
+      cancelMeshGesture();
       e.preventDefault();
       e.stopImmediatePropagation();
       renderNow();
@@ -1163,9 +1170,17 @@ function wireViewport(
           st.activeTool === 'weights' && st.weightBoneId
             ? engine.skeleton.boneIndexMap.get(st.weightBoneId)
             : undefined;
+        const activeVertex =
+          st.activeTool === 'weights'
+            ? -1
+            : dragVertex >= 0
+              ? dragVertex
+              : mouseWorld
+                ? pickVertex(mouseWorld.x, mouseWorld.y)
+                : -1;
         for (let k = 0; k < count; k++) {
           if (st.activeTool === 'weights') continue;
-          let color = 0x9cc7ff;
+          let color = k === activeVertex ? 0xffbe45 : 0x9cc7ff;
           if (targetIndex !== undefined) {
             const t = vertexWeightOf(ed.attachment.weights, k, targetIndex, ed.boneIndex);
             const mix = (lo: number, hi: number): number => Math.round(lo + (hi - lo) * t);
@@ -1283,6 +1298,17 @@ function wireViewport(
   } | null = null;
   let brushDown: { x: number; y: number; vertex: number } | null = null;
   let dragVertex = -1;
+  let meshGrab: { down: { x: number; y: number }; origin: { x: number; y: number }; moved: boolean } | null =
+    null;
+  const cancelMeshGesture = () => {
+    meshDragCmd?.undo();
+    deformDragCmd?.undo();
+    meshDragCmd = null;
+    deformDragCmd = null;
+    meshGrab = null;
+    dragVertex = -1;
+    canvas.style.cursor = 'default';
+  };
 
   // Transform-tool drags (spine-tools semantics).
   type DragKind = 'translate' | 'rotate' | 'scale' | 'shear' | 'length' | 'create' | null;
@@ -1479,33 +1505,41 @@ function wireViewport(
         }
         return;
       }
-      if (v < 0) return;
+      if (v < 0) {
+        st.setStatus(
+          st.mode === 'animate'
+            ? 'Drag a blue vertex to deform the mesh; dragging between vertices does not move it.'
+            : 'Drag a blue vertex to edit the mesh.',
+        );
+        return;
+      }
+      if (st.mode === 'animate' && !engine.currentAnimation) {
+        st.setStatus('Select an animation before deforming the mesh.');
+        return;
+      }
+      engine.pause();
+      st.setPlaying(false);
+      engine.tick(0);
+      const state = engine.skeleton.pose.attachments.get(ed.attachment.id)!;
+      meshGrab = { down: wp, origin: { x: state.verts[v * 2]!, y: state.verts[v * 2 + 1]! }, moved: false };
       if (st.mode === 'animate' && engine.currentAnimation) {
         // Animate mode: the drag writes a DEFORM key at the playhead (§5.6).
         deformDragCmd = new AutoKeyDeformCommand(engine, ed.attachment.id);
         deformDragCmd.open();
         dragVertex = v;
-        try {
-          worldToAttachmentVertex(
-            ed.attachment,
-            ed.boneIndex,
-            engine.skeleton.pose.worldMatrices,
-            engine.skeleton.pose.attachments.get(ed.attachment.id)!,
-            v,
-            wp.x,
-            wp.y,
-            scratchPoint,
-          );
-          deformDragCmd.update(v, scratchPoint.x, scratchPoint.y);
-        } catch (error) {
-          st.setStatus((error as Error).message);
-        }
       } else {
         meshDragCmd = new SetMeshVerticesCommand(engine, ed.attachment.id);
         meshDragCmd.open();
         dragVertex = v;
       }
       canvas.style.cursor = 'crosshair';
+      st.setStatus(
+        (engine.skeleton.pose.slots[ed.slotIndex]!.color & 0xff) === 0
+          ? 'This attachment is transparent at this frame; its vertices can change without visible artwork.'
+          : st.mode === 'animate'
+            ? `Deforming ${ed.attachment.name} at ${engine.currentTime.toFixed(2)}s — Escape cancels.`
+            : 'Editing mesh vertex — Escape cancels.',
+      );
       return;
     }
 
@@ -1759,6 +1793,14 @@ function wireViewport(
     }
     const wp = screenToWorld(e);
     mouseWorld = wp;
+    if ((meshDragCmd || deformDragCmd) && meshGrab) {
+      const dx = wp.x - meshGrab.down.x,
+        dy = wp.y - meshGrab.down.y;
+      if (!meshGrab.moved && Math.hypot(dx, dy) * camera.scale <= 3) return;
+      meshGrab.moved = true;
+      wp.x = meshGrab.origin.x + dx;
+      wp.y = meshGrab.origin.y + dy;
+    }
     if (weightBox) {
       weightBox.end = wp;
       const ed = editableMesh(),
@@ -1965,6 +2007,7 @@ function wireViewport(
       deformDragCmd = null;
       dragVertex = -1;
     }
+    meshGrab = null;
     if (paintCmd) {
       paintCmd.commit();
       if (paintCmd.changed) st.execute(paintCmd); // One history entry per stroke.
@@ -2272,6 +2315,7 @@ function wireViewport(
   const up = afterInput(onPointerUp);
   const cancel = afterInput((e: PointerEvent) => {
     cancelBoneGesture();
+    cancelMeshGesture();
     createDrag = null;
     panning = false;
     onPointerUp(e);

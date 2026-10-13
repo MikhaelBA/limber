@@ -43,6 +43,7 @@ try {
     'rig-authoring.mjs',
     'rig-pointer-workflow.mjs',
     'rig-organization.mjs',
+    'deform-workflow.mjs',
     'character-pins.mjs',
     'affine-pins.mjs',
     'transform-follow.mjs',

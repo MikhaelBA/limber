@@ -59,6 +59,7 @@ try {
     'rig-pointer-workflow.mjs',
     'selection-feedback.mjs',
     'rig-organization.mjs',
+    'deform-workflow.mjs',
   ]) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
@@ -78,7 +79,7 @@ try {
     assert.equal(code, 0, `Production ${test} must pass.`);
   }
   console.log(
-    'PASS: production resources and all eight browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting, rig handles, selection pixels, slot order and bone colors/icons.',
+    'PASS: production resources and all nine browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting, rig handles, selection pixels, slot order, bone colors/icons and practical Deform.',
   );
 } finally {
   await new Promise((done, reject) => {

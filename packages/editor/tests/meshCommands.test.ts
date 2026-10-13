@@ -526,6 +526,35 @@ describe('AddMeshVertexCommand / RemoveMeshVertexCommand', () => {
 });
 
 describe('AutoKeyDeformCommand', () => {
+  it('holds the grab time for continuous updates and supports polygon deformation', () => {
+    const { engine, meshId } = setupAnimatedMesh();
+    const mesh = engine.skeleton.data.attachments.find((a) => a.id === meshId)!;
+    mesh.type = 'boundingBox';
+    delete mesh.meshTriangles;
+    delete mesh.meshUVs;
+    engine.skeleton.rebuild();
+    engine.tick(0);
+    engine.currentTime = 0.5;
+    const before = structuredClone(engine.project),
+      command = new AutoKeyDeformCommand(engine, meshId);
+    command.open();
+    engine.currentTime = 0.8;
+    command.update(4, 5, 3);
+    command.update(4, 7, 4);
+    command.commit();
+    const track = engine.currentAnimation!.timelines.find((t) => t.kind === 'deform')!;
+    expect(track.kind).toBe('deform');
+    if (track.kind !== 'deform') throw new Error('Missing deform');
+    expect(track.keyframes.map((k) => k.time)).toEqual([0.5]);
+    engine.scrub(0.5);
+    engine.tick(0);
+    expect([...engine.skeleton.pose.attachments.get(meshId)!.verts].slice(8, 10)).toEqual([7, 4]);
+    const after = structuredClone(engine.project);
+    command.undo();
+    expect(engine.project).toEqual(before);
+    command.do();
+    expect(engine.project).toEqual(after);
+  });
   it('validates curve edits before publication and preserves redo after rejection', () => {
     const { engine, meshId } = setupAnimatedMesh();
     upsertDeformKeyframe(engine.currentAnimation!, meshId, 0, null);

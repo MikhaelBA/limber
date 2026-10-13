@@ -259,3 +259,17 @@ Phase 10 Unity remains on hold.
 - [x] Commit/push, verify remote CI/deployment and repeat organization acceptance on the live site (632cdf4, run 38362324580).
 
 Phase 10 Unity remains on hold.
+
+## Deform interaction repair (13 October 2026)
+
+- [x] Reproduce real weighted-eye editing in the facial sample and verify actual artwork pixels.
+- [x] Pause playback for vertex editing and capture a single grab-time Deform key.
+- [x] Preserve mouse grab offset; make plain clicks and small jitter source-neutral.
+- [x] Roll back Deform/Setup vertex previews on Escape and pointer cancellation.
+- [x] Highlight the active/hover vertex; provide visible instructions and transparent-slot feedback.
+- [x] Support Deform keys for editable bounding/clipping polygons as well as meshes.
+- [x] Check weighted artwork, exact history and existing shared-mesh/rig/stalled-frame workflows.
+- [x] Complete source, performance and nine production workflows.
+- [ ] Commit/push, verify CI/deployment and repeat practical Deform on the published site.
+
+Phase 10 Unity remains on hold.
