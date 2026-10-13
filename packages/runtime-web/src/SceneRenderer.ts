@@ -159,7 +159,12 @@ function sceneDisplay(
           .fill(node.color),
       );
     } else if (node.type === 'text') {
-      const rendered = rasterizeUIText(node, entry.box, localization, textures.resolveFontFamilies?.(node.fontFamilies));
+      const rendered = rasterizeUIText(
+        node,
+        entry.box,
+        localization,
+        textures.resolveFontFamilies?.(node.fontFamilies),
+      );
       if (rendered.overflow) overflow.push(node.name);
       const texture = Texture.from(rendered.canvas, true),
         sprite = new Sprite(texture);
@@ -300,7 +305,12 @@ export class PixiSceneRenderer implements SceneRenderer {
         const cached = this.texts.get(entry.node.id),
           signature = textSignature(entry.node, entry.box, this.localization);
         if (cached && cached.signature !== signature) {
-          const rendered = rasterizeUIText(entry.node, entry.box, this.localization, this.textures.resolveFontFamilies?.(entry.node.fontFamilies)),
+          const rendered = rasterizeUIText(
+              entry.node,
+              entry.box,
+              this.localization,
+              this.textures.resolveFontFamilies?.(entry.node.fontFamilies),
+            ),
             texture = Texture.from(rendered.canvas, true);
           ownedTextures.get(cached.sprite)?.destroy(true);
           cached.sprite.texture = texture;
@@ -331,7 +341,9 @@ export class PixiSceneRenderer implements SceneRenderer {
       maxY = -Infinity;
     for (const entry of this.entries) {
       if (entry.node.parentId && included.has(entry.node.parentId)) included.add(entry.node.id);
-      if (!included.has(entry.node.id) || !entry.visible) continue;
+      if (!included.has(entry.node.id) && !included.has(this.owners.get(entry.node.id) ?? entry.node.id))
+        continue;
+      if (!entry.visible) continue;
       const display = this.displays.get(entry.node.id);
       if (!display) continue;
       const rect = display.getLocalBounds();
@@ -366,9 +378,14 @@ export class PixiSceneRenderer implements SceneRenderer {
     if (!rect) return;
     const scale = Math.max(this.world.scale.x, 0.001),
       width = 1.5 / scale;
-    this.overlay
-      .rect(rect.x, rect.y, Math.max(rect.width, 1), Math.max(rect.height, 1))
-      .stroke({ color: 0x8b7cff, width });
+    // A dark underlay keeps selection readable over both bright and dark artwork.
+    for (const [strokeWidth, color] of [
+      [5 / scale, 0x16191e],
+      [2 / scale, 0xffbe45],
+    ])
+      this.overlay
+        .rect(rect.x, rect.y, Math.max(rect.width, 1), Math.max(rect.height, 1))
+        .stroke({ color, width: strokeWidth });
     const pivot = this.pivot(ids)!;
     this.overlay
       .circle(pivot.x, pivot.y, 5 / scale)

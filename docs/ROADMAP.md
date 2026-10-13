@@ -232,3 +232,15 @@ Phase 10 Unity is still on hold.
 - [x] Pass the complete rig-pointer workflow on the actual published Pages site.
 
 Phase 10 Unity remains on hold.
+
+## Visible selection feedback (13 October 2026)
+
+- [x] Outline selected Character regions and posed meshes with a gold stroke and dark underlay.
+- [x] Retain selection feedback in Setup/Animate and when Bone/Grid guides are hidden.
+- [x] Follow changed vertices, attachment switches and zoom with constant screen-width strokes.
+- [x] Cache mesh boundary topology; exclude interior triangle edges and use it for accurate picking.
+- [x] Strengthen Scene selection bounds and include expanded component-instance artwork.
+- [x] Pass source, affected browser and seven subdirectory production workflows.
+- [ ] Publish and verify remote CI, deployment and actual published-site selection pixels.
+
+Phase 10 Unity remains on hold.

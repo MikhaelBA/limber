@@ -57,6 +57,7 @@ try {
     'weight-painting.mjs',
     'weight-workflow.mjs',
     'rig-pointer-workflow.mjs',
+    'selection-feedback.mjs',
   ]) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
@@ -76,7 +77,7 @@ try {
     assert.equal(code, 0, `Production ${test} must pass.`);
   }
   console.log(
-    'PASS: production resources and all six browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting and rig handles.',
+    'PASS: production resources and all seven browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting, rig handles and selection pixels.',
   );
 } finally {
   await new Promise((done, reject) => {

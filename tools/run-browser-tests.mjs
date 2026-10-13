@@ -33,6 +33,7 @@ try {
   for (const test of [
     'smoke.mjs',
     'viewport-feedback.mjs',
+    'selection-feedback.mjs',
     'project-files.mjs',
     'recovery.mjs',
     'scene-workspace.mjs',

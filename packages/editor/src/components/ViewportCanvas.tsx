@@ -760,6 +760,7 @@ function wireViewport(
             {
               meshVertices: Array.from(state.verts),
               meshHull: attachment.meshHull,
+              meshTriangles: attachment.meshTriangles,
             },
             wx,
             wy,
@@ -1018,10 +1019,74 @@ function wireViewport(
   };
   window.addEventListener('keydown', onHullKey, true);
 
+  let selectionTopology: {
+    attachment: AttachmentData;
+    triangles: number[] | undefined;
+    hull: number[] | undefined;
+    count: number;
+    edges: [number, number][];
+  } | null = null;
   const drawHandles = () => {
     handlesG.clear();
     weightVisuals.hide();
     const st = useEditorStore.getState();
+    // Selection is an editor overlay, independent of Bone/Grid visibility and tool.
+    // Read posed vertices so the outline follows weighted deformation and clip switches.
+    const selectedIndex = st.selectedSlotId ? engine.skeleton.slotIndexMap.get(st.selectedSlotId) : undefined;
+    const selectedPose = selectedIndex === undefined ? undefined : engine.skeleton.pose.slots[selectedIndex];
+    const selectedAttachment = selectedPose?.attachmentId
+      ? attachmentById.get(selectedPose.attachmentId)
+      : undefined;
+    const selectedVerts = selectedAttachment
+      ? engine.skeleton.pose.attachments.get(selectedAttachment.id)?.verts
+      : undefined;
+    if (selectedAttachment && selectedVerts && selectedVerts.length >= 4) {
+      if (
+        selectionTopology?.attachment !== selectedAttachment ||
+        selectionTopology.triangles !== selectedAttachment.meshTriangles ||
+        selectionTopology.hull !== selectedAttachment.meshHull ||
+        selectionTopology.count !== selectedVerts.length
+      ) {
+        const edges: [number, number][] = [];
+        if (selectedAttachment.type === 'mesh' && !selectedAttachment.meshHull?.length) {
+          // Interior triangle edges are not part of the visible selection boundary.
+          const counts = new Map<string, { a: number; b: number; count: number }>();
+          const triangles = selectedAttachment.meshTriangles ?? [];
+          for (let i = 0; i < triangles.length; i += 3)
+            for (let j = 0; j < 3; j++) {
+              const a = triangles[i + j]!,
+                b = triangles[i + ((j + 1) % 3)]!;
+              const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
+              const edge = counts.get(key);
+              if (edge) edge.count++;
+              else counts.set(key, { a, b, count: 1 });
+            }
+          for (const edge of counts.values()) if (edge.count === 1) edges.push([edge.a, edge.b]);
+        } else {
+          const ring = selectedAttachment.meshHull?.length
+            ? selectedAttachment.meshHull
+            : Array.from({ length: selectedVerts.length / 2 }, (_, i) => i);
+          for (let i = 0; i < ring.length; i++) edges.push([ring[i]!, ring[(i + 1) % ring.length]!]);
+        }
+        selectionTopology = {
+          attachment: selectedAttachment,
+          triangles: selectedAttachment.meshTriangles,
+          hull: selectedAttachment.meshHull,
+          count: selectedVerts.length,
+          edges,
+        };
+      }
+      for (const [width, color] of [
+        [5, 0x16191e],
+        [2, 0xffbe45],
+      ]) {
+        for (const [a, b] of selectionTopology.edges)
+          handlesG
+            .moveTo(selectedVerts[a * 2]!, selectedVerts[a * 2 + 1]!)
+            .lineTo(selectedVerts[b * 2]!, selectedVerts[b * 2 + 1]!);
+        handlesG.stroke({ width: width! / camera.scale, color: color! });
+      }
+    }
     const gizmo = selectedGizmo();
     if (gizmo && st.viewOptions[st.mode].bones) drawRigGizmo(handlesG, gizmo, camera.scale, st.activeTool);
     const length = selectedLengthHandle();
@@ -1910,8 +1975,7 @@ function wireViewport(
       const dx = wpUp.x - createWx;
       const dy = wpUp.y - createWy;
       // A click on the parent's middle is still a click, despite the snapped origin.
-      const dragged =
-        Math.hypot(wpUp.x - createDrag.down.x, wpUp.y - createDrag.down.y) > 6 / camera.scale;
+      const dragged = Math.hypot(wpUp.x - createDrag.down.x, wpUp.y - createDrag.down.y) > 6 / camera.scale;
       let cmd: AddBoneCommand;
       if (dragged) {
         const parent =

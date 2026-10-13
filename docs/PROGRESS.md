@@ -1786,3 +1786,27 @@ browser workflows, the full source gate, Docker publication and VPS/Pages deploy
 The entire rig-pointer workflow also passed against the actual published Pages site,
 including middle-click/drag/Hierarchy tip placement, chaining, affine parents, root/point
 bones, exact Undo/Redo and cancellation.
+
+## 13 October 2026 Visible selection feedback
+
+Selecting a Character image/mesh previously updated the inspector without drawing a
+selection boundary unless the mesh-editing tool was active. The selected attachment now
+has a gold outline with a dark underlay, drawn above artwork in both Setup and Animate.
+It reads current posed vertices and remains visible with Bone/Grid guides hidden.
+Topology boundaries are cached until topology changes; internal triangle edges are
+excluded. Picking also receives triangle topology when a mesh has no explicit hull.
+Scene selection receives the same contrasting stroke, and bounds include component
+instance artwork expanded into internal nodes. Zoom retains a constant screen stroke.
+
+The new browser workflow checks actual pixels for canvas/Hierarchy selection,
+deselection, mode switches, hidden bones, zoom, regions, meshes without explicit hulls,
+geometry changes, Undo, Scene nodes and component instances. It runs against both
+development and the emitted production bundle, without source-module imports.
+Validation and publication results are recorded below when complete. Phase 10 remains on hold.
+
+Local validation passed the full source gate (722 tests, lint, formatting, architecture
+boundaries, TypeScript and both builds), six affected development workflows including
+Scene UI and Standard/Heavy mesh performance, and all seven production workflows under
+`/limber/`. Selection assertions inspect rendered pixels in both build modes. The Heavy
+CPU update/render-submit p95 was 4.2 ms; Scene interaction p95 was 0.8 ms. The tested
+increment is ready for publication; remote CI and deployment are recorded with delivery.
