@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   deserializeProject,
   exportSpineJson,
   serializeProject,
   assertSpineProjectSupported,
+  spineSkinNames,
   type BoneByBoneProject,
 } from '@limber/core';
 import { buildSpineBundle } from '../export/spineBundle';
 import { cancelScheduledAutosave, clearAutosave, readAutosave } from '../persistence/autosave';
-import { textureRegistry } from '../engine/TextureRegistry';
+import { textureRegistry, TextureRegistry } from '../engine/TextureRegistry';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
 import { captureProjectSnapshot, downloadProjectArtifact } from '../persistence/projectSnapshot';
+import { readSpineFiles, type SpineFiles } from '../import/spineFiles';
+import { SpineImportDialog } from './SpineImportDialog';
 
 /** Project file with every still-loaded texture embedded as a data URL. */
 async function serializeSelfContained(doc: BoneByBoneProject): Promise<{ json: string; embedded: number }> {
@@ -22,6 +26,8 @@ async function serializeSelfContained(doc: BoneByBoneProject): Promise<{ json: s
 export function TopMenuBar() {
   const engine = useEngine();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [openingSpine, setOpeningSpine] = useState(false);
+  const [spineFiles, setSpineFiles] = useState<SpineFiles | null>(null);
   const [hasAutosave, setHasAutosave] = useState(false);
 
   // Startup hint: a previous session may have left a crash-safe autosave.
@@ -56,10 +62,14 @@ export function TopMenuBar() {
     if (!file) return;
     const st = useEditorStore.getState();
     try {
-      const doc = deserializeProject(
-        await file.text(),
-        file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''),
-      );
+      const json = await file.text();
+      const raw: unknown = JSON.parse(json);
+      if (typeof raw === 'object' && raw !== null && Array.isArray((raw as { bones?: unknown }).bones)) {
+        spineSkinNames(json);
+        setSpineFiles({ json, name: file.name.replace(/\.json$/i, ''), files: [file] });
+        return;
+      }
+      const doc = deserializeProject(json, file.name.replace(/\.(limber\.json|json|bbbproj)$/i, ''));
       engine.loadProject(doc);
       st.setWorkspace(
         doc.artboards.find((a) => a.id === doc.editor.activeArtboardId)?.nodes.length === 1 &&
@@ -94,6 +104,40 @@ export function TopMenuBar() {
   };
 
   const download = downloadProjectArtifact;
+
+  const onSpineFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = [...(e.target.files ?? [])];
+    e.target.value = '';
+    if (!files.length) return;
+    try {
+      const input = await readSpineFiles(files);
+      // Validate the format before mounting the skin selector.
+      spineSkinNames(input.json);
+      setSpineFiles(input);
+    } catch (e) {
+      useEditorStore.getState().setStatus(`Spine import failed: ${(e as Error).message}`);
+    }
+  };
+  const onImportSpine = async (project: BoneByBoneProject) => {
+    const st = useEditorStore.getState();
+    const prepared = new TextureRegistry();
+    try {
+      for (const [id, meta] of Object.entries(project.assetManifest)) {
+        const blob = await (await fetch(meta.dataUrl!)).blob();
+        await prepared.loadBlob(id, meta.name, blob);
+      }
+      engine.loadProject(project);
+      cancelScheduledAutosave();
+      textureRegistry.replaceWith(prepared);
+    } finally {
+      prepared.clear();
+    }
+    st.setWorkspace('rig');
+    st.documentReplaced();
+    st.setStatus(
+      `Imported Spine ${project.name} — ${engine.skeleton.data.bones.length} bones, ${engine.document.animations.length} animations, ${Object.keys(project.assetManifest).length} images embedded`,
+    );
+  };
 
   const onSave = async () => {
     const st = useEditorStore.getState();
@@ -195,12 +239,25 @@ export function TopMenuBar() {
       </button>
       <button
         className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          flushSync(() => setOpeningSpine(false));
+          fileInputRef.current?.click();
+        }}
       >
         Open…
       </button>
       <button className="rounded px-2 py-0.5 text-sm hover:bg-neutral-800" onClick={onSave}>
         Save
+      </button>
+      <button
+        className="rounded px-2 py-0.5 text-sm text-sky-200 hover:bg-neutral-800"
+        onClick={() => {
+          flushSync(() => setOpeningSpine(true));
+          fileInputRef.current?.click();
+        }}
+        title="Import Spine 4.2 JSON with atlas and images"
+      >
+        Import Spine…
       </button>
       <button
         className="rounded px-2 py-0.5 text-sm text-emerald-200 hover:bg-neutral-800"
@@ -227,10 +284,23 @@ export function TopMenuBar() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".bbbproj,.json,application/json"
+        accept={
+          openingSpine
+            ? '.json,.atlas,.txt,.png,.jpg,.jpeg,.webp,.spine,.skel'
+            : '.bbbproj,.json,application/json'
+        }
+        multiple={openingSpine}
+        aria-label="Project files"
         className="hidden"
-        onChange={onOpen}
+        onChange={(e) => {
+          const importing = openingSpine;
+          setOpeningSpine(false);
+          void (importing ? onSpineFiles(e) : onOpen(e));
+        }}
       />
+      {spineFiles && (
+        <SpineImportDialog input={spineFiles} onClose={() => setSpineFiles(null)} onImport={onImportSpine} />
+      )}
     </header>
   );
 }

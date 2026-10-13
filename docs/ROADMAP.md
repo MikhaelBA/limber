@@ -273,3 +273,21 @@ Phase 10 Unity remains on hold.
 - [x] Commit/push, verify CI/deployment and repeat practical Deform on the published site (e75cb12, run 38440042810).
 
 Phase 10 Unity remains on hold.
+
+## Spine JSON import (13 October 2026)
+
+- [x] Read the official JSON/atlas contracts and implement Spine 4.2 conversion.
+- [x] Add Import Spine, Open detection, skin selection and additional local assets.
+- [x] Convert regions, compatible weights, bone/slot/Deform tracks, order and events.
+- [x] Reconstruct multipage rotated/trimmed atlas regions and embed textures.
+- [x] Validate before replacing the project; report unsupported semantics explicitly.
+- [x] Compare weighted/animated poses with the official test runtime.
+- [x] Add browser acceptance for pixels, history-independent Save/Open and failed imports.
+- [x] Verify 739 unit tests, full source checks, 47 development and ten production workflows.
+- [ ] Push and verify CI, VPS/Pages deployment and actual published-site import.
+- [ ] Future import work: original .spine/.skel, other JSON versions, constraints,
+      special inheritance/shear, linked meshes/sequences, independent influence
+      bind/deform data and complete color/event semantics.
+
+Phase 10 Unity remains on hold. This increment imports one selected skin with
+its default fallback; it does not silently flatten every Spine skin into one rig.

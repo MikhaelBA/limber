@@ -1896,3 +1896,39 @@ The complete practical Deform workflow passed on the actual published Pages site
 including 373 changed clean artwork pixels, weighted grab offset, paused single-time
 keying, click/jitter neutrality, Escape/pointer rollback and exact history. No source
 imports or assertions were removed for that published-site acceptance.
+
+## 13 October 2026 Spine JSON import
+
+Added an explicit Import Spine file chooser and skin selector. Open also recognizes
+Spine skeleton JSON. Spine 4.2 JSON is converted into a native editable rig with
+normal bone inheritance, region attachments, rigid/common-bind weighted meshes,
+bounding boxes/clipping, bone rotate/translate/scale tracks, per-channel Bezier
+controls, attachment/RGBA tracks, compatible Deform, draw order and scalar events.
+Only the selected skin is imported, merged with default attachments; other skins
+can be imported separately. Images are embedded for native Save/Open and autosave.
+
+Local atlas files support multiple pages, legacy/current fields, 0/90/180/270 degree
+rotation, trim offsets and premultiplied alpha. Images are supplied locally, with
+missing/ambiguous assets reported. Every asset and the converted project validate
+before replacing the current document or its texture registry. Original `.spine`
+projects, binary `.skel`, other JSON versions, constraints, special inheritance,
+Spine shear, linked meshes, sequences, attachment tint, unsupported color tracks,
+independent per-influence bind/deform positions and multiple event payload fields
+are explicitly rejected, rather than silently dropped. This is an initial importer,
+not a universal Spine project reader. Phase 10 remains on hold.
+
+The new tests compare converted weighted vertices, Bezier transforms, setup scale,
+Deform and draw order with the existing official spine-core 4.2 test dependency.
+The browser workflow checks local file selection, default/selected skin fallback,
+actual rotated/trimmed texture pixels, animation, native Save/Open and preservation
+of the previous project after missing assets, unsupported features or binary input.
+It runs against development and built/published artifacts without source imports.
+Final source, browser and deployment results are recorded after verification.
+
+Local validation passed 739 unit tests in 98 files, lint, architecture boundaries,
+formatting, TypeScript and both builds. After unifying Open/Import on one file input,
+the final editor build and all 47 development browser workflows passed, followed
+by all ten production workflows under `/limber/`. The imported skin, rotated/trimmed
+pixels, weighted animation, native Save/Open and atomic rejected imports passed
+in both environments. Standard/Heavy mesh CPU submission p95 was 1.4/2.9 ms.
+The tested increment is ready for publication; CI/deployment results follow below.

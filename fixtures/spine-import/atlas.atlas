@@ -1,0 +1,12 @@
+page.png
+size: 12, 8
+filter: Nearest, Nearest
+pma: false
+patch
+bounds: 0, 0, 8, 8
+badge
+bounds: 8, 0, 2, 4
+rotate: 90
+offsets: 1, 1, 4, 6
+blue
+bounds: 0, 0, 8, 8

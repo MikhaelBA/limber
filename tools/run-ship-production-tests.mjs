@@ -60,6 +60,7 @@ try {
     'selection-feedback.mjs',
     'rig-organization.mjs',
     'deform-workflow.mjs',
+    'spine-import-workflow.mjs',
   ]) {
     const code = await new Promise((done, reject) => {
       const child = spawn(process.execPath, [resolve(editor, 'tests', test)], {
@@ -79,7 +80,7 @@ try {
     assert.equal(code, 0, `Production ${test} must pass.`);
   }
   console.log(
-    'PASS: production resources and all nine browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, real weight painting, rig handles, selection pixels, slot order, bone colors/icons and practical Deform.',
+    'PASS: production resources and all ten browser workflows load under /limber/, including emitted workers/WASM/fonts, packaged interaction/Doctor, weights, rig handles, selection, slot order, bone colors/icons, practical Deform and Spine import.',
   );
 } finally {
   await new Promise((done, reject) => {

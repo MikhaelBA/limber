@@ -44,6 +44,7 @@ try {
     'rig-pointer-workflow.mjs',
     'rig-organization.mjs',
     'deform-workflow.mjs',
+    'spine-import-workflow.mjs',
     'character-pins.mjs',
     'affine-pins.mjs',
     'transform-follow.mjs',

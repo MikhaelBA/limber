@@ -91,6 +91,20 @@ export class TextureRegistry {
     this.blobs.clear();
     this.version++;
   }
+
+  /** Adopt already-decoded import textures only after the new project validates. */
+  replaceWith(prepared: TextureRegistry): void {
+    if (prepared === this) return;
+    this.clear();
+    this.textures = prepared.textures;
+    this.urls = prepared.urls;
+    this.blobs = prepared.blobs;
+    prepared.textures = new Map();
+    prepared.urls = new Map();
+    prepared.blobs = new Map();
+    this.version++;
+    prepared.version++;
+  }
 }
 
 /** One registry per app process — textures are shared across viewports. */
