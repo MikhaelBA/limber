@@ -270,6 +270,6 @@ Phase 10 Unity remains on hold.
 - [x] Support Deform keys for editable bounding/clipping polygons as well as meshes.
 - [x] Check weighted artwork, exact history and existing shared-mesh/rig/stalled-frame workflows.
 - [x] Complete source, performance and nine production workflows.
-- [ ] Commit/push, verify CI/deployment and repeat practical Deform on the published site.
+- [x] Commit/push, verify CI/deployment and repeat practical Deform on the published site (e75cb12, run 38440042810).
 
 Phase 10 Unity remains on hold.

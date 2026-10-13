@@ -1889,3 +1889,10 @@ TypeScript and both builds. All five affected development workflows passed, incl
 Standard/Heavy CPU submission p95 of 1.3/4.4 ms. All nine built-artifact workflows
 passed under `/limber/`; the practical eye check again changed 373 clean artwork pixels.
 The tested increment is ready for publication; remote CI/deployment is recorded below.
+
+Commit e75cb12 passed CI run 38440042810: 727 unit tests, all 46 development and
+nine production browser workflows, Docker publication and VPS/Pages deployments.
+The complete practical Deform workflow passed on the actual published Pages site,
+including 373 changed clean artwork pixels, weighted grab offset, paused single-time
+keying, click/jitter neutrality, Escape/pointer rollback and exact history. No source
+imports or assertions were removed for that published-site acceptance.
