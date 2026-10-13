@@ -1754,3 +1754,11 @@ its entry is under `/tests/`, but fixture fonts live at `/fonts/`. That dedicate
 now declares its root base explicitly. The real editor artifact still uses relative URLs
 and its six production workflows still run under `/limber/`; no worker/font assertion
 or timeout is removed.
+Final commit 0443142 passed CI run 38323653935: 722 unit tests, all 43 development
+browser suites, all six subdirectory production workflows, Docker publication and both
+VPS/Pages deployments. Published Pages HTML, favicon, JavaScript and CSS returned HTTP
+200 under `/limber/`. Actual published-site Ship acceptance also passed worker compilation,
+packaged download/reload pixel parity, playback, warnings, invalid-file isolation and
+font-I/O cancellation. That external smoke run waits for the bundled source font to load
+before capturing the font-count baseline; the first cold-network attempt timed out at
+the baseline comparison. The successful repeat retained all functional assertions.

@@ -218,4 +218,5 @@ Phase 10 Unity is still on hold.
 - [x] Use relative build URLs and enforce actual subdirectory production acceptance.
 - [x] Verify all six production suites at `/limber/` and actual root-webroot bootstrap/fonts.
 - [x] Explicitly root-mount the standalone Atlas test artifact; verify SVG/WASM and bundled font pixels.
-- [ ] Verify corrected deployment and published Pages resource responses.
+- [x] Verify corrected deployment and published Pages resource responses (0443142, run 38323653935).
+- [x] Verify actual published-site Ship export/reload pixels, playback and resource cleanup.
