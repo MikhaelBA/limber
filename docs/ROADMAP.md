@@ -228,6 +228,7 @@ Phase 10 Unity is still on hold.
 - [x] Verify chains, reflected/sheared parents, point bones, cancellation and exact Undo/Redo.
 - [x] Pass the source gate and three affected development browser workflows; update the Persian guide.
 - [x] Pass all six production workflows under `/limber/`, including tip-only creation.
-- [ ] Publish the tested increment and verify remote CI/deployment.
+- [x] Publish the tested increment and verify remote CI/deployment (42edd1a, run 38325935326).
+- [x] Pass the complete rig-pointer workflow on the actual published Pages site.
 
 Phase 10 Unity remains on hold.

@@ -1781,3 +1781,8 @@ lint, formatting, architecture boundaries, TypeScript and both builds. All six
 production workflows passed under `/limber/`, including the new creation checks.
 The verified increment is ready for publication; remote CI/deployment is reported
 with delivery. Phase 10 Unity remains on hold.
+Commit 42edd1a passed CI run 38325935326: all 43 development and six production
+browser workflows, the full source gate, Docker publication and VPS/Pages deployment.
+The entire rig-pointer workflow also passed against the actual published Pages site,
+including middle-click/drag/Hierarchy tip placement, chaining, affine parents, root/point
+bones, exact Undo/Redo and cancellation.
