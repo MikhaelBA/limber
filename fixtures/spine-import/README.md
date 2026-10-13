@@ -10,3 +10,14 @@ or used by the import implementation. Import format references:
 
 - https://esotericsoftware.com/spine-json-format
 - https://esotericsoftware.com/spine-atlas-format
+
+The hand-authored grid43 fixture reproduces the supported 4.3 schema and stale hull
+metadata with 1073 vertices. No user artwork/project bytes are checked in. Set
+BBB_SPINE_FIXTURE_DIR to the local social-masks folder to run the same browser
+workflow on the actual supplied JSON/atlas/PNG; generated native project/evidence
+stays in the ignored .smoke directory.
+
+4.3 format checks also used the primary sources:
+
+- https://github.com/EsotericSoftware/spine-runtimes/blob/4.3/spine-ts/spine-core/src/SkeletonJson.ts
+- https://github.com/EsotericSoftware/spine-runtimes/blob/4.3/spine-ts/spine-core/src/Animation.ts

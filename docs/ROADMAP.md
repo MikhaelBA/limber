@@ -293,3 +293,15 @@ Phase 10 Unity remains on hold. This increment imports one selected skin with
 its default fallback; it does not silently flatten every Spine skin into one rig.
 
 - [x] Guard nonrepresentable animated/overlapping Spine clipping boundaries.
+
+## Spine 4.3 social-masks repair (14 October 2026)
+
+- [x] Reproduce the supplied 4.3.26 version failure and stale grid hull metadata.
+- [x] Support the common 4.2/4.3 schema; guard new incompatible 4.3 runtime features.
+- [x] Derive valid mesh boundaries from triangles, retaining all vertex/Deform indices.
+- [x] Display metadata repair feedback and keep malformed geometry rejection.
+- [x] Verify synthetic grid poses/PMA pixels and actual supplied-file idle/intro/Save/Open.
+- [x] Complete 745 unit tests, full source checks and eleven production workflows, including actual-file acceptance.
+- [ ] Commit/push and verify CI, deployment and actual-file import on the published site.
+
+Original .spine/.skel and unsupported constraints remain future work. Phase 10 is on hold.

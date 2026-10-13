@@ -118,7 +118,7 @@ export function TopMenuBar() {
       useEditorStore.getState().setStatus(`Spine import failed: ${(e as Error).message}`);
     }
   };
-  const onImportSpine = async (project: BoneByBoneProject) => {
+  const onImportSpine = async (project: BoneByBoneProject, warnings: string[]) => {
     const st = useEditorStore.getState();
     const prepared = new TextureRegistry();
     try {
@@ -135,7 +135,7 @@ export function TopMenuBar() {
     st.setWorkspace('rig');
     st.documentReplaced();
     st.setStatus(
-      `Imported Spine ${project.name} — ${engine.skeleton.data.bones.length} bones, ${engine.document.animations.length} animations, ${Object.keys(project.assetManifest).length} images embedded`,
+      `Imported Spine ${project.name} — ${engine.skeleton.data.bones.length} bones, ${engine.document.animations.length} animations, ${Object.keys(project.assetManifest).length} images embedded${warnings.length ? ` · ${warnings.join(' ')}` : ''}`,
     );
   };
 
@@ -255,7 +255,7 @@ export function TopMenuBar() {
           flushSync(() => setOpeningSpine(true));
           fileInputRef.current?.click();
         }}
-        title="Import Spine 4.2 JSON with atlas and images"
+        title="Import Spine 4.2/4.3 JSON with atlas and images"
       >
         Import Spine…
       </button>

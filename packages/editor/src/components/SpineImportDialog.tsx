@@ -9,7 +9,7 @@ export function SpineImportDialog({
 }: {
   input: SpineFiles;
   onClose: () => void;
-  onImport: (project: BoneByBoneProject) => Promise<void>;
+  onImport: (project: BoneByBoneProject, warnings: string[]) => Promise<void>;
 }) {
   const names = spineSkinNames(input.json);
   const [skin, setSkin] = useState(names.includes('default') ? 'default' : (names[0] ?? 'default'));
@@ -26,8 +26,8 @@ export function SpineImportDialog({
     setBusy(true);
     setError('');
     try {
-      const project = await prepareSpineProject({ ...input, files }, skin);
-      await onImport(project);
+      const { project, warnings } = await prepareSpineProject({ ...input, files }, skin);
+      await onImport(project, warnings);
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -116,7 +116,7 @@ export function SpineImportDialog({
           reported before replacing the project.
         </p>
         <p className="my-3 text-xs text-neutral-400">
-          Spine 4.2 JSON. Constraints, special bone inheritance, Spine shear, linked meshes, sequences and
+          Spine 4.2/4.3 JSON. Constraints, special bone inheritance, Spine shear, linked meshes, sequences and
           independent per-influence deformation are not supported yet.
         </p>
         {error && (

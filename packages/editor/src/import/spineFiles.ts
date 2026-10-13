@@ -8,7 +8,7 @@ export interface SpineFiles {
 export async function readSpineFiles(files: File[]): Promise<SpineFiles> {
   if (files.some((f) => /\.(spine|skel)$/i.test(f.name)))
     throw new Error(
-      'Choose a Spine 4.2 JSON export, atlas and images. Original .spine projects and binary .skel exports are not supported yet.',
+      'Choose a Spine 4.2 or 4.3 JSON export, atlas and images. Original .spine projects and binary .skel exports are not supported yet.',
     );
   const json = files.filter((f) => /\.json$/i.test(f.name));
   if (json.length !== 1)
@@ -57,7 +57,10 @@ async function png(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /** Prepare and validate every local image before touching the open project. */
-export async function prepareSpineProject(input: SpineFiles, skin: string): Promise<BoneByBoneProject> {
+export async function prepareSpineProject(
+  input: SpineFiles,
+  skin: string,
+): Promise<{ project: BoneByBoneProject; warnings: string[] }> {
   const imported = importSpineJson(input.json, skin);
   const atlases = input.files.filter((f) => /\.(atlas|txt)$/i.test(f.name));
   if (atlases.length > 1) throw new Error('Select one atlas file; it may contain multiple pages.');
@@ -121,7 +124,7 @@ export async function prepareSpineProject(input: SpineFiles, skin: string): Prom
       }
       imported.document.assetManifest[id]!.dataUrl = await dataUrl(blob);
     }
-    return projectFromLegacy(imported.document, input.name);
+    return { project: projectFromLegacy(imported.document, input.name), warnings: imported.warnings };
   } finally {
     for (const page of pages.values()) page.close();
   }

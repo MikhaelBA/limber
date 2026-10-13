@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as spine from '@esotericsoftware/spine-core';
+import { grid43 } from '../../../fixtures/spine-import/grid43.mjs';
 import {
   importSpineJson,
   spineSkinNames,
@@ -113,6 +114,53 @@ describe('Spine import, verified against the official 4.2 runtime', () => {
   it('preserves event scalar payloads', () => {
     const event = load().document.animations[0]!.timelines.find((t) => t.kind === 'event');
     expect(event?.keyframes[0]).toMatchObject({ eventName: 'hello', payload: 'Spine imported' });
+  });
+  it('imports 4.3 grid meshes without changing vertex/UV/triangle or sparse Deform indices', () => {
+    const raw = grid43(),
+      imported = importSpineJson(JSON.stringify(raw));
+    const mesh = imported.document.skeleton.attachments[0]!;
+    expect(mesh.meshVertices?.length).toBe(2146);
+    expect(mesh.meshUVs).toEqual(raw.skins[0]!.attachments.panel.panel.uvs);
+    expect(mesh.meshTriangles).toEqual(raw.skins[0]!.attachments.panel.panel.triangles);
+    expect(mesh.meshHull?.length).toBe(128);
+    expect(imported.warnings[0]).toMatch(/128 vertices; export declared 1073/);
+    const k = raw.animations.idle.attachments.default.panel.panel.deform[1]!;
+    const track = imported.document.animations[0]!.timelines[0]!;
+    if (track.kind !== 'deform') throw new Error('Missing Deform');
+    expect(track.keyframes[1]!.offsets?.slice(k.offset!, k.offset! + 3)).toEqual([-15, 18, 12]);
+    const atlas = new spine.TextureAtlas('test.png\nsize: 8,8\npanel\nbounds: 0,0,8,8\n');
+    // The shared rotate/scale/mesh/Deform subset was also reviewed in the
+    // official 4.3 reader. The pinned test runtime independently checks poses.
+    const official = new spine.Skeleton(
+      new spine.SkeletonJson(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(raw),
+    );
+    for (const animation of imported.document.animations)
+      for (const time of [0, 0.15, 0.3, 0.6, 1, 1.5, 2]) {
+        const native = new Skeleton(imported.document.skeleton);
+        for (const t of animation.timelines) applyTimeline(t, native, time, 0, 1, null, animation.name);
+        solveFK(native.data, native.boneIndexMap, native.pose);
+        updateSkinning(native);
+        official.setToSetupPose();
+        official.data
+          .findAnimation(animation.name)!
+          .apply(official, 0, time, false, [], 1, spine.MixBlend.replace, spine.MixDirection.mixIn);
+        official.updateWorldTransform(spine.Physics.none);
+        const attachment = official.slots[0]!.getAttachment() as spine.MeshAttachment,
+          output = new Float32Array(attachment.worldVerticesLength);
+        attachment.computeWorldVertices(official.slots[0]!, 0, output.length, output, 0, 2);
+        const actual = native.pose.attachments.get(mesh.id)!.verts;
+        for (let i = 0; i < actual.length; i++)
+          expect(actual[i]).toBeCloseTo(i % 2 ? -output[i]! : output[i]!, 3);
+      }
+  });
+  it.each(['constraints', 'sliders', 'folders'])('does not silently ignore 4.3 %s', (field) => {
+    const raw = { ...grid43(2, 2), [field]: [{ name: 'unsupported' }] };
+    expect(() => importSpineJson(JSON.stringify(raw))).toThrow(new RegExp(`${field} is not supported`));
+  });
+  it('rejects invalid triangles even when hull metadata is repaired', () => {
+    const raw = grid43(2, 2);
+    raw.skins[0]!.attachments.panel.panel.triangles[0] = 99;
+    expect(() => importSpineJson(JSON.stringify(raw))).toThrow(/in-range/);
   });
   it('preserves static inclusive clipping ends and rejects order changes that alter their boundary', () => {
     const raw = structuredClone(source);

@@ -6,6 +6,7 @@ import { solveFK } from '../skeleton/FKSolver';
 import { validateDeformTimelines } from '../animation/validateDeforms';
 import { validateAnimationEvents } from '../animation/eventPayload';
 import { invertAffine, multiplyAffine } from '../math/affine';
+import { validateMeshTopology } from '@limber/mesh';
 
 type Obj = Record<string, unknown>;
 const rad = Math.PI / 180;
@@ -89,6 +90,7 @@ export interface SpineImportResult {
   /** Texture ID -> local image or atlas region name. No network URLs are loaded. */
   images: Map<string, string>;
   skin: string;
+  warnings: string[];
 }
 
 function skins(root: Obj): Map<string, Obj> {
@@ -97,7 +99,7 @@ function skins(root: Obj): Map<string, Obj> {
     const skin = obj(v, 'Skin'),
       name = str(skin.name, 'Skin name');
     if (result.has(name)) fail(`Duplicate skin "${name}".`);
-    absent(skin, ['bones', 'ik', 'transform', 'path', 'physics'], `Skin "${name}"`);
+    absent(skin, ['bones', 'ik', 'transform', 'path', 'physics', 'constraints'], `Skin "${name}"`);
     result.set(name, obj(skin.attachments ?? {}, 'Skin attachments'));
   }
   return result;
@@ -105,8 +107,11 @@ function skins(root: Obj): Map<string, Obj> {
 export function spineSkinNames(json: string): string[] {
   const root = obj(JSON.parse(json), 'Spine JSON');
   const header = obj(root.skeleton, 'Spine header');
-  if (!/^4\.2\./.test(str(header.spine, 'Spine version')))
-    fail('Use a Spine 4.2 JSON export. Other versions and .spine/.skel files are not supported yet.');
+  const version = str(header.spine, 'Spine version');
+  if (!/^4\.[23]\./.test(version))
+    fail(
+      `Spine ${version} JSON is not supported. Use a Spine 4.2 or 4.3 JSON export; .spine/.skel files are not supported yet.`,
+    );
   return [...skins(root).keys()];
 }
 
@@ -118,7 +123,12 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
   const root = obj(JSON.parse(json), 'Spine JSON'),
     available = skins(root);
   if (available.size && !available.has(selectedSkin)) fail(`Skin "${selectedSkin}" was not found.`);
-  absent(root, ['ik', 'transform', 'path', 'physics'], 'Skeleton constraints');
+  absent(
+    root,
+    ['ik', 'transform', 'path', 'physics', 'constraints', 'sliders', 'folders'],
+    'Skeleton features',
+  );
+  const warnings: string[] = [];
   const skeleton: SkeletonData = {
     bones: [],
     slots: [],
@@ -134,7 +144,7 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
     if (boneMap.has(name)) fail(`Duplicate bone "${name}".`);
     if (b.parent !== undefined && !boneMap.has(str(b.parent, 'Bone parent')))
       fail(`Missing or unordered parent of "${name}".`);
-    if ((b.transform ?? b.inherit ?? 'normal') !== 'normal')
+    if (String(b.transform ?? b.inherit ?? 'normal').toLowerCase() !== 'normal')
       fail(`Bone "${name}" uses unsupported transform inheritance.`);
     absent(b, ['skin'], `Bone "${name}"`);
     if (num(b.shearX) || num(b.shearY))
@@ -165,6 +175,8 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
     if (!bone) fail(`Missing bone for slot "${name}".`);
     if (skeleton.slots.some((s) => s.name === name)) fail(`Duplicate slot "${name}".`);
     absent(s, ['dark'], `Slot "${name}"`);
+    if (s.visible !== undefined && s.visible !== true)
+      fail(`Slot "${name}" has unsupported setup visibility.`);
     const blend = s.blend ?? 'normal';
     if (!['normal', 'additive', 'add'].includes(String(blend)))
       fail(`Slot "${name}" uses unsupported ${String(blend)} blend.`);
@@ -201,7 +213,7 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
         type = a.type ?? 'region';
       if (!['region', 'mesh', 'boundingbox', 'clipping'].includes(String(type)))
         fail(`Attachment "${key}" uses unsupported ${String(type)}.`);
-      absent(a, ['sequence', 'parent'], `Attachment "${key}"`);
+      absent(a, ['sequence', 'parent', 'source', 'inverse'], `Attachment "${key}"`);
       if (a.color !== undefined && color(a.color) !== 0xffffffff && (type === 'region' || type === 'mesh'))
         fail(`Attachment "${key}" has an unsupported attachment tint.`);
       const id = `spine:attachment:${JSON.stringify([slotName, key])}`;
@@ -303,7 +315,22 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
           attachment.meshTriangles = nums(a.triangles, 'Mesh triangles');
           const hull = num(a.hull);
           if (!Number.isInteger(hull) || hull < 0 || hull > count) fail(`Invalid hull for "${key}".`);
-          if (hull) attachment.meshHull = Array.from({ length: hull }, (_, i) => i);
+          // Hull is editor metadata. Rendering and Deform reference the triangle
+          // vertex indices; never reorder those indices to repair a stale hull.
+          attachment.meshHull = validateMeshTopology({
+            vertices: attachment.meshVertices!,
+            triangles: attachment.meshTriangles!,
+            uvs: uv,
+          });
+          const boundary = new Set(attachment.meshHull);
+          if (
+            hull &&
+            (hull !== boundary.size ||
+              Array.from({ length: hull }, (_, i) => i).some((i) => !boundary.has(i)))
+          )
+            warnings.push(
+              `Mesh "${key}": boundary reconstructed from triangles (${attachment.meshHull.length} vertices; export declared ${hull}).`,
+            );
         }
         if (type === 'clipping') {
           const end = a.end === undefined ? null : skeleton.slots.find((s) => s.name === a.end);
@@ -560,5 +587,10 @@ export function importSpineJson(json: string, selectedSkin = 'default'): SpineIm
   }
   validateDeformTimelines(skeleton, animations);
   validateAnimationEvents(animations);
-  return { document: { skeleton, animations, assetManifest: manifest }, images, skin: selectedSkin };
+  return {
+    document: { skeleton, animations, assetManifest: manifest },
+    images,
+    skin: selectedSkin,
+    warnings,
+  };
 }

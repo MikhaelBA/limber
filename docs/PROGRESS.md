@@ -1953,3 +1953,39 @@ published Pages site, including selected/default skin fallback, exact rotated/tr
 texture pixels, animated weighted artwork, native Save/Open and isolation of missing
 assets, unsupported constraints, nonrepresentable clipping/order and .spine input.
 No source imports or browser assertions were removed for published acceptance.
+
+## 14 October 2026 Spine 4.3 social-masks import repair
+
+The supplied curtain-masks export is Spine 4.3.26, with two bones, one 1073-vertex
+rigid mesh, an eight-second idle clip (65 Deform keys) and a 0.6-second intro clip
+(rotation and scale). The original version gate rejected it. A second reproduction
+found stale hull metadata: all 1073 grid vertices were declared as the hull, while
+the triangles have a valid 128-vertex boundary. Changing only the version would
+therefore still fail native geometry validation.
+
+The importer now accepts the supported common 4.2/4.3 schema, derives mesh boundaries
+from validated triangles without reordering vertices/UVs/triangles/Deform indices,
+and reports repaired hull metadata in its import receipt. Malformed triangle disks
+still fail. New 4.3 constraints/sliders/folders, skin constraints, special inheritance,
+linked sources, inverse clipping and hidden setup slots are explicitly rejected;
+accepting 4.3 is not permission to silently omit new runtime semantics.
+
+Official 4.3 reader/animation source was checked for the shared mesh, Deform,
+rotate/scale and inheritance defaults. A hand-authored 1073-vertex fixture compares
+all posed vertices against the existing test-only runtime. The new browser workflow
+checks the same grid, sparse odd-offset Deform, PMA texture restoration, idle/intro
+artwork and native Save/Open. Its optional local-file mode also opened the actual
+supplied JSON/atlas/PNG and saved a self-contained native project locally. The user
+project and image bytes are not included in the committed regression fixture.
+
+Both synthetic and actual-file development workflows passed. Complete source,
+production and published-site validation are recorded below after verification.
+Phase 10 Unity remains on hold.
+
+Local source validation passed 745 tests in 98 files, lint, formatting, TypeScript,
+architecture boundaries and both builds. Three affected development acceptances
+passed (4.2 import, synthetic 4.3 grid and the actual supplied files). All eleven
+production workflows passed under `/limber/`; the actual supplied JSON/atlas/PNG
+also passed independently against that built artifact. The saved native project
+retains 1073 vertex positions, original UV/triangle indices, all 65 idle Deform
+keys and both clips. Publication verification follows after commit/push.
