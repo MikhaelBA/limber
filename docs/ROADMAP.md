@@ -256,6 +256,6 @@ Phase 10 Unity remains on hold.
 - [x] Add colored vector Hierarchy icons for roots, ordinary bones, point controls and IK targets.
 - [x] Verify real mouse drag, visible layer pixels, color pixels, icons and Save/Open.
 - [x] Complete source, performance and eight production browser workflows.
-- [ ] Commit/push, verify remote CI/deployment and repeat organization acceptance on the live site.
+- [x] Commit/push, verify remote CI/deployment and repeat organization acceptance on the live site (632cdf4, run 38362324580).
 
 Phase 10 Unity remains on hold.
