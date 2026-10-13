@@ -244,3 +244,18 @@ Phase 10 Unity remains on hold.
 - [x] Publish and verify remote CI, deployment and actual published-site selection pixels (446bcd3, run 38328245305).
 
 Phase 10 Unity remains on hold.
+
+## Rig organization controls (13 October 2026)
+
+- [x] Add slot drag-and-drop insertion and explicit front/back controls in Hierarchy.
+- [x] Show the current posed slot order in Animate; change only the current draw-order key.
+- [x] Preserve Setup order, other clips and earlier keys during animated reordering.
+- [x] Support long-distance Setup moves with identity-based key remapping and one Undo step.
+- [x] Keep draw-order redo at its captured time after scrubbing or changing clips.
+- [x] Add saved RGB bone guide colors, reset, Undo/Redo and malformed-color validation.
+- [x] Add colored vector Hierarchy icons for roots, ordinary bones, point controls and IK targets.
+- [x] Verify real mouse drag, visible layer pixels, color pixels, icons and Save/Open.
+- [x] Complete source, performance and eight production browser workflows.
+- [ ] Commit/push, verify remote CI/deployment and repeat organization acceptance on the live site.
+
+Phase 10 Unity remains on hold.

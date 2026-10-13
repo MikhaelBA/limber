@@ -148,7 +148,11 @@ describe('native runtime v1 compilation and strict ingestion', () => {
     linked.meshTriangles = owner.meshTriangles;
     linked.meshHull = owner.meshHull;
     Object.assign(original, { internalNotes: 'private', privateRecovery: { secret: 'private' } });
-    Object.assign(rig.skeleton.bones[0]!, { selected: true, sourcePath: 'C:/private/art.psd' });
+    Object.assign(rig.skeleton.bones[0]!, {
+      color: 0x8a4eff,
+      selected: true,
+      sourcePath: 'C:/private/art.psd',
+    });
     Object.assign(rig.animations[0]!, { editorZoom: 42 });
     const before = structuredClone(original),
       shipped = compileRuntime(original).program;
@@ -159,6 +163,7 @@ describe('native runtime v1 compilation and strict ingestion', () => {
     const shippedRig = shipped.artboards[0]!.nodes.find((n) => n.type === 'rig')!;
     expect(shippedRig.type).toBe('rig');
     if (shippedRig.type !== 'rig') throw new Error('Missing rig.');
+    expect(shippedRig.skeleton.bones[0]).not.toHaveProperty('color');
     const shippedLink = shippedRig.skeleton.attachments.find((a) => a.id === linked.id)!;
     expect(shippedLink.meshSourceId).toBe(linked.meshSourceId);
     expect(shippedLink).not.toHaveProperty('meshVertices');

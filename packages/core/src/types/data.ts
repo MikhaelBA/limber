@@ -24,6 +24,8 @@ export interface BoneData {
   setupPose: Transform;
   /** Visual bone length (gizmo drawing / IK reach). Not a transform. */
   length: number;
+  /** Authoring-only RGB guide color; omitted from the shipping runtime format. */
+  color?: number;
 }
 
 /**

@@ -42,6 +42,7 @@ try {
     'scene-ui.mjs',
     'rig-authoring.mjs',
     'rig-pointer-workflow.mjs',
+    'rig-organization.mjs',
     'character-pins.mjs',
     'affine-pins.mjs',
     'transform-follow.mjs',

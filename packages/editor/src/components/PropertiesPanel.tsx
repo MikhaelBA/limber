@@ -10,6 +10,7 @@ import {
 } from '../commands/animationCommands';
 import {
   SetBonePropsCommand,
+  SetBoneColorCommand,
   wouldCreateCycle,
   ReparentBoneCommand,
   type BonePropsSnapshot,
@@ -512,6 +513,26 @@ export function PropertiesPanel() {
       {bone && !slot && (
         <div className="flex flex-col gap-1.5 p-2">
           <TextField label="Name" value={bone.name} onCommit={(name) => editBone((s) => (s.name = name))} />
+          <label className="flex items-center gap-2">
+            <span className="w-16 shrink-0 text-xs text-neutral-400">Color</span>
+            <input
+              type="color"
+              aria-label="Bone color"
+              value={'#' + (bone.color ?? 0x64db85).toString(16).padStart(6, '0')}
+              onChange={(e) => {
+                const color = parseInt(e.target.value.slice(1), 16);
+                if (color !== bone.color) execute(new SetBoneColorCommand(engine, bone.id, color));
+              }}
+              className="h-6 w-12 cursor-pointer rounded bg-neutral-800"
+            />
+            <button
+              className="rounded bg-neutral-800 px-2 py-0.5 text-xs disabled:opacity-30"
+              disabled={bone.color === undefined}
+              onClick={() => execute(new SetBoneColorCommand(engine, bone.id, undefined))}
+            >
+              Reset color
+            </button>
+          </label>
           <div className="my-1 h-px bg-neutral-800" />
           {/* §5.6: Animate mode shows/keys the CURRENT animated pose; Setup edits the rig. */}
           <BoneTransformFields engine={engine} boneId={bone.id} />

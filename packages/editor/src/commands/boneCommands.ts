@@ -18,6 +18,35 @@ function cloneTransform(t: Transform): Transform {
   };
 }
 
+/** Guide color never changes transforms, solver state or animation tracks. */
+export class SetBoneColorCommand implements Command {
+  readonly label = 'Set Bone Color';
+  private readonly before: number | undefined;
+  constructor(
+    private engine: EditorEngine,
+    private boneId: string,
+    private color: number | undefined,
+  ) {
+    if (color !== undefined && (!Number.isInteger(color) || color < 0 || color > 0xffffff))
+      throw new Error('Choose a valid RGB bone color.');
+    const bone = engine.skeleton.data.bones.find((b) => b.id === boneId);
+    if (!bone) throw new Error('Bone no longer exists.');
+    this.before = bone.color;
+  }
+  do(): void {
+    this.apply(this.color);
+  }
+  undo(): void {
+    this.apply(this.before);
+  }
+  private apply(color: number | undefined): void {
+    const bone = this.engine.skeleton.data.bones.find((b) => b.id === this.boneId);
+    if (!bone) throw new Error('Bone no longer exists.');
+    if (color === undefined) delete bone.color;
+    else bone.color = color;
+  }
+}
+
 function uniqueBoneName(data: SkeletonData, base: string): string {
   const names = new Set(data.bones.map((b) => b.name));
   let name = base;

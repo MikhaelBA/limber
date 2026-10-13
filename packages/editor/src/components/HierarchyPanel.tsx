@@ -1,6 +1,7 @@
 import { RigHelperPanel } from './RigHelperPanel';
 import { MarkerPanel } from './MarkerPanel';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { BoneIcon, type BoneIconKind } from './BoneIcon';
 import { wouldCreateCycle } from '../commands/boneCommands';
 import { useEngine } from '../hooks/useEngine';
 import { useEditorStore } from '../store/editorStore';
@@ -8,7 +9,6 @@ import { AddBoneCommand, RemoveBoneCommand, ReparentBoneCommand } from '../comma
 import { AddSlotCommand, RemoveSlotCommand, ReorderSlotCommand } from '../commands/slotCommands';
 import { AddIKConstraintCommand } from '../commands/ikCommands';
 import { KeyDrawOrderCommand } from '../commands/animationCommands';
-import { CompositeCommand, type Command } from '../history/history';
 
 interface Row {
   id: string;
@@ -30,9 +30,35 @@ export function HierarchyPanel() {
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const draggedIdRef = useRef<string | null>(null);
+  const draggedSlotRef = useRef<string | null>(null);
+  const [slotDrop, setSlotDrop] = useState<{ id: string; after: boolean } | null>(null);
+  const [, refreshOrder] = useState(0);
+  // Only stepped order changes re-render React; ordinary playback ticks do not.
+  useEffect(() => {
+    let last = '';
+    return engine.onTransient('time', () => {
+      const sk = engine.skeleton;
+      const signature = JSON.stringify(
+        useEditorStore.getState().mode === 'animate'
+          ? Array.from(sk.pose.slotOrder, (i) => sk.data.slots[i]!.id)
+          : sk.data.slots.map((s) => s.id),
+      );
+      if (signature !== last) {
+        last = signature;
+        refreshOrder((v) => v + 1);
+      }
+    });
+  }, [engine]);
 
   const data = engine.skeleton.data;
+  const bonesById = new Map(data.bones.map((b) => [b.id, b]));
   const boneName = new Map(data.bones.map((b) => [b.id, b.name]));
+  const targets = new Set([
+    ...data.ikConstraints.flatMap((c) => [c.targetId, ...(c.poleVectorId ? [c.poleVectorId] : [])]),
+    ...(data.transformConstraints ?? []).map((c) => c.targetId),
+  ]);
+  const slots =
+    mode === 'animate' ? Array.from(engine.skeleton.pose.slotOrder, (i) => data.slots[i]!) : data.slots;
 
   // data.bones is topologically sorted ⇒ parents come first, so a single pass
   // with an id→depth map builds the flat indented tree.
@@ -85,23 +111,35 @@ export function HierarchyPanel() {
     return dragged !== null && dragged !== targetId && !wouldCreateCycle(data, dragged, targetId);
   };
 
-  /**
-   * Reorder = setup-data edit; in Animate mode it also keys the NEW default
-   * order at the playhead (§5.6 auto-key), as ONE undo step. The explicit
-   * identity order is passed because pose.slotOrder still holds the
-   * previously applied timeline permutation at that instant.
-   */
-  const reorderSlot = (slotId: string, delta: -1 | 1) => {
-    const cmds: Command[] = [new ReorderSlotCommand(engine, slotId, delta)];
-    if (useEditorStore.getState().mode === 'animate' && engine.currentAnimation) {
-      cmds.push(
-        new KeyDrawOrderCommand(
-          engine,
-          engine.skeleton.data.slots.map((_, i) => i),
-        ),
-      );
+  const reorderSlot = (slotId: string, to: number) => {
+    engine.pause();
+    useEditorStore.getState().setPlaying(false);
+    engine.tick(0);
+    const current =
+      mode === 'animate'
+        ? Array.from(engine.skeleton.pose.slotOrder, (i) => data.slots[i]!.id)
+        : data.slots.map((s) => s.id);
+    const at = current.indexOf(slotId);
+    if (at < 0 || at === to || to < 0 || to >= current.length) return;
+    if (mode === 'animate' && !engine.currentAnimation) {
+      setStatus('Select an animation to key draw order, or use Setup for the default order.');
+      return;
     }
-    execute(new CompositeCommand(`Reorder Slot`, cmds));
+    try {
+      if (mode === 'animate') {
+        current.splice(to, 0, current.splice(at, 1)[0]!);
+        execute(
+          new KeyDrawOrderCommand(
+            engine,
+            current.map((id) => engine.skeleton.slotIndexMap.get(id)!),
+          ),
+        );
+      } else execute(new ReorderSlotCommand(engine, slotId, to - at));
+      selectSlot(slotId);
+      setStatus(mode === 'animate' ? 'Draw order keyed at playhead.' : 'Default draw order updated.');
+    } catch (error) {
+      setStatus((error as Error).message);
+    }
   };
 
   const addSlot = () => {
@@ -183,6 +221,14 @@ export function HierarchyPanel() {
         {rows.map((row) => {
           const isSelected = row.id === selected;
           const isDragOver = row.id === dragOverId;
+          const bone = bonesById.get(row.id)!;
+          const icon: BoneIconKind = targets.has(row.id)
+            ? 'target'
+            : bone.length === 0
+              ? 'point'
+              : bone.parentId === null
+                ? 'root'
+                : 'bone';
           return (
             <div
               key={row.id}
@@ -211,7 +257,7 @@ export function HierarchyPanel() {
               }}
               onClick={() => select(row.id)}
               style={{ paddingLeft: `${row.depth * 14 + 6}px` }}
-              className={`cursor-default truncate rounded py-0.5 pr-2 text-sm ${
+              className={`flex cursor-default items-center gap-1.5 rounded py-0.5 pr-2 text-sm ${
                 isSelected
                   ? 'bg-sky-600/30 text-sky-100 ring-1 ring-sky-500/40'
                   : isDragOver
@@ -219,7 +265,8 @@ export function HierarchyPanel() {
                     : 'text-neutral-300 hover:bg-neutral-800'
               }`}
             >
-              {row.name}
+              <BoneIcon kind={icon} color={bone.color ?? 0x64db85} />
+              <span className="truncate">{row.name}</span>
             </div>
           );
         })}
@@ -240,11 +287,91 @@ export function HierarchyPanel() {
         {data.slots.length === 0 && (
           <p className="p-2 text-xs text-neutral-500">No slots. Drop an image on the viewport or use ＋.</p>
         )}
-        {data.slots.map((slot, i) => {
+        {slots.length > 0 && (
+          <p className="px-2 pb-1 text-[10px] text-neutral-400">
+            Back → front · drag slots to reorder{mode === 'animate' && ' · auto-key'}
+          </p>
+        )}
+        {slots.length > 0 &&
+          (() => {
+            const at = slots.findIndex((s) => s.id === selectedSlot);
+            return (
+              <div className="mb-1 flex flex-wrap gap-1 px-2" role="group" aria-label="Slot draw order">
+                {(
+                  [
+                    ['Send to back', 0],
+                    ['Move backward', at - 1],
+                    ['Move forward', at + 1],
+                    ['Bring to front', slots.length - 1],
+                  ] as const
+                ).map(([label, to]) => (
+                  <button
+                    key={label}
+                    className="rounded bg-neutral-800 px-1.5 py-1 text-[10px] hover:bg-neutral-700 disabled:opacity-30"
+                    disabled={at < 0 || at === to || to < 0 || to >= slots.length}
+                    onClick={() => {
+                      if (selectedSlot) reorderSlot(selectedSlot, to);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        {slots.map((slot, i) => {
           const isSlotSel = slot.id === selectedSlot;
           return (
             <div
               key={slot.id}
+              data-testid="slot-row"
+              data-slot-id={slot.id}
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                engine.pause();
+                useEditorStore.getState().setPlaying(false);
+                draggedSlotRef.current = slot.id;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('application/x-bbb-slot', slot.id);
+                selectSlot(slot.id);
+              }}
+              onDragEnd={() => {
+                draggedSlotRef.current = null;
+                setSlotDrop(null);
+              }}
+              onDragOver={(e) => {
+                e.stopPropagation();
+                if (draggedSlotRef.current && draggedSlotRef.current !== slot.id) {
+                  e.preventDefault();
+                  setSlotDrop({
+                    id: slot.id,
+                    after:
+                      e.clientY >=
+                      e.currentTarget.getBoundingClientRect().top + e.currentTarget.clientHeight / 2,
+                  });
+                }
+              }}
+              onDragLeave={() => setSlotDrop((cur) => (cur?.id === slot.id ? null : cur))}
+              onDrop={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const id = draggedSlotRef.current;
+                if (id && id !== slot.id) {
+                  const remaining = slots.filter((s) => s.id !== id);
+                  const after =
+                    e.clientY >=
+                    e.currentTarget.getBoundingClientRect().top + e.currentTarget.clientHeight / 2;
+                  reorderSlot(id, remaining.findIndex((s) => s.id === slot.id) + (after ? 1 : 0));
+                }
+                draggedSlotRef.current = null;
+                setSlotDrop(null);
+              }}
+              style={
+                slotDrop?.id === slot.id
+                  ? { boxShadow: `inset 0 ${slotDrop.after ? '-2' : '2'}px #ffbe45` }
+                  : undefined
+              }
               onClick={() => selectSlot(slot.id)}
               className={`flex cursor-default items-center gap-1 rounded py-0.5 pl-2 pr-1 text-sm ${
                 isSlotSel
@@ -264,7 +391,7 @@ export function HierarchyPanel() {
                   disabled={i === 0}
                   onClick={(e) => {
                     e.stopPropagation();
-                    reorderSlot(slot.id, -1);
+                    reorderSlot(slot.id, i - 1);
                   }}
                 >
                   ↑
@@ -275,7 +402,7 @@ export function HierarchyPanel() {
                   disabled={i === data.slots.length - 1}
                   onClick={(e) => {
                     e.stopPropagation();
-                    reorderSlot(slot.id, 1);
+                    reorderSlot(slot.id, i + 1);
                   }}
                 >
                   ↓

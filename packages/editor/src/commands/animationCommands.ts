@@ -657,14 +657,14 @@ export class DeleteSlotColorKeyframeCommand implements Command {
 
 /**
  * Keys the CURRENT draw order (pose.slotOrder permutation) at the playhead as
- * a stepped keyframe. `explicitOrder` overrides the capture — the animate-mode
- * reorder flow passes the fresh identity order because pose.slotOrder is
- * still holding the previously APPLIED (timeline) permutation at that moment.
+ * a stepped keyframe. `explicitOrder` supports editing the current posed order
+ * without changing Setup. Capture time as well so redo after scrubbing stays put.
  */
 export class KeyDrawOrderCommand implements Command {
   readonly label = 'Key Draw Order';
   private readonly before: DrawOrderSnapshot;
   private readonly slotOrder: number[];
+  private readonly time: number;
 
   constructor(
     private engine: EditorEngine,
@@ -672,6 +672,7 @@ export class KeyDrawOrderCommand implements Command {
   ) {
     const anim = requireAnimation(engine);
     this.before = snapshotDrawOrder(anim);
+    this.time = engine.currentTime;
     this.slotOrder = [...(explicitOrder ?? engine.skeleton.pose.slotOrder)];
   }
 
@@ -683,15 +684,15 @@ export class KeyDrawOrderCommand implements Command {
       anim.timelines.push(tl);
     }
     const kfs = tl.keyframes;
-    const at = kfs.findIndex((kf) => Math.abs(kf.time - this.engine.currentTime) < 1e-6);
+    const at = kfs.findIndex((kf) => Math.abs(kf.time - this.time) < 1e-6);
     const kf: DrawOrderKeyframe = {
-      time: this.engine.currentTime,
+      time: this.time,
       slotOrder: [...this.slotOrder],
       curve: steppedCurve(),
     };
     if (at >= 0) kfs[at] = kf;
     else {
-      const insert = kfs.findIndex((k) => k.time > this.engine.currentTime);
+      const insert = kfs.findIndex((k) => k.time > this.time);
       if (insert === -1) kfs.push(kf);
       else kfs.splice(insert, 0, kf);
     }

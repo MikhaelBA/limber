@@ -303,8 +303,9 @@ export class ReorderSlotCommand implements Command {
   constructor(
     private engine: EditorEngine,
     slotId: string,
-    private delta: -1 | 1,
+    private delta: number,
   ) {
+    if (!Number.isInteger(delta)) throw new Error('Slot movement must be an integer.');
     const slot = engine.skeleton.data.slots.find((s) => s.id === slotId);
     if (!slot) throw new Error(`ReorderSlotCommand: slot "${slotId}" not found.`);
     this.slotId = slotId;
@@ -339,6 +340,7 @@ export class ReorderSlotCommand implements Command {
       const oldIdOrder = data.slots.map((s) => s.id);
       const moved = data.slots.splice(at, 1)[0]!;
       data.slots.splice(to, 0, moved);
+      const newIndices = new Map(data.slots.map((slot, index) => [slot.id, index]));
 
       // Re-map drawOrder keyframes: permutation entries are draw-position -> slot
       // INDEX in the OLD space; translate via the slot id at that old index.
@@ -348,7 +350,7 @@ export class ReorderSlotCommand implements Command {
           for (const kf of tl.keyframes) {
             const remapped = kf.slotOrder.map((oldIndex) => {
               const id = oldIdOrder[oldIndex];
-              return id === undefined ? oldIndex : data.slots.findIndex((s) => s.id === id);
+              return id === undefined ? oldIndex : (newIndices.get(id) ?? -1);
             });
             kf.slotOrder = remapped.every((i) => i >= 0) ? remapped : kf.slotOrder;
           }

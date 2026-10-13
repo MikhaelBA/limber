@@ -478,6 +478,40 @@ describe('SetAttachmentPropsCommand', () => {
 });
 
 describe('ReorderSlotCommand', () => {
+  it('moves across several slots and restores every keyed visual order exactly', () => {
+    const { engine, anim } = animEngine();
+    const root = engine.skeleton.data.bones[0]!.id;
+    for (let i = 0; i < 4; i++) new AddSlotCommand(engine, root).do();
+    new KeyDrawOrderCommand(engine, [3, 1, 0, 2]).do();
+    const before = structuredClone(engine.document);
+    const ids = engine.skeleton.data.slots.map((s) => s.id);
+    const command = new ReorderSlotCommand(engine, ids[3]!, -3);
+    command.do();
+    expect(engine.skeleton.data.slots.map((s) => s.id)).toEqual([ids[3], ids[0], ids[1], ids[2]]);
+    expect(drawOrderTl(anim)!.keyframes[0]!.slotOrder).toEqual([0, 2, 1, 3]);
+    command.undo();
+    expect(engine.document).toEqual(before);
+    command.do();
+    command.undo();
+    expect(engine.document).toEqual(before);
+  });
+  it('keys only the captured animation time and order when redo follows scrubbing', () => {
+    const { engine, anim } = animEngine();
+    const root = engine.skeleton.data.bones[0]!.id;
+    for (let i = 0; i < 3; i++) new AddSlotCommand(engine, root).do();
+    new KeyDrawOrderCommand(engine, [0, 1, 2]).do();
+    const before = structuredClone(engine.document);
+    engine.currentTime = 1;
+    const command = new KeyDrawOrderCommand(engine, [2, 0, 1]);
+    command.do();
+    const after = structuredClone(engine.document);
+    command.undo();
+    expect(engine.document).toEqual(before);
+    engine.scrub(0);
+    command.do();
+    expect(engine.document).toEqual(after);
+    expect(drawOrderTl(anim)!.keyframes.map((k) => k.time)).toEqual([0, 1]);
+  });
   it('moves the slot in the default draw order and remaps drawOrder keyframes by slot id', () => {
     const { engine, anim } = animEngine();
     const data = engine.skeleton.data;

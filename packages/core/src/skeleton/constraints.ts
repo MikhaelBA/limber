@@ -50,6 +50,11 @@ export function validateConstraints(data: SkeletonData): void {
   const bones = new Map(data.bones.map((bone) => [bone.id, bone]));
   const children = new Map<string, string[]>();
   for (const bone of data.bones) {
+    if (
+      bone.color !== undefined &&
+      (!Number.isInteger(bone.color) || bone.color < 0 || bone.color > 0xffffff)
+    )
+      throw new Error(`Bone "${bone.name}" needs a valid RGB guide color.`);
     if (!Number.isFinite(bone.length) || bone.length < 0 || !Number.isFinite(Math.fround(bone.length)))
       throw new Error(`Bone "${bone.name}" needs a finite nonnegative length.`);
     for (const field of ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'shearX', 'shearY'] as const) {

@@ -1818,3 +1818,37 @@ published Pages site: region/mesh boundaries, Hierarchy/canvas selection, desele
 Setup/Animate, hidden Bones, zoom, changed geometry, Undo, Scene bounds and expanded
 component-instance artwork. No source-module imports or assertions were removed for
 that published-site check.
+
+## 13 October 2026 Rig organization controls
+
+The small existing Draw earlier/later arrows were difficult to discover. Hierarchy now
+supports real slot drag-and-drop with an insertion line, and selected-slot controls for
+Send to back, Move backward, Move forward and Bring to front. The list explicitly runs
+from back to front. Setup changes default slot array order and remaps existing indexed
+keys through slot IDs. Animate displays the currently posed order and keys only the
+current clip/playhead, preserving Setup, other clips and earlier keys. Its list refreshes
+only when the stepped order changes. Reordering pauses playback. Draw-order commands
+capture time as well as permutation so redo after scrubbing does not write at a new time.
+
+Bone Properties has an RGB guide-color picker and Reset color. Optional bone colors are
+validated, saved in the authoring project and reversible through normal history. Custom
+colors appear on unselected canvas bones and their Hierarchy icons; selection/hover and
+weight influence colors retain their interaction roles. Shipping compilation strips the
+editor guide color. Roots, ordinary bones, point controllers and IK/pole/follow targets
+receive distinct small vector icons. The existing native metadata-strip test now checks
+that bone color is excluded from the runtime program.
+
+The organization browser workflow uses real mouse dragging and actual canvas pixels to
+check overlap order, Setup key remapping, isolated animated changes, scrubbing/history,
+Save/Open, color/reset history, visible custom bone color and all four Hierarchy icon
+roles. It runs in development and production without source-module imports. Validation
+and publication results are recorded below when complete. Phase 10 remains on hold.
+
+Local validation passed 726 unit tests in 97 files, lint, architecture boundaries,
+formatting, TypeScript and both builds. The final drag-start pause refinement was
+rechecked through lint, TypeScript, a fresh production build and real pointer/cancel
+acceptance. Six affected development workflows passed (organization, rig pointer,
+selection, smoke, rig authoring and mesh performance). Standard/Heavy CPU submission
+p95 was 1.0/3.0 ms. All eight production workflows passed at `/limber/`, including the
+new organization acceptance and native worker/export ownership checks. The tested
+increment is ready for publication; remote CI/deployment is recorded with delivery.

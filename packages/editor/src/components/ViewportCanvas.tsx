@@ -354,7 +354,7 @@ function wireViewport(
             ? 0xffa028
             : st.hoveredBoneId === bone.id
               ? 0x9cc7ff
-              : 0x64db85;
+              : (bone.color ?? 0x64db85);
       drawRigBone(bonesG, { x: ox, y: oy }, { x: tx, y: ty }, s, color, st.selectedBoneId === bone.id);
     }
     // IK reach lines: chain tip → target, for constraints touching the selection.
